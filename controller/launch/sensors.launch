@@ -1,0 +1,13 @@
+<launch>
+    
+    <include file="$(find controller)/launch/sensors_raw.launch" />
+
+    <group ns="ftsensor_r">
+        <!-- https://answers.ros.org/question/233353/set-delay-between-starting-nodes-within-launch-file/ -->
+        <node pkg="rosservice" type="rosservice" name="grav_comp" args="call /ftsensor_r/set_tool_data -- true -3.0675 0.051" launch-prefix="bash -c 'sleep 1; $0 $@' "/>
+    </group>
+
+    <group ns="ftsensor_l">
+        <node pkg="rosservice" type="rosservice" name="grav_comp" args="call /ftsensor_l/set_tool_data -- true -3.0675 0.051" launch-prefix="bash -c 'sleep 1; $0 $@' "/>
+    </group>
+</launch>

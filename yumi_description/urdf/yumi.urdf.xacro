@@ -8,10 +8,13 @@
   <xacro:include filename="$(find yumi_description)/urdf/yumi.xacro"/>
   <!--Import the yumi servo gripper macro -->
   <xacro:include filename="$(find yumi_description)/urdf/Grippers/yumi_servo_gripper.xacro"/>
+  <!--Import the Schunk Mini40 F/T sensor -->
+  <xacro:include filename="$(find yumi_description)/urdf/Sensors/ftsensor.xacro"/>
   <!-- Import Gazebo plugins -->
   <xacro:include filename="$(find yumi_description)/urdf/Gazebo/gazebo.urdf.xacro"/>
 
   <xacro:property name="yumi_setup" value="$(arg yumi_setup)" />
+  <xacro:property name="yumi_parent" value=" " />
 
   <xacro:if value="${yumi_setup == 'robot_centric'}">
   	<!-- Pure YuMi URDF, with no joints connecting it to any other robot or pedestal. Neither accessories. -->
@@ -33,21 +36,24 @@
     <origin xyz="0 0 0.1" rpy="0 0 0" />
   </xacro:yumi>
 
+  <!--right sensor-->
+  <xacro:schunk_mini40 name="ftsensor_r" parent="yumi_link_7_r">
+    <origin xyz="0 0 0.0284" rpy="0 0 ${PI/2}" />
+  </xacro:schunk_mini40>
+
   <!--right gripper-->
-  <xacro:yumi_servo_gripper name="gripper_r" hardware_interface="hardware_interface/$(arg grippers_interface)" parent="yumi_link_7_r">
-    <origin xyz="0 0 0.007" rpy="0 0 ${PI}" />
+  <xacro:yumi_servo_gripper name="gripper_r" hardware_interface="hardware_interface/$(arg grippers_interface)" parent="ftsensor_r">
+    <origin xyz="0 0 0.004" rpy="0 0 ${PI/2}" />
   </xacro:yumi_servo_gripper>
+
+  <!--left sensor-->
+  <xacro:schunk_mini40 name="ftsensor_l" parent="yumi_link_7_l">
+    <origin xyz="0 0 0.0284" rpy="0 0 ${PI/2}" />
+  </xacro:schunk_mini40>
 
   <!--left gripper-->
-  <xacro:yumi_servo_gripper name="gripper_l" hardware_interface="hardware_interface/$(arg grippers_interface)" parent="yumi_link_7_l">
-    <origin xyz="0 0 0.007" rpy="0 0 ${PI}" />
+  <xacro:yumi_servo_gripper name="gripper_l" hardware_interface="hardware_interface/$(arg grippers_interface)" parent="ftsensor_l">
+    <origin xyz="0 0 0.004" rpy="0 0 ${PI/2}" />
   </xacro:yumi_servo_gripper>
-
-
-
-
-
-
-
 
 </robot>

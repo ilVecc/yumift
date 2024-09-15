@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+
+<robot name="schunk_mini40" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:macro name="schunk_mini40_gazebo" params="name">
+
+    <!-- body -->
+    <gazebo reference="${name}">
+      <material>Gazebo/Light_Grey</material>
+      <mu1>0.2</mu1>
+      <mu2>0.2</mu2>
+    </gazebo>
+
+  </xacro:macro>
+
+</robot>
+

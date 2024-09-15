@@ -1,0 +1,11 @@
+<launch>
+    <group ns="ftsensor_r">
+        <node pkg="netft_utils" type="netft_node" name="netft_node" output="screen" args="192.168.125.167"/>
+        <node pkg="netft_utils" type="netft_utils" name="netft_utils" output="screen" args="yumi_base_link ftsensor_r"/>
+    </group>
+
+    <group ns="ftsensor_l">
+        <node pkg="netft_utils" type="netft_node" name="netft_node" output="screen" args="192.168.125.166"/>
+        <node pkg="netft_utils" type="netft_utils" name="netft_utils" output="screen" args="yumi_base_link ftsensor_l"/>
+    </group>
+</launch>

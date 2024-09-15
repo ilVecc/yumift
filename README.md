@@ -85,6 +85,25 @@ Then to send example trajectories to the trajectory controller run.
 ``` 
 rosrun controller testTrajectories.py 
 ``` 
+One could also send commands through the command line:
+``` 
+rostopic pub /trajectory controller/Trajectory_msg "
+header:
+  seq: 0
+  stamp:
+    secs: 0
+    nsecs: 0
+  frame_id: ''
+trajectory:
+- positionLeft:  [0.4, 0.3, 0.6]
+  positionRight: [0.4, -0.3, 0.6]
+  orientationLeft:  [0, 0, 0, 1]
+  orientationRight: [0, 0, 0, 1]
+  pointTime: 4.0
+mode: 'individual'"
+--once
+``` 
+
 ### Running the customControllerTutorial.py:
 Only run this file in simulation as it only serves as a demonstration purposes i.e. build your own custom controller for 
 your use case. Start by launching the simulation as above. The launch the base.launch, this launches the visualization 

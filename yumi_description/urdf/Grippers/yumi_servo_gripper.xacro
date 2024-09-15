@@ -96,6 +96,7 @@
 
     <link name="${name}_finger_l">
       <xacro:inertial_cuboid mass="0.04" x_length="0.05" y_length="0.05" z_length="0.05" />
+      
       <visual>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>

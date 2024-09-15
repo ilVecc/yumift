@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<robot name="schunk_mini40" xmlns:xacro="http://www.ros.org/wiki/xacro">
+    
+  <!-- Import all Gazebo-customization elements, including Gazebo colors -->
+  <xacro:include filename="$(find yumi_description)/urdf/Sensors/ftsensor.gazebo.xacro" />
+
+  <xacro:macro name="schunk_mini40" params="parent name *origin">
+
+    <!--joint between {parent} and base-->
+    <joint name="${parent}_joint" type="fixed">
+      <xacro:insert_block name="origin"/>
+      <parent link="${parent}"/>
+      <child link="${name}"/>
+    </joint>
+
+    <link name="${name}">
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="0.2"/>
+      <inertia ixx="0.000005" ixy="0" ixz="0" iyy="0.000005" iyz="0" izz="0.0000098"/>
+      </inertial>
+
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://yumi_description/meshes/ftsensor/ftsensor.stl"/>
+        </geometry>
+        <material name="Light_Grey"/>
+      </visual>
+
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://yumi_description/meshes/ftsensor/coarse/ftsensor.stl"/>
+        </geometry>
+        <material name="Light_Grey"/>
+      </collision>
+
+    </link>
+
+     <!--Extensions -->
+    <xacro:yumi_servo_gripper_gazebo name="${name}" />
+
+  </xacro:macro>
+
+</robot>

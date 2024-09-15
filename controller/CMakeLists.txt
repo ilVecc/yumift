@@ -7,17 +7,19 @@ project(controller)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS
+find_package(
+  catkin REQUIRED 
+  COMPONENTS
   roscpp
   rospy
-  sensor_msgs
-  std_msgs
-  geometry_msgs
   kdl_parser
-  abb_egm_msgs
   message_generation
-  abb_rapid_sm_addin_msgs
+  std_msgs
+  sensor_msgs
+  geometry_msgs
+  abb_egm_msgs
   abb_robot_msgs
+  abb_rapid_sm_addin_msgs
   abb_rws_service_provider
 )
 
@@ -60,8 +62,6 @@ add_message_files(
   Kinematics_msg.msg
   Trajectory_point.msg
   Trajectory_msg.msg
-  CartesianVelocityControl_msg.msg
-  PositionAndVelocity_msg.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -119,7 +119,9 @@ catkin_package(
 #  LIBRARIES test_cotroller
 #  CATKIN_DEPENDS roscpp rospy sensor_msgs std_msgs
 #  DEPENDS system_lib
-  CATKIN_DEPENDS message_runtime kdl_parser
+  CATKIN_DEPENDS 
+  message_runtime 
+  kdl_parser
 )
 
 ###########
@@ -129,7 +131,6 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
   ${catkin_INCLUDE_DIRS}
 )
 
@@ -172,10 +173,12 @@ include_directories(
 
 ## Mark executable scripts (Python etc.) for installation
 ## in contrast to setup.py, you can choose the destination
-catkin_install_python(PROGRAMS
-  src/examples/trajectoryControl.py   
-  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-  )
+catkin_install_python(
+  PROGRAMS
+  src/controllers/trajectory_controllers.py   
+  DESTINATION 
+  ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
 
 
 ## Mark executables for installation
@@ -200,11 +203,16 @@ catkin_install_python(PROGRAMS
 # )
 
 ## Mark other files for installation (e.g. launch and bag files, etc.)
-install(FILES
+install(
+  FILES
   base.launch
-  yumiTrajectoryControl.launch
-  # myfile2
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+  yumi_real.launch
+  yumi_sim.launch
+  sensors.launch
+  sensors_comp.launch
+  sensors_tools.launch
+  DESTINATION 
+  ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
 
 #############
@@ -220,8 +228,15 @@ install(FILES
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
 
-add_executable(kdl_kinematics src/Controller/kdl_kinematics.cpp)
-target_link_libraries(kdl_kinematics ${catkin_LIBRARIES})
-add_dependencies(kdl_kinematics controller_generate_messages_cpp)
+add_executable(
+  kdl_kinematics src/core/kdl_kinematics.cpp
+)
+target_link_libraries(
+  kdl_kinematics ${catkin_LIBRARIES}
+)
+add_dependencies(
+  kdl_kinematics 
+  controller_generate_messages_cpp
+)
 
 

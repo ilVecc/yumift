@@ -1,0 +1,7 @@
+<launch>
+
+  <node pkg="controller" type="yumi_simulator.py" name="yumi_simulator" output="screen" />
+
+  <include file="$(find controller)/launch/base.launch" />
+  
+</launch>

@@ -1,9 +1,0 @@
-<launch>
-
-    <include file="$(find abb_robot_bringup_examples)/launch/ex3_rws_and_egm_yumi_robot.launch">
-      <arg name="robot_ip" value="192.168.125.1"/>
-    </include>
-    
-    <include file="$(find controller)/launch/base.launch" />
-
-</launch>

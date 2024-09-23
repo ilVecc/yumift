@@ -4,9 +4,9 @@
   <xacro:include filename="$(find yumi_description)/urdf/Util/materials.xacro" />
   <!-- Import utilities -->
   <xacro:include filename="$(find yumi_description)/urdf/Util/utilities.xacro" />
-  <!--Import the yumi macro -->
+  <!--Import the yumi xacro -->
   <xacro:include filename="$(find yumi_description)/urdf/yumi.xacro"/>
-  <!--Import the yumi servo gripper macro -->
+  <!--Import the yumi servo gripper xacro -->
   <xacro:include filename="$(find yumi_description)/urdf/Grippers/yumi_servo_gripper.xacro"/>
   <!--Import the Schunk Mini40 F/T sensor -->
   <xacro:include filename="$(find yumi_description)/urdf/Sensors/ftsensor.xacro"/>
@@ -26,7 +26,22 @@
     <joint name="world_joint" type="fixed">
       <parent link="world"/>
       <child link="yumi_base_link"/>
-      <origin xyz="0 0 0.1" rpy="0 0 0" />
+      <!-- <origin xyz="0 0 0.1" rpy="0 0 0" /> -->
+      <origin xyz="0.181 0 0" rpy="0 0 0" />
+    </joint>
+    <!-- right gripper -->
+    <link name="yumi_grip_r"/>
+    <joint name="yumi_grip_r_joint" type="fixed">
+      <parent link="yumi_link_7_r"/>
+      <child link="yumi_grip_r"/>
+      <origin xyz="0 0 0.166" rpy="0 0 0" />
+    </joint>
+    <!-- left gripper -->
+    <link name="yumi_grip_l"/>
+    <joint name="yumi_grip_l_joint" type="fixed">
+      <parent link="yumi_link_7_l"/>
+      <child link="yumi_grip_r"/>
+      <origin xyz="0 0 0.166" rpy="0 0 0" />
     </joint>
   </xacro:if>
 

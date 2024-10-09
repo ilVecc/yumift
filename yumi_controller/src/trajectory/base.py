@@ -15,7 +15,7 @@ class Param(object):
         self._fields = list(fields)
     
     @property
-    def state(self):
+    def value(self):
         return self.deriv(0)
     
     @property
@@ -31,14 +31,14 @@ class Param(object):
             return self._fields[order]
         return None
 
+# TODO fix time between 0 and 1 and add a time-scaling/-shifting utility
 TParam = TypeVar("TParam", bound=Type[Param])
 class Trajectory(Generic[TParam], metaclass=ABCMeta):
-    """ Class representing a generic trajectory.
+    """ Class representing a generic trajectory filling the gaps between two points.
     """
     def __init__(self) -> None:
-        """
-        Initialize the trajectory.
-        When subclassing, always call this method at the end of the subclassed .__init__()
+        """ Initialize the trajectory.
+            When subclassing, always call this method at the end of the subclassed .__init__()
         """
         self._param_init: TParam
         self._param_final: TParam
@@ -46,18 +46,16 @@ class Trajectory(Generic[TParam], metaclass=ABCMeta):
         self.clear()
     
     def clear(self) -> None:
-        """ 
-        Reset the trajectory. 
-        When subclassing, always call this method at the end of the subclassed .clear()
+        """ Reset the trajectory. 
+            When subclassing, always call this method at the end of the subclassed .clear()
         """
         self._param_init = None
         self._param_final = None
         self._duration = 0
     
     def update(self, param_init: TParam, param_final: TParam, duration: float) -> None:
-        """ 
-        Set params of the trajectory. For safety, .clear() is automatically called before setting anything. 
-        When subclassing, always call this method at the beginning of the subclassed .update()
+        """ Set params of the trajectory. For safety, .clear() is automatically called before setting anything. 
+            When subclassing, always call this method at the beginning of the subclassed .update()
         """
         self.clear()
         self._param_init = param_init
@@ -69,12 +67,13 @@ class Trajectory(Generic[TParam], metaclass=ABCMeta):
         """ Calculate the next target of the trajectory.
         """
         raise NotImplementedError("A target calculation method must be specified")
-        
-### PATH
+
+
+### MULTI-TRAJECTORY PLAN
 
 # TODO make this a Param again, and find a way to get inherit from TParam
-class PathParam(Generic[TParam]):
-    """ Class for storing path points
+class MultiParam(Generic[TParam]):
+    """ Class for storing points for a multi-point trajectory
     """
     def __init__(self, param: TParam, duration: float = 0.):
         super().__init__()
@@ -82,16 +81,16 @@ class PathParam(Generic[TParam]):
         self.duration = duration
     
     @classmethod
-    def make_param(cls, duration: float = 0., *args, **kwargs) -> "PathParam[TParam]":
+    def make_param(cls, duration: float = 0., *args, **kwargs) -> "MultiParam[TParam]":
         param = TParam(*args, **kwargs)
         return cls(param, duration)
 
-class Path(Trajectory[TParam]):
-    """ Generates a pose trajectory from a list of points.
+class MultiTrajectory(Trajectory[TParam]):
+    """ Generates a trajectory from a list of points.
     """
     def __init__(self, trajectory: Trajectory[TParam]) -> None:
         self._traj_type = trajectory
-        self._path_params: List[PathParam[TParam]] = []
+        self._path_params: List[MultiParam[TParam]] = []
         self._timemarks: np.ndarray
         self._segment_new: bool
         self._segment_idx_prev: int
@@ -106,7 +105,7 @@ class Path(Trajectory[TParam]):
         self._segment_idx_curr = -1
         super().clear()
     
-    def update(self, path_parameters: List[PathParam[TParam]]) -> None:
+    def update(self, path_parameters: List[MultiParam[TParam]]) -> None:
         assert path_parameters[0].duration == 0, "First path parameter must have no duration"
         timemarks = np.cumsum([p.duration for p in path_parameters])
         super().update(path_parameters[0].param, path_parameters[-1].param, timemarks[-1])
@@ -148,31 +147,31 @@ class Path(Trajectory[TParam]):
 
 ### MISC
 
-PathOrTrajType = TypeVar("PathOrTrajType", Type[Path], Type[Trajectory])
-def sampled(trajectory_class: PathOrTrajType) -> PathOrTrajType:
+PlanOrTrajType = TypeVar("PlanOrTrajType", Type[MultiTrajectory], Type[Trajectory])
+def sampled(trajectory_class: PlanOrTrajType) -> PlanOrTrajType:
     func_init = trajectory_class.__init__
     func_clear = trajectory_class.clear
     func_update = trajectory_class.update
     func_compute = trajectory_class.compute
     
     @wraps(func_init)
-    def __init__(self: PathOrTrajType, dt, *args, **kwargs):
+    def __init__(self: PlanOrTrajType, dt, *args, **kwargs):
         self._dt = dt
         self._t = 0
         func_init(self, *args, **kwargs)
     
     @wraps(func_clear)
-    def clear(self: PathOrTrajType, *args):
+    def clear(self: PlanOrTrajType, *args):
         self._t = 0
         func_clear(self, *args)
     
     @wraps(func_update)
-    def update(self: PathOrTrajType, *args):
+    def update(self: PlanOrTrajType, *args):
         self._t = 0
         func_update(self, *args)
     
     @wraps(func_compute)
-    def compute(self: PathOrTrajType):
+    def compute(self: PlanOrTrajType):
         self._t += self._dt
         t = self._t
         return func_compute(self, t)
@@ -185,8 +184,8 @@ def sampled(trajectory_class: PathOrTrajType) -> PathOrTrajType:
 
 
 class FakeTrajectory(Trajectory[Any]):
-    """ Trajectory useful when constructing a complex Path which does not use
-        an underlying Trajectory object (i.e. in a double Path, two objects
+    """ Trajectory useful when constructing a complex path which does not use
+        an underlying Trajectory object (i.e. in a double path, two objects
         are needed instead of one). Remember to avoid using methods .compute() 
         and .update() if not necessary. """
     def __init__(self) -> None:
@@ -203,7 +202,7 @@ if __name__ == "__main__":
     
     class LinearTrajectory(Trajectory[PointParam]):
         def compute(self, t: float) -> PointParam:
-            coords = self._param_init.state + (self._param_final.state - self._param_init.state) * t/self._duration
+            coords = self._param_init.value + (self._param_final.value - self._param_init.value) * t/self._duration
             return PointParam(coords)
     
     traj = LinearTrajectory()
@@ -211,7 +210,7 @@ if __name__ == "__main__":
     pf = PointParam(np.array([1,-1]))
     traj.update(pi, pf, 4)
     
-    assert np.allclose(traj.compute(3).state, np.array([.75, -.75]))
+    assert np.allclose(traj.compute(3).value, np.array([.75, -.75]))
     
-    path_param = PathParam[PointParam](pi, 3)
+    path_param = MultiParam[PointParam](pi, 3)
     

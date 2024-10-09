@@ -24,8 +24,8 @@ class YumiControllerParameters():
                           -0.7, -1.7,  0.8, 1.0,  2.2, 1.0, 0.0])
     
     # calibration configuration
-    calibration_pos = np.array([ 0.0, -2.269,  2.356, 0.524, -0.001, 0.699, 0.002,
-                                 0.0, -2.269, -2.356, 0.524,  0.001, 0.664, 0.031])
+    calibration_pos = np.array([ 0.0, -2.270, -2.356, 0.524, 0.0, 0.670, 0.0,
+                                 0.0, -2.270,  2.356, 0.524, 0.0, 0.670, 0.0])
 
     ######################     HQP INVERSE KINEMATICS     #####################
     # extra objectives that should be included in HQP, if not already required

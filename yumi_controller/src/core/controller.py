@@ -352,13 +352,14 @@ class YumiDualController(object, metaclass=ABCMeta):
         """
         # get joint velocities and publish them
         if action["control_space"] == "joint_space":
-            vel = action["joint_velocities"]
+            q_tgt = action["joint_velocities"]
         else:
-            vel = self._hqp_inverse_kinematics(action)
-        
+            # q_tgt = self._hqp_inverse_kinematics(action)
+            q_tgt = self._pinv_inverse_kinematics(action)
+            
         # log joints with clipping velocities
-        vel_clip_r = np.abs(vel[0:7]) > YumiControllerParameters.joint_velocity_bound
-        vel_clip_l = np.abs(vel[7:14]) > YumiControllerParameters.joint_velocity_bound
+        vel_clip_r = np.abs(q_tgt[0:7]) > YumiControllerParameters.joint_velocity_bound
+        vel_clip_l = np.abs(q_tgt[7:14]) > YumiControllerParameters.joint_velocity_bound
         if np.any(vel_clip_r) or np.any(vel_clip_r):
             idxs = np.arange(7) + 1
             labels = "".join([f" R{i}" for i in idxs[vel_clip_r]]) \
@@ -366,10 +367,10 @@ class YumiDualController(object, metaclass=ABCMeta):
             print(f"Joints [{labels} ] are clipping!")
         
         # yumi control command and gripper control command (if any)
-        self._pub_yumi.send_velocity_cmd(vel)
+        self._pub_yumi.send_velocity_cmd(q_tgt)
         self._pub_grip.send_position_cmd(action.get("gripper_right"), action.get("gripper_left"))
     
-    def _hqp_inverse_kinematics(self, action):
+    def _hqp_inverse_kinematics(self, action: dict):
         """ Sets up stack of tasks and solves the inverse kinematics problem for
             individual or coordinated manipulation
         """
@@ -465,5 +466,42 @@ class YumiDualController(object, metaclass=ABCMeta):
             # stop everything (extra fail-safe step)
             print("Joint velocity set to 0")
             vel = np.zeros(YumiControllerParameters.dof)
+        
+        return vel
+
+
+    def _pinv_inverse_kinematics(self, action: dict):
+        
+        jacobian = None
+        xdot = np.zeros(6*2)
+        
+        if action["control_space"] == "individual":
+            xdot[0:6] = action.get("right_velocity", np.zeros(6))
+            xdot[6:12] = action.get("left_velocity", np.zeros(6))
+            jacobian = self.yumi_state.jacobian_grippers
+        
+        elif action["control_space"] == "coordinated":    
+            xdot[0:6] = action.get("absolute_velocity", np.zeros(6))
+            xdot[6:12] = action.get("relative_velocity", np.zeros(6))
+            jacobian = self.yumi_state.jacobian_coordinated
+            
+        else:
+            print(f"Unknown control mode ({action['control_space']}), stopping")
+            return np.zeros(YumiControllerParameters.dof)
+        
+        q_avg = np.concatenate([(YumiControllerParameters.joint_position_bound_upper + YumiControllerParameters.joint_position_bound_lower) / 2, 
+                                (YumiControllerParameters.joint_position_bound_upper + YumiControllerParameters.joint_position_bound_lower) / 2])
+        q_span = np.concatenate([YumiControllerParameters.joint_position_bound_upper - YumiControllerParameters.joint_position_bound_lower,
+                                 YumiControllerParameters.joint_position_bound_upper - YumiControllerParameters.joint_position_bound_lower])
+        
+        # k0 = 10
+        # qdot0 = - k0 * (1/YumiControllerParameters.dof) * (self.yumi_state.joint_vel - q_avg) / q_span ** 2
+        
+        k0 = 10
+        qdot0 = - k0 * (1/YumiControllerParameters.dof) * (self.yumi_state.joint_vel - YumiControllerParameters.neutral_pos) / q_span ** 2
+        
+        jacobian_pinv = np.linalg.pinv(jacobian)
+        vel = jacobian_pinv @ xdot + (np.eye(YumiControllerParameters.dof) - jacobian_pinv @ jacobian) @ qdot0
+                
         
         return vel

@@ -91,6 +91,8 @@ class Calc_jacobian
 
     // define kdl tree and chain for each arm
     KDL::Tree yumi_tree;
+    KDL::Chain yumi_right_tool;
+    KDL::Chain yumi_left_tool;
     KDL::Chain yumi_right_arm;
     KDL::Chain yumi_left_arm;
     KDL::Chain yumi_right_elbow;
@@ -98,12 +100,16 @@ class Calc_jacobian
     // KDL::Chain yumi_left_right;  // combined
 
     // define jacobian variables
+    KDL::Jacobian jacobian_right_tool = KDL::Jacobian(7);
+    KDL::Jacobian jacobian_left_tool = KDL::Jacobian(7);
     KDL::Jacobian jacobian_right_arm = KDL::Jacobian(7);
     KDL::Jacobian jacobian_left_arm = KDL::Jacobian(7);
     KDL::Jacobian jacobian_right_elbow = KDL::Jacobian(4);
     KDL::Jacobian jacobian_left_elbow = KDL::Jacobian(4);
 
     // define frame variables
+    KDL::Frame frame_right_tool; 
+    KDL::Frame frame_left_tool; 
     KDL::Frame frame_right_arm; 
     KDL::Frame frame_left_arm; 
     KDL::Frame frame_right_elbow; 
@@ -118,21 +124,25 @@ class Calc_jacobian
     // KDL::JntArray q_left_right = KDL::JntArray(14);
 
     // jacobian solvers
+    std::unique_ptr<KDL::ChainJntToJacSolver> jac_solver_right_tool;
+    std::unique_ptr<KDL::ChainJntToJacSolver> jac_solver_left_tool;
     std::unique_ptr<KDL::ChainJntToJacSolver> jac_solver_right_arm;
     std::unique_ptr<KDL::ChainJntToJacSolver> jac_solver_left_arm;
     std::unique_ptr<KDL::ChainJntToJacSolver> jac_solver_right_elbow;
     std::unique_ptr<KDL::ChainJntToJacSolver> jac_solver_left_elbow;
 
     // forward kinematics solvers
+    std::unique_ptr<KDL::ChainFkSolverPos_recursive> fk_solver_right_tool;
+    std::unique_ptr<KDL::ChainFkSolverPos_recursive> fk_solver_left_tool;
     std::unique_ptr<KDL::ChainFkSolverPos_recursive> fk_solver_right_arm;
     std::unique_ptr<KDL::ChainFkSolverPos_recursive> fk_solver_left_arm;
-    std::unique_ptr<KDL::ChainFkSolverPos_recursive> fk_left_to_right;
+    // std::unique_ptr<KDL::ChainFkSolverPos_recursive> fk_left_to_right;
 
     // order input data
     std::vector<double> joint_state;
     std::vector<double> joint_velocity;
 
-    // naming for Rviz visualization
+    // naming for urdf
     std::string joint_name_list[18] = {
         "yumi_joint_1_r", "yumi_joint_2_r", "yumi_joint_7_r", "yumi_joint_3_r", "yumi_joint_4_r", "yumi_joint_5_r", "yumi_joint_6_r", 
         "yumi_joint_1_l", "yumi_joint_2_l", "yumi_joint_7_l", "yumi_joint_3_l", "yumi_joint_4_l", "yumi_joint_5_l", "yumi_joint_6_l", 
@@ -200,13 +210,19 @@ Calc_jacobian::Calc_jacobian(ros::NodeHandle *nh){
     }
     
     // get chain for each arm from tree
+    yumi_tree.getChain("yumi_base_link", "gripper_r_tip", yumi_right_tool);
+    yumi_tree.getChain("yumi_base_link", "gripper_l_tip", yumi_left_tool);
+
     yumi_tree.getChain("yumi_base_link", "yumi_link_7_r", yumi_right_arm);
-    yumi_tree.getChain("yumi_base_link", "yumi_link_7_l", yumi_left_arm);    
+    yumi_tree.getChain("yumi_base_link", "yumi_link_7_l", yumi_left_arm);
 
     yumi_tree.getChain("yumi_base_link", "yumi_link_4_r", yumi_right_elbow);
-    yumi_tree.getChain("yumi_base_link", "yumi_link_4_l", yumi_left_elbow);  
+    yumi_tree.getChain("yumi_base_link", "yumi_link_4_l", yumi_left_elbow);
   
     // Jacobians
+    jac_solver_right_tool = std::make_unique<KDL::ChainJntToJacSolver>(yumi_right_tool);
+    jac_solver_left_tool = std::make_unique<KDL::ChainJntToJacSolver>(yumi_left_tool);
+
     jac_solver_right_arm = std::make_unique<KDL::ChainJntToJacSolver>(yumi_right_arm);
     jac_solver_left_arm = std::make_unique<KDL::ChainJntToJacSolver>(yumi_left_arm);
 
@@ -214,8 +230,12 @@ Calc_jacobian::Calc_jacobian(ros::NodeHandle *nh){
     jac_solver_left_elbow = std::make_unique<KDL::ChainJntToJacSolver>(yumi_left_elbow);
 
     // Forward kinematics solver
+    fk_solver_right_tool = std::make_unique<KDL::ChainFkSolverPos_recursive>(yumi_right_tool);
+    fk_solver_left_tool = std::make_unique<KDL::ChainFkSolverPos_recursive>(yumi_left_tool);
+    
     fk_solver_right_arm = std::make_unique<KDL::ChainFkSolverPos_recursive>(yumi_right_arm);
     fk_solver_left_arm = std::make_unique<KDL::ChainFkSolverPos_recursive>(yumi_left_arm);
+
     joint_state.resize(18);
     joint_velocity.resize(14);
 }
@@ -264,12 +284,8 @@ void Calc_jacobian::callback(const sensor_msgs::JointState::ConstPtr& joint_stat
 
 // Check if both arms have active egm sessions
 void Calc_jacobian::callback_egm_state(const abb_egm_msgs::EGMState::ConstPtr& egm_state_data){
-    if (egm_state_data->egm_channels[0].active == true && egm_state_data->egm_channels[1].active == true){
-        egm_active = true;
-    }
-    else{
-        egm_active = false;
-    }
+    egm_active = egm_state_data->egm_channels[0].active == true 
+              && egm_state_data->egm_channels[1].active == true;
 }
 
 // makes most calculations and sends to the controller
@@ -317,23 +333,30 @@ void Calc_jacobian::update(){
     std_msgs::Float64MultiArray jac;
 
     // arm 
+    jac_solver_right_tool->JntToJac(q_right_arm, jacobian_right_tool);
+    jac_solver_left_tool->JntToJac(q_left_arm, jacobian_left_tool);
+    jacobian_data(7, jacobian_right_tool, jacobian_left_tool, &jac);
+    kinematics_msg.jacobian.push_back(jac);
+
+    // arm 
     jac_solver_right_arm->JntToJac(q_right_arm, jacobian_right_arm);
     jac_solver_left_arm->JntToJac(q_left_arm, jacobian_left_arm);
-    
     jacobian_data(7, jacobian_right_arm, jacobian_left_arm, &jac);
     kinematics_msg.jacobian.push_back(jac);
 
     // elbow 
     jac_solver_right_elbow->JntToJac(q_right_elbow, jacobian_right_elbow);
     jac_solver_left_elbow->JntToJac(q_left_elbow, jacobian_left_elbow);
-    
     jacobian_data(4, jacobian_right_elbow, jacobian_left_elbow, &jac);
     kinematics_msg.jacobian.push_back(jac);
 
     kinematics_msg.header.stamp = ros::Time::now();
 
     // --------------------- Forward Kinematics --------------------------------------------------
-    // last frame has number 8!
+    // last frame includes the base!
+    fk_solver_right_tool->JntToCart(q_right_arm, frame_right_tool, 9);
+    fk_solver_left_tool->JntToCart(q_left_arm, frame_left_tool, 9);
+
     fk_solver_right_arm->JntToCart(q_right_arm, frame_right_arm, 8);
     fk_solver_left_arm->JntToCart(q_left_arm, frame_left_arm, 8);
 
@@ -342,21 +365,23 @@ void Calc_jacobian::update(){
 
     geometry_msgs::Pose pose;
 
+    pose_data(frame_right_tool, &pose);
+    kinematics_msg.forwardKinematics.push_back(pose);
+    pose_data(frame_left_tool, &pose);
+    kinematics_msg.forwardKinematics.push_back(pose);
+
     pose_data(frame_right_arm, &pose);
     kinematics_msg.forwardKinematics.push_back(pose);
- 
     pose_data(frame_left_arm, &pose);
     kinematics_msg.forwardKinematics.push_back(pose);
 
     pose_data(frame_right_elbow, &pose);
     kinematics_msg.forwardKinematics.push_back(pose);
-
     pose_data(frame_left_elbow, &pose);
     kinematics_msg.forwardKinematics.push_back(pose);
 
     // publish msg
     jacobian_pub.publish(kinematics_msg);
-
     ros::spinOnce(); // spin ros and send msg direcly 
 }
 

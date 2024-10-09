@@ -56,8 +56,8 @@ class Simulator(object):
         self.updateRate = 250 #hz
         self.dt = 1/self.updateRate
         self.jointState = YumiJointState(
-            jointPosition=np.array([ 1.0, -2.0, -1.2, 0.6, -2.0, 1.0, 0.0,
-                                    -1.0, -2.0,  1.2, 0.6,  2.0, 1.0, 0.0]))
+            jointPosition=np.array([ 0.0, -2.270, -2.356, 0.524, 0.0, 0.670, 0.0,
+                                     0.0, -2.270,  2.356, 0.524, 0.0, 0.670, 0.0]))
 
         self.lock = threading.Lock()
 

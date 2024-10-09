@@ -125,8 +125,7 @@ class YumiDualCartesianVelocityControlLaw(object):
         self.grip_r, self.grip_l = target_state.grip_r, target_state.grip_l
 
     def compute_individual_right_target_velocity(self):
-        """ 
-        Calculates the target velocities for individual right arm control.
+        """ Calculates the target velocities for individual right arm control.
         """
         try:
             self.control_right.compute_target_velocity()
@@ -137,8 +136,7 @@ class YumiDualCartesianVelocityControlLaw(object):
         return self.control_right.target_velocity
 
     def compute_individual_left_target_velocity(self):
-        """ 
-        Calculates the target velocities for individual left arm control.
+        """ Calculates the target velocities for individual left arm control.
         """
         try:
             self.control_left.compute_target_velocity()
@@ -148,16 +146,14 @@ class YumiDualCartesianVelocityControlLaw(object):
         return self.control_left.target_velocity
     
     def compute_coordinated_absolute_target_velocity(self):
-        """
-        Calculates the target velocities for absolute motion i.e. controlling
-        the average of the grippers.
+        """ Calculates the target velocities for absolute motion i.e. controlling
+            the average of the grippers.
         """
         return self.control_abs.compute_target_velocity()
 
     def compute_coordinated_relative_target_velocity(self):
-        """
-        Calculates the target velocities for relative motion i.e. controlling
-        the grippers relative to each other in absolute frame.
+        """ Calculates the target velocities for relative motion i.e. controlling
+            the grippers relative to each other in absolute frame.
         """
         return self.control_rel.compute_target_velocity()
 

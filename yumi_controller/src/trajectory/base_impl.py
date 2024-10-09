@@ -11,7 +11,7 @@ class JointParam(Param):
 
     @property
     def q(self) -> np.ndarray:
-        return self.state
+        return self.value
 
     @property
     def dq(self) -> np.ndarray:
@@ -22,15 +22,15 @@ class JointParam(Param):
         return self.curve
 
 class PositionParam(Param):
-    def __init__(self, position: np.ndarray, velocity: np.ndarray, accel: np.ndarray = np.zeros(3)) -> None:
+    def __init__(self, position: np.ndarray, velocity: np.ndarray, acceleration: np.ndarray = np.zeros(3)) -> None:
         assert position.shape == (3,)
         assert velocity.shape == (3,)
-        assert accel.shape == (3,)
-        super().__init__(position, velocity, accel)
+        assert acceleration.shape == (3,)
+        super().__init__(position, velocity, acceleration)
 
     @property
     def pos(self) -> np.ndarray:
-        return self.state
+        return self.value
 
     @property
     def vel(self) -> np.ndarray:
@@ -48,7 +48,7 @@ class QuaternionParam(Param):
 
     @property
     def quat(self) -> np.quaternion:
-        return self.state
+        return self.value
 
     @property
     def vel(self) -> np.ndarray:
@@ -67,11 +67,11 @@ class PoseParam(Param):
 
     @property
     def pos(self) -> np.ndarray:
-        return self.state[0]
+        return self.value[0]
 
     @property
     def rot(self) -> np.quaternion:
-        return self.state[1]
+        return self.value[1]
 
     @property
     def vel(self) -> np.ndarray:

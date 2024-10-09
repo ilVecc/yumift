@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import sys, pathlib
 sys.path.append(str(pathlib.Path(__file__).absolute().parent.parent))
+import argparse
 
 import rospy, tf
 import numpy as np
@@ -14,7 +15,7 @@ from geometry_msgs.msg import PoseStamped
 
 from core.controller import YumiDualController
 from core.control_laws import YumiDualCartesianVelocityControlLaw, YumiDualWrenchFeedbackControlLaw, YumiDualAdmittanceControlLaw
-from core.trajectory import YumiParam, YumiPath, YumiPathParam
+from core.trajectory import YumiParam, YumiTrajectory, YumiTrajectoryParam
 from core.parameters import YumiControllerParameters
 from core.utils import YumiParam_to_YumiCoordinatedRobotState
 
@@ -36,7 +37,7 @@ class YumiTrajectoryController(YumiDualController):
         self.control_law = control_law
         # The trajectory will always have two grippers, the control mode will 
         # always be either individual or coordinated, but the sent trajectory can 
-        # also be only right/left or absolute/relative. TO account for this, the
+        # also be only right/left or absolute/relative. To take this into account, the
         # trajectory and the target velocities will be calculated as a whole,
         # but the final selection of what will be sent to the inverse kinematics
         # solver is actually be performed based on what was originally requested.
@@ -44,7 +45,7 @@ class YumiTrajectoryController(YumiDualController):
         self.effective_mode = None
         
         # prepare trajectory buffer
-        self.trajectory = YumiPath(YumiControllerParameters.dt)
+        self.trajectory = YumiTrajectory(YumiControllerParameters.dt)
         self.lock_trajectory = threading.Lock()
         self.reset()  # init trajectory (set current position)
         
@@ -72,7 +73,7 @@ class YumiTrajectoryController(YumiDualController):
             current_pose = YumiParam(
                 self.yumi_state.pose_gripper_r.pos, self.yumi_state.pose_gripper_r.rot, np.zeros(6), 0, 
                 self.yumi_state.pose_gripper_l.pos, self.yumi_state.pose_gripper_l.rot, np.zeros(6), 0)
-            path = [YumiPathParam(current_pose, 0), YumiPathParam(current_pose, 0.00001)]
+            path = [YumiTrajectoryParam(current_pose, 0), YumiTrajectoryParam(current_pose, 0.00001)]
             self.trajectory.update(path)
         print("Controller reset (previous trajectory has been discarded)")
     
@@ -117,7 +118,7 @@ class YumiTrajectoryController(YumiDualController):
         grip_l = self.control_law.grip_l
         currentPoint = YumiParam(curr_pose_1.pos, curr_pose_1.rot, curr_pose_1.vel, grip_r, 
                                  curr_pose_2.pos, curr_pose_2.rot, curr_pose_2.vel, grip_l)
-        trajectory = [YumiPathParam(currentPoint, duration=0)]
+        trajectory = [YumiTrajectoryParam(currentPoint, duration=0)]
         
         # append trajectory points from msg
         # ATTENTION: Trajectory_point wants quaternions as (x,y,z,w) while all 
@@ -147,7 +148,7 @@ class YumiTrajectoryController(YumiDualController):
                 grip_l = grip_l + prev_param.grip_left
             duration = point.pointTime
             trajectoryPoint = YumiParam(pos_1, rot_1, None, grip_r, pos_2, rot_2, None, grip_l)
-            trajectory.append(YumiPathParam(trajectoryPoint, duration))
+            trajectory.append(YumiTrajectoryParam(trajectoryPoint, duration))
         #######################################################################
         
         # update the trajectory
@@ -166,7 +167,7 @@ class YumiTrajectoryController(YumiDualController):
         # update pose and wrench for the control law class
         self.control_law.update_current_pose(self.yumi_state)
         
-        # Calculate new target velocities and positions for this time step.
+        # calculate new target velocities and positions for this time step
         yumi_target_param: YumiParam = self.trajectory.compute()
         yumi_target_state = YumiParam_to_YumiCoordinatedRobotState(yumi_target_param)
         self.control_law.update_desired_pose(yumi_target_state)
@@ -249,12 +250,22 @@ class CompliantTrajectoryController(YumiTrajectoryController):
 
 
 def main():
-    # starting ROS node
-    rospy.init_node("trajectory_controllers", anonymous=False) 
     
-    # yumi_controller = SimpleTrajectoryController()
-    # yumi_controller = WrenchedTrajectoryController()
-    yumi_controller = CompliantTrajectoryController()
+    parser = argparse.ArgumentParser("Various trajectory controllers")
+    parser.add_argument("type", choices=["simple", "wrenched", "compliant"], default="simple")
+    parser.parse_args()
+    
+    # starting ROS node
+    rospy.init_node("trajectory_controllers", anonymous=False)
+    
+    if parser.type == "simple":
+        yumi_controller = SimpleTrajectoryController()
+    elif parser.type == "simple":
+        yumi_controller = WrenchedTrajectoryController()
+    elif parser.type == "simple":
+        yumi_controller = CompliantTrajectoryController()
+    else:
+        raise AttributeError(f"no such option '{parser.type}'")
     
     def shutdown_callback():
         yumi_controller.pause()

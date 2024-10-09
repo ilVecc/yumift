@@ -3,7 +3,7 @@ from typing import List
 import numpy as np
 import quaternion as quat
 
-from trajectory.base import Param, PathParam, Path, FakeTrajectory, sampled
+from trajectory.base import Param, MultiParam, MultiTrajectory, FakeTrajectory, sampled
 from trajectory.base_impl import PoseParam
 from trajectory.polynomial import CubicPosePath
 
@@ -47,13 +47,13 @@ class YumiParam(Param):
 
 
 # just for a cleaner interface
-class YumiPathParam(PathParam[YumiParam]):
-    def __init__(self, param: YumiParam, duration=0)-> None: 
+class YumiTrajectoryParam(MultiParam[YumiParam]):
+    def __init__(self, param: YumiParam, duration: int)-> None: 
         super().__init__(param, duration)
     
 
 @sampled
-class YumiPath(Path[YumiParam]):
+class YumiTrajectory(MultiTrajectory[YumiParam]):
     """ Generates a trajectory from trajectory parameters, the process is identical for individual and coordinated manipulation.
         The variable names follows individual motion with left and right. This means when coordinate manipulation is used, right
         is absolute motion and left becomes relative motion.
@@ -111,7 +111,7 @@ class YumiPath(Path[YumiParam]):
         vel = ( 0.5 * (vm1 + vm2) ) * ( (np.abs(vm1) >= eps) * (np.abs(vm2) >= eps) * (np.sign(vm1) == np.sign(vm2)) )
         return vel
     
-    def update(self, path_parameters: List[PathParam[YumiParam]]) -> None:
+    def update(self, path_parameters: List[MultiParam[YumiParam]]) -> None:
         """ Updates the inner trajectory when new path parameterns are been received
             :param path_parameters: list of path parameters
         """
@@ -122,10 +122,10 @@ class YumiPath(Path[YumiParam]):
         for i in range(1, len(params_right)-1):
             if params_right[i].vel is None:
                 params_right[i].vel = np.zeros(6)
-                params_right[i].vel[0:3] = YumiPath._calculate_intermediate_velocity_linear(
+                params_right[i].vel[0:3] = YumiTrajectory._calculate_intermediate_velocity_linear(
                     params_right[i-1].pos, params_right[i].pos, params_right[i+1].pos,
                     path_parameters[i].duration, path_parameters[i+1].duration)
-                params_right[i].vel[3:6] = YumiPath._calculate_intermediate_velocity_angular(
+                params_right[i].vel[3:6] = YumiTrajectory._calculate_intermediate_velocity_angular(
                     params_right[i-1].rot, params_right[i].rot, params_right[i+1].rot,
                     path_parameters[i].duration, path_parameters[i+1].duration)
         if params_right[-1].vel is None:
@@ -137,18 +137,18 @@ class YumiPath(Path[YumiParam]):
         for i in range(1, len(params_left)-1):
             if params_left[i].vel is None:
                 params_left[i].vel = np.zeros(6)
-                params_left[i].vel[0:3] = YumiPath._calculate_intermediate_velocity_linear(
+                params_left[i].vel[0:3] = YumiTrajectory._calculate_intermediate_velocity_linear(
                     params_left[i-1].pos, params_left[i].pos, params_left[i+1].pos,
                     path_parameters[i].duration, path_parameters[i+1].duration)
-                params_left[i].vel[3:6] = YumiPath._calculate_intermediate_velocity_angular(
+                params_left[i].vel[3:6] = YumiTrajectory._calculate_intermediate_velocity_angular(
                     params_left[i-1].rot, params_left[i].rot, params_left[i+1].rot,
                     path_parameters[i].duration, path_parameters[i+1].duration)
         if params_left[-1].vel is None:
             params_left[-1].vel = np.zeros(6)
         
         super().update(path_parameters)
-        self.traj_right.update( [PathParam[PoseParam](pp.param.pose_right, pp.duration) for pp in path_parameters] )
-        self.traj_left.update( [PathParam[PoseParam](pp.param.pose_left, pp.duration) for pp in path_parameters] )
+        self.traj_right.update( [MultiParam[PoseParam](pp.param.pose_right, pp.duration) for pp in path_parameters] )
+        self.traj_left.update( [MultiParam[PoseParam](pp.param.pose_left, pp.duration) for pp in path_parameters] )
     
     def is_new_segment(self):
         """ Returns True if a new segment has been entered, only shows true

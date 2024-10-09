@@ -1,23 +1,20 @@
 <?xml version="1.0"?>
 <robot name="yumi" xmlns:xacro="http://www.ros.org/wiki/xacro">
 
-    <!-- Import all Gazebo-customization elements, including Gazebo colors -->
-    <xacro:include filename="$(find yumi_description)/urdf/Grippers/yumi_servo_gripper.gazebo.xacro" />
-    <!-- Import Transmissions -->
-    <xacro:include filename="$(find yumi_description)/urdf/Grippers/yumi_servo_gripper.transmission.xacro" />
+  <!-- Import all Gazebo-customization elements, including Gazebo colors -->
+  <xacro:include filename="$(find yumi_description)/urdf/Grippers/smart_gripper.gazebo.xacro" />
+  <!-- Import Transmissions -->
+  <xacro:include filename="$(find yumi_description)/urdf/Grippers/smart_gripper.transmission.xacro" />
 
-    <xacro:include filename="$(find hector_xacro_tools)/urdf/inertia_tensors.urdf.xacro" />
+  <xacro:include filename="$(find hector_xacro_tools)/urdf/inertia_tensors.urdf.xacro" />
 
-
-
-    <!-- some constants -->
-    <xacro:property name="joint_damping" value="0.5" />
-    <xacro:property name="gripper_joint_damping" value="1.0" />
-    <xacro:property name="max_gripper_effort" value="20"/>
-    <xacro:property name="max_gripper_velocity" value="2"/>
+  <!-- some constants -->
+  <xacro:property name="joint_damping" value="0.5" />
+  <xacro:property name="gripper_joint_damping" value="1.0" />
+  <xacro:property name="max_gripper_effort" value="20"/>
+  <xacro:property name="max_gripper_velocity" value="2"/>
  
- 
-  <xacro:macro name="yumi_servo_gripper" params="parent name hardware_interface *origin">
+  <xacro:macro name="smart_gripper" params="parent name hardware_interface *origin">
 
     <!--joint between {parent} and base-->
     <joint name="${parent}_joint" type="fixed">
@@ -114,9 +111,17 @@
       </collision>
     </link>
 
-     <!--Extensions -->
-    <xacro:yumi_servo_gripper_gazebo name="${name}" />
-    <xacro:yumi_servo_gripper_transmission name="${name}" hardware_interface="${hardware_interface}"/>
+    <!-- joint for gripper tip -->
+    <link name="${name}_tip"/>
+    <joint name="${name}_tip_joint" type="fixed">
+      <parent link="${name}_base"/>
+      <child link="${name}_tip"/>
+      <origin xyz="0 0 0.136" rpy="0 0 ${-PI/2}" />
+    </joint>
+
+     <!-- extensions -->
+    <xacro:smart_gripper_gazebo name="${name}" />
+    <xacro:smart_gripper_transmission name="${name}" hardware_interface="${hardware_interface}"/>
 
   </xacro:macro>
 

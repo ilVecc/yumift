@@ -637,7 +637,7 @@
   </transmission>
   <!--joint between {parent} and base-->
   <joint name="yumi_link_7_r_joint" type="fixed">
-    <origin rpy="0 0 1.57079632679" xyz="0 0 0.0284"/>
+    <origin rpy="0 0 1.57079632679" xyz="0 0 0.031"/>
     <parent link="yumi_link_7_r"/>
     <child link="ftsensor_r"/>
   </joint>
@@ -662,23 +662,15 @@
       <material name="Light_Grey"/>
     </collision>
   </link>
-  <!-- Plugin for the mimic o/c joint - AFAIK, that shouldn't be necessary any more starting with Gazebo 3.0 -->
-  <gazebo>
-    <plugin filename="libgazebo_mimic_plugin.so" name="mimic_plugin">
-      <joint>ftsensor_r_joint</joint>
-      <mimicJoint>ftsensor_r_joint_m</mimicJoint>
-      <multiplier>1.0</multiplier>
-    </plugin>
-  </gazebo>
   <!-- body -->
-  <gazebo reference="ftsensor_r_base">
+  <gazebo reference="ftsensor_r">
     <material>Gazebo/Light_Grey</material>
     <mu1>0.2</mu1>
     <mu2>0.2</mu2>
   </gazebo>
   <!--joint between {parent} and base-->
   <joint name="ftsensor_r_joint" type="fixed">
-    <origin rpy="0 0 1.57079632679" xyz="0 0 0.004"/>
+    <origin rpy="0 0 1.57079632679" xyz="0 0 0.008"/>
     <parent link="ftsensor_r"/>
     <child link="gripper_r_base"/>
   </joint>
@@ -764,6 +756,13 @@
       <material name="Blue"/>
     </collision>
   </link>
+  <!-- joint for gripper tip -->
+  <link name="gripper_r_tip"/>
+  <joint name="gripper_r_tip_joint" type="fixed">
+    <parent link="gripper_r_base"/>
+    <child link="gripper_r_tip"/>
+    <origin rpy="0 0 -1.57079632679" xyz="0 0 0.136"/>
+  </joint>
   <!-- Plugin for the mimic o/c joint - AFAIK, that shouldn't be necessary any more starting with Gazebo 3.0 -->
   <gazebo>
     <plugin filename="libgazebo_mimic_plugin.so" name="mimic_plugin">
@@ -781,16 +780,16 @@
   <transmission name="gripper_r_tran">
     <type>transmission_interface/SimpleTransmission</type>
     <joint name="gripper_r_joint">
-      <hardwareInterface>hardware_interface/EffortJoinInterface</hardwareInterface>
+      <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
     </joint>
     <actuator name="gripper_r_motor">
-      <hardwareInterface>hardware_interface/EffortJoinInterface</hardwareInterface>
+      <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
       <mechanicalReduction>1</mechanicalReduction>
     </actuator>
   </transmission>
   <!--joint between {parent} and base-->
   <joint name="yumi_link_7_l_joint" type="fixed">
-    <origin rpy="0 0 1.57079632679" xyz="0 0 0.0284"/>
+    <origin rpy="0 0 1.57079632679" xyz="0 0 0.031"/>
     <parent link="yumi_link_7_l"/>
     <child link="ftsensor_l"/>
   </joint>
@@ -815,23 +814,15 @@
       <material name="Light_Grey"/>
     </collision>
   </link>
-  <!-- Plugin for the mimic o/c joint - AFAIK, that shouldn't be necessary any more starting with Gazebo 3.0 -->
-  <gazebo>
-    <plugin filename="libgazebo_mimic_plugin.so" name="mimic_plugin">
-      <joint>ftsensor_l_joint</joint>
-      <mimicJoint>ftsensor_l_joint_m</mimicJoint>
-      <multiplier>1.0</multiplier>
-    </plugin>
-  </gazebo>
   <!-- body -->
-  <gazebo reference="ftsensor_l_base">
+  <gazebo reference="ftsensor_l">
     <material>Gazebo/Light_Grey</material>
     <mu1>0.2</mu1>
     <mu2>0.2</mu2>
   </gazebo>
   <!--joint between {parent} and base-->
   <joint name="ftsensor_l_joint" type="fixed">
-    <origin rpy="0 0 1.57079632679" xyz="0 0 0.004"/>
+    <origin rpy="0 0 1.57079632679" xyz="0 0 0.008"/>
     <parent link="ftsensor_l"/>
     <child link="gripper_l_base"/>
   </joint>
@@ -917,6 +908,13 @@
       <material name="Blue"/>
     </collision>
   </link>
+  <!-- joint for gripper tip -->
+  <link name="gripper_l_tip"/>
+  <joint name="gripper_l_tip_joint" type="fixed">
+    <parent link="gripper_l_base"/>
+    <child link="gripper_l_tip"/>
+    <origin rpy="0 0 -1.57079632679" xyz="0 0 0.136"/>
+  </joint>
   <!-- Plugin for the mimic o/c joint - AFAIK, that shouldn't be necessary any more starting with Gazebo 3.0 -->
   <gazebo>
     <plugin filename="libgazebo_mimic_plugin.so" name="mimic_plugin">
@@ -934,10 +932,10 @@
   <transmission name="gripper_l_tran">
     <type>transmission_interface/SimpleTransmission</type>
     <joint name="gripper_l_joint">
-      <hardwareInterface>hardware_interface/EffortJoinInterface</hardwareInterface>
+      <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
     </joint>
     <actuator name="gripper_l_motor">
-      <hardwareInterface>hardware_interface/EffortJoinInterface</hardwareInterface>
+      <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
       <mechanicalReduction>1</mechanicalReduction>
     </actuator>
   </transmission>

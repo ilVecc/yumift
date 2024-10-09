@@ -1,101 +1,120 @@
-# YuMi controller 
-ROS implementation for YuMi control
+# Wrenched YuMi control
+ROS implementation for advanced YuMi control. 
+This package contains a modular interface to create controllers for the ABB Dual-Arm YuMi robot.
 
-This package comes as is and use on your risk. 
-
-## Maintainer 
-* Gabriel Arslan Waltersson
 
 ## Table of Contents
 * [General](#general)
 * [Dependencies](#dependencies)
+* [Installation](#installation)
 * [Usage](#usage)
 
+
 ## General
-For more in-depth information and comprehensive installation guide, look in the 
-wiki page https://github.com/CRIS-Chalmers/yumi/wiki. This package contains interface and control algorithms for 
-the ABB YuMi ROS driver. The core functionality includes inverse kinematics for YuMi in both individual manipulation 
-and coordinated manipulation of the arms. There are several ways this package can be used. The idea is that you create a
-control class that inherits the yumiControl class and that you can then build functionally on top of it, see 
-controller/src/examples/customControllerTutorial.py. There is also a trajectory following controller implemented using
-the same structure, see controller/src/examples/trajectoryControl.py. This controller is mainly made to operate with 
-slow motions as no dynamical effects have been included in the control loop. The inverse kinematics problem is solved
-with hierarchical quadratic programing (HQP) implemented using the quadprog solver. The control objectives are
-solved together with feasibility objectives (wiki page for more info). The robot is visualized in rviz in real time and
-a very simple kinematics simulator is included. 
+<!-- For more in-depth information and comprehensive installation guide, look in the [wiki page](https://github.com/CRIS-Chalmers/yumi/wiki).  -->
+This package contains interfaces and control algorithms for the ABB Dual-Armed YuMi. 
+The core functionality includes inverse kinematics for YuMi in both individual and coordinated manipulation frames of the arms. 
+
+The idea is that you create a controller class that inherits the `YumiDualController` class and that you can then build functionally on top of it, see `yumi_controller/src/examples/controller_tutorial.py`. There is also a trajectory following controller implemented using the same structure, see `yumi_controller/src/controllers/trajectory_controllers.py`. This controller is mainly made to operate with slow motions as no dynamical effects have been included in the control loop. The inverse kinematics problem is solved with Hierarchical Quadratic Programing (HQP) implemented using the `quadprog` solver. The control objectives are solved together with feasibility objectives (wiki page for more info). The robot is visualized in `rviz` in real time and a very simple kinematics simulator is included. 
 
 
 ## Dependencies
-For a more comprehensive installation guide take a look at the wiki, where a step-by-step guide from a fresh ubuntu 18 
-installation exists. This package uses Ros melodic and python3, ROS and catkin has to be reconfigured for python3
-* for python3 ros packages 
+This package uses ROS Melodic (Desktop) and Python3, so ROS and Catkin must be reconfigured to use Python3 instead of Python2.
+
+* for ROS packages in Python3
 ```
 sudo apt install python3-catkin-pkg-modules python3-rospkg-modules python3-empy python3-catkin-tools
 ```
 
-* the geometry2 package needs to be compiled for python3, https://github.com/ros/geometry2
-
-* build orocos_kinematics_dynamics from source in catkin/src
+* for Orokos KDL
 ```
-https://github.com/orocos/orocos_kinematics_dynamics
+sudo apt-get install libeigen3-dev libcppunit-dev
 ```
 
-* python packages, can be installed with pip3
+* Python3 packages, can be installed with
 ``` 
-    numpy
-    scipy
-    quadprog
+python3 -m pip install numpy scipy quadprog
 ```
 
-* for the abb_robot_driver, follow
+
+
+## Installation
+Create a folder for the catkin workspace
 ```
-https://github.com/ros-industrial/abb_robot_driver
+mkdir -p ~/yumi_ws/src && cd ~/yumi_ws/src
+```
+then clone [`abb_robot_driver`](https://github.com/ros-industrial/abb_robot_driver) __OR__ run these commands (possibly outdated)
+```
+sudo apt-key adv --keyserver hkp://pool.sks-keyservers.net --recv-key 0xAB17C654  # might fail, if so ignore it
+sudo apt update; sudo apt install python3-vcstool
+vcs import . --input https://github.com/ros-industrial/abb_robot_driver/raw/master/pkgs.repos 
+rosdep update
+rosdep install --from-paths . --ignore-src --rosdistro melodic
+```
+then clone [`orocos_kinematics_dynamics`](https://github.com/orocos/orocos_kinematics_dynamics) package (for Python3)
+```
+git clone https://github.com/orocos/orocos_kinematics_dynamics.git
+cd orocos_kinematics_dynamics/
+git submodule update --init
+cd ..
+```
+then clone [`geometry2`](https://github.com/ros/geometry2) package (for Python3)
+```
+git clone -b melodic-devel https://github.com/ros/geometry2
+cd geometry2/
+cd ..
+```
+and finally clone this respository
+```
+git clone https://github.com/ilVecc/yumi_controller.git
 ```
 
-* Command to compile for \catkin_ws folder
+Now build `yumi_ws` workspace
 ``` 
 catkin build -DPYTHON_EXECUTABLE=/usr/bin/python3 -DPYTHON_INCLUDE_DIR=/usr/include/python3.6m -DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.6m.so
 ``` 
+and add source to bashrc for easy startup
+``` 
+echo "source ~/yumi_ws/devel/setup.bash" >> ~/.bashrc
+source ~/.bashrc
+``` 
+
+Finally, to `rosrun` files in the workspace, you might need to mark them as executable with
+```
+sudo chmod +x src/yumi/yumi_controller/src/<FILENAME>
+```
+
 
 ## Usage
-The controllers can be launched with roslaunch. Checkout /controller/src/parameters.py for some accessible paramters that can be set.  
+The controllers can be launched with roslaunch. Checkout `yumi_controller/src/core/parameters.py` for some accessible parameters that can be set. To tune the controllers found in `trajectory_controllers.py` shipped with the package, checkout `gains.py`.
 
-### Using simulation:
-
-For testing in a simulation, first start the simulator, this can be replaced by a more realistic simulator as long as it
-has the same ROS interface as the ABB ros driver. 
-``` 
-roscore
-rosrun controller yumi_simulator.py 
+### Using simulation
+For testing in a simulation, first start the simulator, this can be replaced by a more realistic simulator as long as it has the same ROS interface as the ABB ros driver. 
 ```
-### Using hardware:
-warning: this activates EGM and joint controllers and also closes EGM and rapid when set_yumi_settings_and_start.py 
-is closed (In our lab, Ip: 192.168.125.1) (read wiki before attempting this) Also, don't forget to change velocity limits in ABB driver, abb_robot_driver/abb_robot_bringup_examples/config/ex3_hardware_egm.yaml.
-```
-roslaunch abb_robot_bringup_examples ex3_rws_and_egm_yumi_robot.launch robot_ip:=<robot controller's IP address> 
-rosrun controller set_yumi_settings_and_start.py
+roslaunch yumi_controller use_sim.launch
 ```
 
-### Using the trajectory controller:
-Then use roslaunch to start the trajectory controller. 
-``` 
-roslaunch controller yumiTrajectoryControl.launch 
-``` 
-Then to send example trajectories to the trajectory controller run.
-``` 
-rosrun controller testTrajectories.py 
-``` 
+### Using hardware
+Use `start_egm.py` to open a connection with YuMi (when linked via the service port, the IP is `192.168.125.1`; find this argument in `yumi_controller/launch/use_real.launch`). Also, don't forget to change velocity limits in ABB driver; this is done by changing the EGM configuration file `yumi_controller/launch/bringup/config_hardware_egm.yaml`.
+```
+roslaunch yumi_controller use_real.launch
+rosrun yumi_controller start_egm.py
+```
+
+### Using the trajectory controllers
+To start the trajectory controller use
+```
+rosrun yumi_controller trajectory_controller.py
+```
+and send some example trajectories to the controller with
+```
+rosrun yumi_controller example_1_some_trajectories.py
+```
 One could also send commands through the command line:
 ``` 
-rostopic pub /trajectory controller/Trajectory_msg "
-header:
-  seq: 0
-  stamp:
-    secs: 0
-    nsecs: 0
-  frame_id: ''
+rostopic pub /trajectory yumi_controller/Trajectory_msg "
 trajectory:
-- positionLeft:  [0.4, 0.3, 0.6]
+- positionLeft:  [0.4,  0.3, 0.6]
   positionRight: [0.4, -0.3, 0.6]
   orientationLeft:  [0, 0, 0, 1]
   orientationRight: [0, 0, 0, 1]
@@ -104,14 +123,31 @@ mode: 'individual'"
 --once
 ``` 
 
-### Running the customControllerTutorial.py:
-Only run this file in simulation as it only serves as a demonstration purposes i.e. build your own custom controller for 
-your use case. Start by launching the simulation as above. The launch the base.launch, this launches the visualization 
-and some background nodes. 
+To use force-based trajectory controllers, first connect to the NetBoxes using
+```
+roslaunch yumi_controller sensors.launch
+```
+which includes gravity compensation for the ABB SmartGrippers.
+Then, start a force-based trajectory controller
+```
+rosrun yumi_controller trajectory_controller.py wrenched
+rosrun yumi_controller trajectory_controller.py compliant
+```
+
+
+<!-- ### Running the customControllerTutorial.py:
+Only run this file in simulation as it only serves as a demonstration purposes i.e. build your own custom controller for your use case. Start by launching the simulation as above. The launch the base.launch, this launches the visualization and some background nodes. 
 ``` 
 roslaunch controller base.launch 
 ``` 
-Then to start the controller run.
+then to start the controller run
 ``` 
 rosrun controller customControllerTutorial.py
-``` 
+```  -->
+
+
+## Notes
+
+This package comes as is. Use it at your own risk.
+
+**Maintainer**: Sebastiano Fregnan

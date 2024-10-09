@@ -7,7 +7,7 @@
   <!--Import the yumi xacro -->
   <xacro:include filename="$(find yumi_description)/urdf/yumi.xacro"/>
   <!--Import the yumi servo gripper xacro -->
-  <xacro:include filename="$(find yumi_description)/urdf/Grippers/yumi_servo_gripper.xacro"/>
+  <xacro:include filename="$(find yumi_description)/urdf/Grippers/smart_gripper.xacro"/>
   <!--Import the Schunk Mini40 F/T sensor -->
   <xacro:include filename="$(find yumi_description)/urdf/Sensors/ftsensor.xacro"/>
   <!-- Import Gazebo plugins -->
@@ -22,26 +22,12 @@
   
   <xacro:if value="${yumi_setup == 'default'}">
     <xacro:property name="yumi_parent" value="world" />
+    <!-- world frame -->
     <link name="world"/>
     <joint name="world_joint" type="fixed">
-      <parent link="world"/>
-      <child link="yumi_base_link"/>
-      <!-- <origin xyz="0 0 0.1" rpy="0 0 0" /> -->
-      <origin xyz="0.181 0 0" rpy="0 0 0" />
-    </joint>
-    <!-- right gripper -->
-    <link name="yumi_grip_r"/>
-    <joint name="yumi_grip_r_joint" type="fixed">
-      <parent link="yumi_link_7_r"/>
-      <child link="yumi_grip_r"/>
-      <origin xyz="0 0 0.166" rpy="0 0 0" />
-    </joint>
-    <!-- left gripper -->
-    <link name="yumi_grip_l"/>
-    <joint name="yumi_grip_l_joint" type="fixed">
-      <parent link="yumi_link_7_l"/>
-      <child link="yumi_grip_r"/>
-      <origin xyz="0 0 0.166" rpy="0 0 0" />
+      <parent link="yumi_base_link"/>
+      <child link="world"/>
+      <origin xyz="0.181 0 0" rpy="0 0 ${-PI/2}" />
     </joint>
   </xacro:if>
 
@@ -53,22 +39,22 @@
 
   <!--right sensor-->
   <xacro:schunk_mini40 name="ftsensor_r" parent="yumi_link_7_r">
-    <origin xyz="0 0 0.0284" rpy="0 0 ${PI/2}" />
+    <origin xyz="0 0 0.031" rpy="0 0 ${PI/2}" />
   </xacro:schunk_mini40>
 
   <!--right gripper-->
-  <xacro:yumi_servo_gripper name="gripper_r" hardware_interface="hardware_interface/$(arg grippers_interface)" parent="ftsensor_r">
-    <origin xyz="0 0 0.004" rpy="0 0 ${PI/2}" />
-  </xacro:yumi_servo_gripper>
+  <xacro:smart_gripper name="gripper_r" hardware_interface="hardware_interface/$(arg grippers_interface)" parent="ftsensor_r">
+    <origin xyz="0 0 0.008" rpy="0 0 ${PI/2}" />
+  </xacro:smart_gripper>
 
   <!--left sensor-->
   <xacro:schunk_mini40 name="ftsensor_l" parent="yumi_link_7_l">
-    <origin xyz="0 0 0.0284" rpy="0 0 ${PI/2}" />
+    <origin xyz="0 0 0.031" rpy="0 0 ${PI/2}" />
   </xacro:schunk_mini40>
 
   <!--left gripper-->
-  <xacro:yumi_servo_gripper name="gripper_l" hardware_interface="hardware_interface/$(arg grippers_interface)" parent="ftsensor_l">
-    <origin xyz="0 0 0.004" rpy="0 0 ${PI/2}" />
-  </xacro:yumi_servo_gripper>
+  <xacro:smart_gripper name="gripper_l" hardware_interface="hardware_interface/$(arg grippers_interface)" parent="ftsensor_l">
+    <origin xyz="0 0 0.008" rpy="0 0 ${PI/2}" />
+  </xacro:smart_gripper>
 
 </robot>

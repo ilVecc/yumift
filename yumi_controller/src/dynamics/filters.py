@@ -1,5 +1,3 @@
-from abc import abstractmethod
-
 import numpy as np
 from . import quat_utils
 
@@ -356,6 +354,20 @@ class AdmittanceTorque(Admittance):
         W = 2*quat_utils.mult((quat_utils.jac_q(q) @ dq), quat_utils.conj(Q))
         w = W[1:]
         return Q, w
+
+
+class AdmittanceWrench(Admittance):
+    def __init__(self, m, k, d, h, method="tustin") -> None:
+        super().__init__(m, k, d, h, 6, method)
+    
+    def compute(self, f: np.ndarray, h_new: float = None):    
+        """ Returns position and velocity given an input force.
+        """
+        q, dq = super().compute(f, h_new)
+        Q = quat_utils.exp(q[3:])
+        W = 2*quat_utils.mult((quat_utils.jac_q(q[3:]) @ dq[3:]), quat_utils.conj(Q))
+        w = W[1:]
+        return (q[:3], Q), (dq[:3], w)
 
 
 def _main_admittance_tustin():

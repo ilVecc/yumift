@@ -39,7 +39,7 @@
     </link>
 
      <!--Extensions -->
-    <xacro:yumi_servo_gripper_gazebo name="${name}" />
+    <xacro:schunk_mini40_gazebo name="${name}" />
 
   </xacro:macro>
 

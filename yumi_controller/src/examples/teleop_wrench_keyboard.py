@@ -12,7 +12,7 @@
 
 import threading
 
-import roslib; roslib.load_manifest("controller")
+import roslib; roslib.load_manifest("yumi_controller")
 import rospy
 
 from geometry_msgs.msg import Wrench

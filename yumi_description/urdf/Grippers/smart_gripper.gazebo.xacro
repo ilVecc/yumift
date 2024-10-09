@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 
-<robot name="yumi_servo_gripper" xmlns:xacro="http://www.ros.org/wiki/xacro">
+<robot name="smart_gripper" xmlns:xacro="http://www.ros.org/wiki/xacro">
 
-  <xacro:macro name="yumi_servo_gripper_gazebo" params="name">
+  <xacro:macro name="smart_gripper_gazebo" params="name">
 
   <!-- Plugin for the mimic o/c joint - AFAIK, that shouldn't be necessary any more starting with Gazebo 3.0 -->
     <gazebo>

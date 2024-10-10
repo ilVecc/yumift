@@ -19,11 +19,25 @@ The idea is that you create a controller class that inherits the `YumiDualContro
 
 
 ## Dependencies
-This package uses ROS Melodic (Desktop) and Python3, so ROS and Catkin must be reconfigured to use Python3 instead of Python2.
-
-* for ROS packages in Python3
+This package expects Ubuntu 18.04 and uses ROS Melodic Desktop with Python3, so ROS and Catkin must be reconfigured to use Python3 instead of Python2.
+If you plan to use WSL2 on an Hyper-V enable device, a good setup would be to set mirrored networking by adding 
 ```
-sudo apt install python3-catkin-pkg-modules python3-rospkg-modules python3-empy python3-catkin-tools
+[wsl2]
+networkingMode=mirrored
+```
+in the `.wslconfig` file found in your user folder andto disable Windows Firewall (even better if you set specific rules without disabling it).
+
+
+* for ROS Melodic Desktop, simply follow the [official installation guide](https://wiki.ros.org/melodic/Installation/Ubuntu)
+
+* this controller relies on `joint_group_velocity_controller` installed via
+```
+sudo apt install ros-melodic-ros-controllers
+```
+
+* for ROS packages and `catkin-tools` in Python3
+```
+sudo apt install python3-catkin-pkg-modules python3-rospkg-modules python3-empy python3-defusedxml python3-catkin-tools
 ```
 
 * for Orokos KDL
@@ -34,14 +48,17 @@ sudo apt-get install libeigen3-dev libcppunit-dev
 * Python3 packages, can be installed with
 ``` 
 python3 -m pip install numpy scipy quadprog
+python3 -m pip uninstall em
+python3 -m pip install empy==3.3.4
 ```
 
+* to build the workspace, cmake 3.12 is needed, so upgrade it following [this guide](https://askubuntu.com/questions/829310/how-to-upgrade-cmake-in-ubuntu)
 
 
 ## Installation
 Create a folder for the catkin workspace
 ```
-mkdir -p ~/yumi_ws/src && cd ~/yumi_ws/src
+mkdir -p ~/yumift_ws/src && cd ~/yumift_ws/src
 ```
 then clone [`abb_robot_driver`](https://github.com/ros-industrial/abb_robot_driver) __OR__ run these commands (possibly outdated)
 ```
@@ -51,14 +68,25 @@ vcs import . --input https://github.com/ros-industrial/abb_robot_driver/raw/mast
 rosdep update
 rosdep install --from-paths . --ignore-src --rosdistro melodic
 ```
-then clone [`orocos_kinematics_dynamics`](https://github.com/orocos/orocos_kinematics_dynamics) package (for Python3)
+__IF__ `rosdep` doesn't work, you need to manually install the driver interfaces with
+```
+git clone abb_robot_driver_interfaces
+```
+
+Now clone [`orocos_kinematics_dynamics`](https://github.com/orocos/orocos_kinematics_dynamics) package (for Python3)
 ```
 git clone https://github.com/orocos/orocos_kinematics_dynamics.git
 cd orocos_kinematics_dynamics/
 git submodule update --init
-cd ..
 ```
-then clone [`geometry2`](https://github.com/ros/geometry2) package (for Python3)
+and downgrade its `pybind` version to `v2.9` using
+```
+cd python_orocos_kdl/pybind11
+git checkout "v2.9"
+cd ~/yumift_ws/src
+```
+
+Now clone [`geometry2`](https://github.com/ros/geometry2) package (for Python3)
 ```
 git clone -b melodic-devel https://github.com/ros/geometry2
 cd geometry2/
@@ -69,13 +97,13 @@ and finally clone this respository
 git clone https://github.com/ilVecc/yumi_controller.git
 ```
 
-Now build `yumi_ws` workspace
+Now build `yumift_ws` workspace
 ``` 
 catkin build -DPYTHON_EXECUTABLE=/usr/bin/python3 -DPYTHON_INCLUDE_DIR=/usr/include/python3.6m -DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.6m.so
 ``` 
 and add source to bashrc for easy startup
 ``` 
-echo "source ~/yumi_ws/devel/setup.bash" >> ~/.bashrc
+echo "source ~/yumift_ws/devel/setup.bash" >> ~/.bashrc
 source ~/.bashrc
 ``` 
 

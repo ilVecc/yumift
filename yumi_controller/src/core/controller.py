@@ -11,7 +11,7 @@ from abb_robot_msgs.msg import SystemState
 from abb_robot_msgs.srv import TriggerWithResultCode
 
 from . import tasks, utils, hqp
-from .parameters import YumiControllerParameters
+from .parameters import Parameters
 
 from dynamics.utils import RobotState
 from trajectory.polynomial import CubicTrajectory
@@ -63,7 +63,7 @@ class RoutineStateMachine(object):
         self._controller.reset()
         action = {
             "control_space": "joint_space",
-            "joint_velocities": np.zeros(YumiControllerParameters.dof)}
+            "joint_velocities": np.zeros(Parameters.dof)}
         return action
     
     def run(self, name: Optional[str]):
@@ -112,7 +112,7 @@ class RoutineStateMachine(object):
 
 class ResetPoseRoutine(Routine):
     
-    def __init__(self, reset_position=YumiControllerParameters.reset_pos, min_time: float = 2) -> None:
+    def __init__(self, reset_position=Parameters.reset_pos, min_time: float = 2) -> None:
         super().__init__()
         self._reset_position = reset_position
         self._final_time_min = min_time
@@ -135,7 +135,7 @@ class ResetPoseRoutine(Routine):
         current_joint_position = robot_state_curr.joint_pos
         
         # advance by time step
-        self._time += YumiControllerParameters.dt
+        self._time += Parameters.dt
 
         # if final time is reached, exit with "done" state
         if self._time <= self._final_time:
@@ -143,7 +143,7 @@ class ResetPoseRoutine(Routine):
             vel = dq + (q - current_joint_position)
             done = False
         else:
-            vel = np.zeros(YumiControllerParameters.dof)
+            vel = np.zeros(Parameters.dof)
             done = True
         
         action = {
@@ -167,15 +167,15 @@ class YumiDualController(object, metaclass=ABCMeta):
     def __init__(self):
         # TODO make this controller-indipendent
         self.yumi_state = utils.YumiDualStateUpdater(
-            YumiControllerParameters.frame_local_arm_to_gripper_right,
-            YumiControllerParameters.frame_local_arm_to_gripper_left,
+            Parameters.frame_local_arm_to_gripper_right,
+            Parameters.frame_local_arm_to_gripper_left,
             symmetry=0.)
         
         # setup world and tooltips reference frames
         self._controller_frames = utils.TfBroadcastControllerFrames(
-            YumiControllerParameters.frame_local_arm_to_gripper_right,
-            YumiControllerParameters.frame_local_arm_to_gripper_left,
-            YumiControllerParameters.frame_local_yumi_to_world)
+            Parameters.frame_local_arm_to_gripper_right,
+            Parameters.frame_local_arm_to_gripper_left,
+            Parameters.frame_local_yumi_to_world)
         self._controller_frames.broadcast()
         
         # routine variables
@@ -226,46 +226,46 @@ class YumiDualController(object, metaclass=ABCMeta):
         """
 
         # joint position limit
-        joint_pos_bound_lower = np.hstack([YumiControllerParameters.joint_position_bound_lower, YumiControllerParameters.joint_position_bound_lower])
-        joint_pos_bound_upper = np.hstack([YumiControllerParameters.joint_position_bound_upper, YumiControllerParameters.joint_position_bound_upper])
+        joint_pos_bound_lower = np.hstack([Parameters.joint_position_bound_lower, Parameters.joint_position_bound_lower])
+        joint_pos_bound_upper = np.hstack([Parameters.joint_position_bound_upper, Parameters.joint_position_bound_upper])
         self._tasks["joint_position_bound"] = tasks.JointPositionBoundsTask(
-            dof=YumiControllerParameters.dof,
+            dof=Parameters.dof,
             bounds_lower=joint_pos_bound_lower,
             bounds_upper=joint_pos_bound_upper,
-            timestep=YumiControllerParameters.dt)
+            timestep=Parameters.dt)
 
         # joint velocity limit
-        joint_vel_limits = np.hstack([YumiControllerParameters.joint_velocity_bound, YumiControllerParameters.joint_velocity_bound])
+        joint_vel_limits = np.hstack([Parameters.joint_velocity_bound, Parameters.joint_velocity_bound])
         self._tasks["joint_velocity_bound"] = tasks.JointVelocityBoundsTask(
-            dof=YumiControllerParameters.dof,
+            dof=Parameters.dof,
             bounds_lower=-joint_vel_limits,
             bounds_upper=joint_vel_limits).compute()  # constant
 
         # control objective
-        self._tasks["individual_control"] = tasks.IndividualControl(dof=YumiControllerParameters.dof)
-        self._tasks["right_control"] = tasks.RightControl(dof=YumiControllerParameters.dof)
-        self._tasks["left_control"] = tasks.LeftControl(dof=YumiControllerParameters.dof)
-        self._tasks["coordinated_control"] = tasks.CoordinatedControl(dof=YumiControllerParameters.dof)
-        self._tasks["absolute_control"] = tasks.AbsoluteControl(dof=YumiControllerParameters.dof)
-        self._tasks["relative_control"] = tasks.RelativeControl(dof=YumiControllerParameters.dof)
+        self._tasks["individual_control"] = tasks.IndividualControl(dof=Parameters.dof)
+        self._tasks["right_control"] = tasks.RightControl(dof=Parameters.dof)
+        self._tasks["left_control"] = tasks.LeftControl(dof=Parameters.dof)
+        self._tasks["coordinated_control"] = tasks.CoordinatedControl(dof=Parameters.dof)
+        self._tasks["absolute_control"] = tasks.AbsoluteControl(dof=Parameters.dof)
+        self._tasks["relative_control"] = tasks.RelativeControl(dof=Parameters.dof)
 
         # elbow collision avoidance
         self._tasks["self_collision_elbow"] = tasks.ElbowProximity(
-            dof=YumiControllerParameters.dof,
-            min_dist=YumiControllerParameters.elbow_min_distance,
-            timestep=YumiControllerParameters.dt)
+            dof=Parameters.dof,
+            min_dist=Parameters.elbows_min_distance,
+            timestep=Parameters.dt)
         
         # end effector collision avoidance
         self._tasks["end_effector_collision"] = tasks.EndEffectorProximity(
-            dof=YumiControllerParameters.dof,
-            min_dist=YumiControllerParameters.gripper_min_distance,
-            timestep=YumiControllerParameters.dt)
+            dof=Parameters.dof,
+            min_dist=Parameters.grippers_min_distance,
+            timestep=Parameters.dt)
         
         # joint potential 
         self._tasks["joint_position_potential"] = tasks.JointPositionPotential(
-            dof=YumiControllerParameters.dof,
-            default_pos=YumiControllerParameters.neutral_pos,
-            timestep=YumiControllerParameters.dt)
+            dof=Parameters.dof,
+            default_pos=Parameters.neutral_pos,
+            timestep=Parameters.dt)
 
     def start(self):
         """ Start allow commands to be sent. This function is BLOCKING and MUST
@@ -358,8 +358,8 @@ class YumiDualController(object, metaclass=ABCMeta):
             q_tgt = self._pinv_inverse_kinematics(action)
             
         # log joints with clipping velocities
-        vel_clip_r = np.abs(q_tgt[0:7]) > YumiControllerParameters.joint_velocity_bound
-        vel_clip_l = np.abs(q_tgt[7:14]) > YumiControllerParameters.joint_velocity_bound
+        vel_clip_r = np.abs(q_tgt[0:7]) > Parameters.joint_velocity_bound
+        vel_clip_l = np.abs(q_tgt[7:14]) > Parameters.joint_velocity_bound
         if np.any(vel_clip_r) or np.any(vel_clip_r):
             idxs = np.arange(7) + 1
             labels = "".join([f" R{i}" for i in idxs[vel_clip_r]]) \
@@ -375,7 +375,7 @@ class YumiDualController(object, metaclass=ABCMeta):
             individual or coordinated manipulation
         """
         # add extra feasibility tasks (if not already included)
-        for key, value in YumiControllerParameters.feasibility_objectives.items():
+        for key, value in Parameters.feasibility_objectives.items():
             if key not in action:
                 action[key] = value
 
@@ -423,7 +423,7 @@ class YumiDualController(object, metaclass=ABCMeta):
                 
             else:
                 print(f"When using individual control mode, \"right_velocity\" and/or \"left_velocity\" must be specified")
-                return np.zeros(YumiControllerParameters.dof)
+                return np.zeros(Parameters.dof)
         
         elif action["control_space"] == "coordinated":
             # (4.1) coordinated motion
@@ -444,10 +444,10 @@ class YumiDualController(object, metaclass=ABCMeta):
                 
             else:
                 print(f"When using individual control mode, \"absolute_velocity\" and/or \"relative_velocity\" must be specified")
-                return np.zeros(YumiControllerParameters.dof)
+                return np.zeros(Parameters.dof)
         else:
             print(f"Unknown control mode ({action['control_space']}), stopping")
-            return np.zeros(YumiControllerParameters.dof)
+            return np.zeros(Parameters.dof)
 
         # (5) joint potential task (tries to keep the robot in a natural configuration)
         if action["joint_potential"]:
@@ -465,7 +465,7 @@ class YumiDualController(object, metaclass=ABCMeta):
             #     print("Failed to stop EGM (ignore if simulation does not support EGM)")
             # stop everything (extra fail-safe step)
             print("Joint velocity set to 0")
-            vel = np.zeros(YumiControllerParameters.dof)
+            vel = np.zeros(Parameters.dof)
         
         return vel
 
@@ -487,21 +487,10 @@ class YumiDualController(object, metaclass=ABCMeta):
             
         else:
             print(f"Unknown control mode ({action['control_space']}), stopping")
-            return np.zeros(YumiControllerParameters.dof)
-        
-        q_avg = np.concatenate([(YumiControllerParameters.joint_position_bound_upper + YumiControllerParameters.joint_position_bound_lower) / 2, 
-                                (YumiControllerParameters.joint_position_bound_upper + YumiControllerParameters.joint_position_bound_lower) / 2])
-        q_span = np.concatenate([YumiControllerParameters.joint_position_bound_upper - YumiControllerParameters.joint_position_bound_lower,
-                                 YumiControllerParameters.joint_position_bound_upper - YumiControllerParameters.joint_position_bound_lower])
-        
-        # k0 = 10
-        # qdot0 = - k0 * (1/YumiControllerParameters.dof) * (self.yumi_state.joint_vel - q_avg) / q_span ** 2
-        
-        k0 = 10
-        qdot0 = - k0 * (1/YumiControllerParameters.dof) * (self.yumi_state.joint_vel - YumiControllerParameters.neutral_pos) / q_span ** 2
+            return np.zeros(Parameters.dof)
         
         jacobian_pinv = np.linalg.pinv(jacobian)
-        vel = jacobian_pinv @ xdot + (np.eye(YumiControllerParameters.dof) - jacobian_pinv @ jacobian) @ qdot0
+        vel = jacobian_pinv @ xdot + (np.eye(Parameters.dof) - jacobian_pinv @ jacobian) @ Parameters.secondary_neutral(None, self.yumi_state.joint_vel)
                 
         
         return vel

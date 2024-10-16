@@ -1,3 +1,5 @@
+# TODO make me a PoseMsg
+
 float64[] positionRight
 float64[] positionLeft
 float64[] orientationRight

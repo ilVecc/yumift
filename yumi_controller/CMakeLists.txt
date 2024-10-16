@@ -207,8 +207,8 @@ install(
   FILES
   bringup/yumi_rws_egm.launch
   base.launch
-  yumi_real.launch
-  yumi_sim.launch
+  use_real.launch
+  use_sim.launch
   sensors.launch
   sensors_comp.launch
   sensors_tools.launch

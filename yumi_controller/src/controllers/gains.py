@@ -4,8 +4,8 @@ import numpy as np
 MAX_DEVIATION = np.array([0.015, 0.25])*100  # [lin, ang]
 
 # Gain for individual right control
-K_P_IR = 2     # Gain for positional error
-K_O_IR = 2     # Gain for angular error
+K_P_IR = 4.0   # Gain for positional error
+K_O_IR = 8.0   # Gain for angular error
 K_F_IR = 0.05  # Gain for force error
 K_T_IR = 2.5   # Gain for torque error
 # Gain for individual right control
@@ -14,13 +14,13 @@ K_O_IL = K_O_IR
 K_F_IL = K_F_IR
 K_T_IL = K_T_IR
 # Gain for coordinated absolute control
-K_P_CA = 4
-K_O_CA = 4
+K_P_CA = 4.0
+K_O_CA = 8.0
 K_F_CA = 0.02
 K_T_CA = 0.4
 # Gain for coordinated relative control
-K_P_CR = 4
-K_O_CR = 4
+K_P_CR = 4.0
+K_O_CR = 8.0
 K_F_CR = 0.02
 K_T_CR = 0.4
 

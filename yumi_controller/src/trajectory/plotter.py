@@ -10,7 +10,7 @@ import numpy as np
 import quaternion as quat
 
 
-def make_quaternion(az, el, th):
+def azel_to_quat(az, el, th):
     v = np.array([
         np.cos(el)*np.cos(az),
         np.cos(el)*np.sin(az),
@@ -57,12 +57,52 @@ def plot_quat(q, format: Literal["trajectory", "trajectory+", "collection"] = "t
     cbar.set_ticklabels(list(map(str, range(0, 181, 15))))
 
     plt.show()
+    
+    
+def plot_traj(pos: np.ndarray, rot: np.ndarray):
+    
+    rotmat = quat.as_rotation_matrix(rot)
+
+    ax = plt.figure().add_subplot(projection='3d')
+    ax.plot(pos[:, 0], pos[:, 1], pos[:, 2], c="k", lw=10)
+    ax.quiver(pos[:, 0], pos[:, 1], pos[:, 2], rotmat[:, 0, 0], rotmat[:, 1, 0], rotmat[:, 2, 0], length=0.1, colors="r")
+    ax.quiver(pos[:, 0], pos[:, 1], pos[:, 2], rotmat[:, 0, 1], rotmat[:, 1, 1], rotmat[:, 2, 1], length=0.1, colors="g")
+    ax.quiver(pos[:, 0], pos[:, 1], pos[:, 2], rotmat[:, 0, 2], rotmat[:, 1, 2], rotmat[:, 2, 2], length=0.1, colors="b")
+    
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    ax.view_init(elev=20., azim=-35)
+
+    plt.show()
 
 
 if __name__ == "__main__":
     
-    out = np.array([
-        quat.from_rotation_vector( np.pi/3 * np.array([1, 0, 0])),
-        quat.from_rotation_vector( np.pi/2 * np.array([0.707, 0.707, 0]))
-    ])
-    plot_quat(out, "collection")
+    # out = np.array([
+    #     quat.from_rotation_vector( np.pi/3 * np.array([1, 0, 0])),
+    #     quat.from_rotation_vector( np.pi/2 * np.array([0.707, 0.707, 0]))
+    # ])
+    # plot_quat(out, "collection")
+    
+    import sys, pathlib; sys.path.append(str(pathlib.Path(__file__).parent.parent))
+    from trajectory.polynomial import CubicPoseTrajectory, PoseParam
+    
+    vi = np.pi/2 * np.array([0, 0.707, 0.707])
+    vf = np.pi/2 * np.array([0.707, 0.707, 0])
+    
+    traj = CubicPoseTrajectory()
+    pi = PoseParam(np.array([0., 0., 0.]), quat.from_rotation_vector(vi), np.zeros(6))
+    pf = PoseParam(np.array([3., 2., 1.]), quat.from_rotation_vector(vf), np.zeros(6))
+    traj.update(pi, pf, tf=4)
+
+    out_pos = []
+    out_rot = []
+    for t in np.linspace(0, 4, 100, endpoint=True):
+        param = traj.compute(t)
+        out_pos.append(param.pos)
+        out_rot.append(param.rot)
+    out_pos = np.array(out_pos)
+    out_rot = np.array(out_rot)
+    
+    plot_traj(out_pos, out_rot)

@@ -283,7 +283,7 @@ class YumiCoordinatedRobotState(YumiRobotState):
         jacobian: np.ndarray = np.zeros((12, 14)),
         grip_r: float = 0.,
         grip_l: float = 0.,
-        symmetry: float = 0
+        symmetry: float = 0.
     ):
         super().__init__(joint_pos, joint_vel, joint_torque, pose_pos, pose_rot, pose_vel, pose_wrench, jacobian, grip_r, grip_l)
         # grippers

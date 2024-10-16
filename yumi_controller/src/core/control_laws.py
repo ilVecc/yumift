@@ -2,7 +2,7 @@ import numpy as np
 import quaternion as quat
 
 from .utils import YumiCoordinatedRobotState
-from .parameters import YumiControllerParameters
+from .parameters import Parameters
 
 from dynamics.control_laws import ControlLawError, CartesianVelocityControlLaw
 from dynamics.filters import AdmittanceForce, AdmittanceTorque
@@ -131,7 +131,7 @@ class YumiDualCartesianVelocityControlLaw(object):
             self.control_right.compute_target_velocity()
         except ControlLawError as ex:
             # turn off deviation error if gripper collision constraint is active for individual mode
-            if not YumiControllerParameters.feasibility_objectives["gripper_collision"]:
+            if not Parameters.feasibility_objectives["gripper_collision"]:
                 raise ex
         return self.control_right.target_velocity
 
@@ -141,7 +141,7 @@ class YumiDualCartesianVelocityControlLaw(object):
         try:
             self.control_left.compute_target_velocity()
         except Exception as ex:
-            if not YumiControllerParameters.feasibility_objectives["gripper_collision"]:
+            if not Parameters.feasibility_objectives["gripper_collision"]:
                 raise ex
         return self.control_left.target_velocity
     
@@ -231,14 +231,14 @@ class YumiDualAdmittanceControlLaw(YumiDualCartesianVelocityControlLaw):
         adm_t_abs = gains["coordinated"]["absolute"]["admittance"]["torque"]
         adm_f_rel = gains["coordinated"]["relative"]["admittance"]["force"]
         adm_t_rel = gains["coordinated"]["relative"]["admittance"]["torque"]
-        self.admittance_force_r = AdmittanceForce(adm_f_r["m"], adm_f_r["k"], adm_f_r["d"], YumiControllerParameters.dt)
-        self.admittance_torque_r = AdmittanceTorque(adm_t_r["m"], adm_t_r["k"], adm_t_r["d"], YumiControllerParameters.dt)
-        self.admittance_force_l = AdmittanceForce(adm_f_l["m"], adm_f_l["k"], adm_f_l["d"], YumiControllerParameters.dt)
-        self.admittance_torque_l = AdmittanceTorque(adm_t_l["m"], adm_t_l["k"], adm_t_l["d"], YumiControllerParameters.dt)
-        self.admittance_force_abs = AdmittanceForce(adm_f_abs["m"], adm_f_abs["k"], adm_f_abs["d"], YumiControllerParameters.dt)
-        self.admittance_torque_abs = AdmittanceTorque(adm_t_abs["m"], adm_t_abs["k"], adm_t_abs["d"], YumiControllerParameters.dt)
-        self.admittance_force_rel = AdmittanceForce(adm_f_rel["m"], adm_f_rel["k"], adm_f_rel["d"], YumiControllerParameters.dt)
-        self.admittance_torque_rel = AdmittanceTorque(adm_t_rel["m"], adm_t_rel["k"], adm_t_rel["d"], YumiControllerParameters.dt)
+        self.admittance_force_r = AdmittanceForce(adm_f_r["m"], adm_f_r["k"], adm_f_r["d"], Parameters.dt)
+        self.admittance_torque_r = AdmittanceTorque(adm_t_r["m"], adm_t_r["k"], adm_t_r["d"], Parameters.dt)
+        self.admittance_force_l = AdmittanceForce(adm_f_l["m"], adm_f_l["k"], adm_f_l["d"], Parameters.dt)
+        self.admittance_torque_l = AdmittanceTorque(adm_t_l["m"], adm_t_l["k"], adm_t_l["d"], Parameters.dt)
+        self.admittance_force_abs = AdmittanceForce(adm_f_abs["m"], adm_f_abs["k"], adm_f_abs["d"], Parameters.dt)
+        self.admittance_torque_abs = AdmittanceTorque(adm_t_abs["m"], adm_t_abs["k"], adm_t_abs["d"], Parameters.dt)
+        self.admittance_force_rel = AdmittanceForce(adm_f_rel["m"], adm_f_rel["k"], adm_f_rel["d"], Parameters.dt)
+        self.admittance_torque_rel = AdmittanceTorque(adm_t_rel["m"], adm_t_rel["k"], adm_t_rel["d"], Parameters.dt)
         self.wrench_right = np.zeros((6,))
         self.wrench_left = np.zeros((6,))
         self.wrench_abs = np.zeros((6,))

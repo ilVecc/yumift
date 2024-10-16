@@ -5,8 +5,10 @@ from dynamics.utils import Frame
 
 # TODO make these loadable
 
-# This class stores all tunable parameters for the controller (only for the parts written in python)
-class YumiControllerParameters():
+class Parameters():
+    """ This class stores all tunable parameters for the controller.
+    """
+    
     # Hz the controller is running, is also defined in `kdl_kinematics.cpp` (both needs to be the same!)
     update_rate = 50 
     dt = 1/update_rate
@@ -24,8 +26,8 @@ class YumiControllerParameters():
                           -0.7, -1.7,  0.8, 1.0,  2.2, 1.0, 0.0])
     
     # calibration configuration
-    calibration_pos = np.array([ 0.0, -2.270, -2.356, 0.524, 0.0, 0.670, 0.0,
-                                 0.0, -2.270,  2.356, 0.524, 0.0, 0.670, 0.0])
+    calib_pos = np.array([ 0.0, -2.270, -2.356, 0.524, 0.0, 0.670, 0.0,
+                           0.0, -2.270,  2.356, 0.524, 0.0, 0.670, 0.0])
 
     ######################     HQP INVERSE KINEMATICS     #####################
     # extra objectives that should be included in HQP, if not already required
@@ -49,14 +51,28 @@ class YumiControllerParameters():
     joint_velocity_bound = 1.5 * np.array([1., 1., 1., 1., 1., 1., 1.])
 
     # gripper collision avoidance (Only for individual motion and not coordinated motion)
-    gripper_min_distance = 0.120  # closet allowed distance in [m]
+    grippers_min_distance = 0.120  # closet allowed distance in [m]
 
     # elbow collision avoidance  
-    elbow_min_distance = 0.200  # closes the elbows can be to each other in [m]
+    elbows_min_distance = 0.200  # closes the elbows can be to each other in [m]
     
     # For joint potential, defining a neutral pose to move towards
     neutral_pos = np.array([ 0.7, -1.7, -0.8, 1.0, -2.2, 1.0, 0.0, 
                             -0.7, -1.7,  0.8, 1.0,  2.2, 1.0, 0.0])
+    ###########################################################################
+    
+    ####################     SIMPLE INVERSE KINEMATICS     ####################
+    q_avg = np.concatenate([(joint_position_bound_upper + joint_position_bound_lower) / 2, 
+                            (joint_position_bound_upper + joint_position_bound_lower) / 2])
+    q_span = np.concatenate([joint_position_bound_upper - joint_position_bound_lower,
+                             joint_position_bound_upper - joint_position_bound_lower])
+    k0 = 10
+    
+    def secondary_neutral(self, q, dq): 
+        return - self.k0 * (1/self.dof) * (dq - self.neutral_pos) / self.q_span ** 2
+    
+    def secondary_center(self, q, dq): 
+        return - self.k0 * (1/self.dof) * (dq - self.q_avg) / self.q_span ** 2
     ###########################################################################
 
     # TODO move these frames to the urdf (?)

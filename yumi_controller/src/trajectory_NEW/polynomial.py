@@ -3,7 +3,7 @@ from typing import Tuple
 import numpy as np
 import quaternion as quat
 
-from .base import TParam, Trajectory, MultiTrajectory
+from .base import TParam, Trajectory, Path
 from .base_impl import PositionParam, PoseParam, QuaternionParam
 
 from dynamics.utils import quat_min_diff
@@ -171,7 +171,7 @@ class CubicPoseTrajectory(CubicTrajectory[PoseParam]):
 ##                                    PATH                                    ##
 ################################################################################
 
-class CubicPath(MultiTrajectory[TParam]):
+class CubicPath(Path[TParam]):
     def __init__(self, trajectory: CubicTrajectory[TParam]) -> None:
         super().__init__(trajectory)
 

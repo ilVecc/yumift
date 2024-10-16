@@ -7,7 +7,7 @@ import numpy as np
 
 from core.controller import YumiDualController
 from core.control_laws import YumiDualAdmittanceControlLaw
-from core.parameters import YumiControllerParameters
+from core.parameters import Parameters
 
 from gains import GAINS
 
@@ -68,7 +68,7 @@ class YumiLeadController(YumiDualController):
             print(f"Stopping motion (exception: {ex})")
             action = {
                 "control_space": "joint_space",
-                "joint_velocities": np.zeros(YumiControllerParameters.dof)}
+                "joint_velocities": np.zeros(Parameters.dof)}
         
         return action
 

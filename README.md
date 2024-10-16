@@ -132,7 +132,7 @@ rosrun yumi_controller start_egm.py
 ### Using the trajectory controllers
 To start the trajectory controller use
 ```
-rosrun yumi_controller trajectory_controller.py
+rosrun yumi_controller trajectory_controller.py simple
 ```
 and send some example trajectories to the controller with
 ```

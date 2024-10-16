@@ -68,11 +68,13 @@ class Parameters():
                              joint_position_bound_upper - joint_position_bound_lower])
     k0 = 10
     
-    def secondary_neutral(self, q, dq): 
-        return - self.k0 * (1/self.dof) * (dq - self.neutral_pos) / self.q_span ** 2
+    @classmethod
+    def secondary_neutral(cls, q, dq): 
+        return - cls.k0 * (1/cls.dof) * (dq - cls.neutral_pos) / cls.q_span ** 2
     
-    def secondary_center(self, q, dq): 
-        return - self.k0 * (1/self.dof) * (dq - self.q_avg) / self.q_span ** 2
+    @classmethod
+    def secondary_center(cls, q, dq): 
+        return - cls.k0 * (1/cls.dof) * (dq - cls.q_avg) / cls.q_span ** 2
     ###########################################################################
 
     # TODO move these frames to the urdf (?)

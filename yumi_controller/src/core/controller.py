@@ -171,13 +171,6 @@ class YumiDualController(object, metaclass=ABCMeta):
             Parameters.frame_local_arm_to_gripper_left,
             symmetry=0.)
         
-        # setup world and tooltips reference frames
-        self._controller_frames = utils.TfBroadcastControllerFrames(
-            Parameters.frame_local_arm_to_gripper_right,
-            Parameters.frame_local_arm_to_gripper_left,
-            Parameters.frame_local_yumi_to_world)
-        self._controller_frames.broadcast()
-        
         # routine variables
         self._routine_request = None
         self._routine_machine = RoutineStateMachine(self)
@@ -285,9 +278,6 @@ class YumiDualController(object, metaclass=ABCMeta):
                     print("Controller not ready yet")
                     action = self._routine_machine.reset()
                 self._set_action(action)
-
-                # send frame transforms to tf tree
-                self._controller_frames.broadcast()
 
     def pause(self):
         """ Stop sending commands but keep receiveing updates. 

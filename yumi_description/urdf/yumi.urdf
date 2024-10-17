@@ -637,9 +637,15 @@
   </transmission>
   <!--joint between {parent} and base-->
   <joint name="yumi_link_7_r_joint" type="fixed">
-    <origin rpy="0 0 1.57079632679" xyz="0 0 0.031"/>
     <parent link="yumi_link_7_r"/>
+    <child link="ftsensor_r_base"/>
+    <origin rpy="0 0 1.57079632679" xyz="0 0 0.007"/>
+  </joint>
+  <link name="ftsensor_r_base"/>
+  <joint name="ftsensor_r_base_joint" type="fixed">
+    <parent link="ftsensor_r_base"/>
     <child link="ftsensor_r"/>
+    <origin rpy="0 0 1.57079632679" xyz="0 0 0.024"/>
   </joint>
   <link name="ftsensor_r">
     <inertial>
@@ -662,6 +668,12 @@
       <material name="Light_Grey"/>
     </collision>
   </link>
+  <joint name="ftsensor_r_joint" type="fixed">
+    <parent link="ftsensor_r"/>
+    <child link="ftsensor_r_tool"/>
+    <origin rpy="0 0 0" xyz="0 0 0.008"/>
+  </joint>
+  <link name="ftsensor_r_tool"/>
   <!-- body -->
   <gazebo reference="ftsensor_r">
     <material>Gazebo/Light_Grey</material>
@@ -669,10 +681,10 @@
     <mu2>0.2</mu2>
   </gazebo>
   <!--joint between {parent} and base-->
-  <joint name="ftsensor_r_joint" type="fixed">
-    <origin rpy="0 0 1.57079632679" xyz="0 0 0.008"/>
-    <parent link="ftsensor_r"/>
+  <joint name="ftsensor_r_tool_joint" type="fixed">
+    <parent link="ftsensor_r_tool"/>
     <child link="gripper_r_base"/>
+    <origin rpy="0 0 1.57079632679" xyz="0 0 0"/>
   </joint>
   <link name="gripper_r_base">
     <inertial>
@@ -757,12 +769,12 @@
     </collision>
   </link>
   <!-- joint for gripper tip -->
-  <link name="gripper_r_tip"/>
   <joint name="gripper_r_tip_joint" type="fixed">
     <parent link="gripper_r_base"/>
     <child link="gripper_r_tip"/>
-    <origin rpy="0 0 -1.57079632679" xyz="0 0 0.136"/>
+    <origin rpy="0 0 3.14159265359" xyz="0 0 0.136"/>
   </joint>
+  <link name="gripper_r_tip"/>
   <!-- Plugin for the mimic o/c joint - AFAIK, that shouldn't be necessary any more starting with Gazebo 3.0 -->
   <gazebo>
     <plugin filename="libgazebo_mimic_plugin.so" name="mimic_plugin">
@@ -789,9 +801,15 @@
   </transmission>
   <!--joint between {parent} and base-->
   <joint name="yumi_link_7_l_joint" type="fixed">
-    <origin rpy="0 0 1.57079632679" xyz="0 0 0.031"/>
     <parent link="yumi_link_7_l"/>
+    <child link="ftsensor_l_base"/>
+    <origin rpy="0 0 1.57079632679" xyz="0 0 0.007"/>
+  </joint>
+  <link name="ftsensor_l_base"/>
+  <joint name="ftsensor_l_base_joint" type="fixed">
+    <parent link="ftsensor_l_base"/>
     <child link="ftsensor_l"/>
+    <origin rpy="0 0 1.57079632679" xyz="0 0 0.024"/>
   </joint>
   <link name="ftsensor_l">
     <inertial>
@@ -814,6 +832,12 @@
       <material name="Light_Grey"/>
     </collision>
   </link>
+  <joint name="ftsensor_l_joint" type="fixed">
+    <parent link="ftsensor_l"/>
+    <child link="ftsensor_l_tool"/>
+    <origin rpy="0 0 0" xyz="0 0 0.008"/>
+  </joint>
+  <link name="ftsensor_l_tool"/>
   <!-- body -->
   <gazebo reference="ftsensor_l">
     <material>Gazebo/Light_Grey</material>
@@ -821,10 +845,10 @@
     <mu2>0.2</mu2>
   </gazebo>
   <!--joint between {parent} and base-->
-  <joint name="ftsensor_l_joint" type="fixed">
-    <origin rpy="0 0 1.57079632679" xyz="0 0 0.008"/>
-    <parent link="ftsensor_l"/>
+  <joint name="ftsensor_l_tool_joint" type="fixed">
+    <parent link="ftsensor_l_tool"/>
     <child link="gripper_l_base"/>
+    <origin rpy="0 0 1.57079632679" xyz="0 0 0"/>
   </joint>
   <link name="gripper_l_base">
     <inertial>
@@ -909,12 +933,12 @@
     </collision>
   </link>
   <!-- joint for gripper tip -->
-  <link name="gripper_l_tip"/>
   <joint name="gripper_l_tip_joint" type="fixed">
     <parent link="gripper_l_base"/>
     <child link="gripper_l_tip"/>
-    <origin rpy="0 0 -1.57079632679" xyz="0 0 0.136"/>
+    <origin rpy="0 0 3.14159265359" xyz="0 0 0.136"/>
   </joint>
+  <link name="gripper_l_tip"/>
   <!-- Plugin for the mimic o/c joint - AFAIK, that shouldn't be necessary any more starting with Gazebo 3.0 -->
   <gazebo>
     <plugin filename="libgazebo_mimic_plugin.so" name="mimic_plugin">

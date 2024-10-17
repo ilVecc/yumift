@@ -83,6 +83,6 @@ class Parameters():
 
     # TODO move these frames to the urdf (?)
     # set local offset between "yumi_link_7_*" and "yumi_grip_*" which becomes the frame controlled
-    frame_local_arm_to_gripper_right = Frame(position=np.array([0, 0, 0.166]), quaternion=quat.one)
-    frame_local_arm_to_gripper_left  = Frame(position=np.array([0, 0, 0.166]), quaternion=quat.one)
+    frame_local_arm_to_gripper_right = Frame(position=np.array([0, 0, 0.175]), quaternion=quat.one)
+    frame_local_arm_to_gripper_left  = Frame(position=np.array([0, 0, 0.175]), quaternion=quat.one)
     frame_local_yumi_to_world        = Frame(position=np.array([0.181, 0, 0]), quaternion=quat.from_rotation_vector([0, 0, -np.pi/2]))

@@ -18,9 +18,9 @@
 
     <!--joint between {parent} and base-->
     <joint name="${parent}_joint" type="fixed">
-      <xacro:insert_block name="origin"/>
       <parent link="${parent}"/>
       <child link="${name}_base"/>
+      <xacro:insert_block name="origin"/>
     </joint>
 
     <link name="${name}_base">
@@ -112,13 +112,14 @@
     </link>
 
     <!-- joint for gripper tip -->
-    <link name="${name}_tip"/>
     <joint name="${name}_tip_joint" type="fixed">
       <parent link="${name}_base"/>
       <child link="${name}_tip"/>
-      <origin xyz="0 0 0.136" rpy="0 0 ${-PI/2}" />
+      <origin xyz="0 0 0.136" rpy="0 0 ${PI}" />
     </joint>
 
+    <link name="${name}_tip"/>
+    
      <!-- extensions -->
     <xacro:smart_gripper_gazebo name="${name}" />
     <xacro:smart_gripper_transmission name="${name}" hardware_interface="${hardware_interface}"/>

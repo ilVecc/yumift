@@ -8,9 +8,17 @@
 
     <!--joint between {parent} and base-->
     <joint name="${parent}_joint" type="fixed">
-      <xacro:insert_block name="origin"/>
       <parent link="${parent}"/>
+      <child link="${name}_base"/>
+      <xacro:insert_block name="origin"/>
+    </joint>
+
+    <link name="${name}_base"/>
+
+    <joint name="${name}_base_joint" type="fixed">
+      <parent link="${name}_base"/>
       <child link="${name}"/>
+      <origin xyz="0 0 ${0.010 + 0.014}" rpy="0 0 ${PI/2}" />
     </joint>
 
     <link name="${name}">
@@ -35,8 +43,15 @@
         </geometry>
         <material name="Light_Grey"/>
       </collision>
-
     </link>
+
+    <joint name="${name}_joint" type="fixed">
+      <parent link="${name}"/>
+      <child link="${name}_tool"/>
+      <origin xyz="0 0 0.008" rpy="0 0 0" />
+    </joint>
+    
+    <link name="${name}_tool"/>
 
      <!--Extensions -->
     <xacro:schunk_mini40_gazebo name="${name}" />

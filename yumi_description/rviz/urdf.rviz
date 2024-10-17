@@ -4,6 +4,8 @@ Panels:
     Name: Displays
     Property Tree Widget:
       Expanded:
+        - /TF1
+        - /TF1/Frames1
         - /Wrenches1
         - /Trajectories1
       Splitter Ratio: 0.5
@@ -67,11 +69,27 @@ Visualization Manager:
           Show Axes: false
           Show Trail: false
           Value: true
+        ftsensor_l_base:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        ftsensor_l_tool:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
         ftsensor_r:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
+        ftsensor_r_base:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        ftsensor_r_tool:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
         gripper_l_base:
           Alpha: 1
           Show Axes: false
@@ -204,8 +222,16 @@ Visualization Manager:
         All Enabled: false
         ftsensor_l:
           Value: true
+        ftsensor_l_base:
+          Value: false
+        ftsensor_l_tool:
+          Value: false
         ftsensor_r:
           Value: true
+        ftsensor_r_base:
+          Value: false
+        ftsensor_r_tool:
+          Value: false
         gripper_l_base:
           Value: false
         gripper_l_finger_l:
@@ -269,14 +295,16 @@ Visualization Manager:
                     yumi_link_5_l:
                       yumi_link_6_l:
                         yumi_link_7_l:
-                          ftsensor_l:
-                            gripper_l_base:
-                              gripper_l_finger_l:
-                                {}
-                              gripper_l_finger_r:
-                                {}
-                              gripper_l_tip:
-                                {}
+                          ftsensor_l_base:
+                            ftsensor_l:
+                              ftsensor_l_tool:
+                                gripper_l_base:
+                                  gripper_l_finger_l:
+                                    {}
+                                  gripper_l_finger_r:
+                                    {}
+                                  gripper_l_tip:
+                                    {}
             yumi_link_1_r:
               yumi_link_2_r:
                 yumi_link_3_r:
@@ -284,14 +312,16 @@ Visualization Manager:
                     yumi_link_5_r:
                       yumi_link_6_r:
                         yumi_link_7_r:
-                          ftsensor_r:
-                            gripper_r_base:
-                              gripper_r_finger_l:
-                                {}
-                              gripper_r_finger_r:
-                                {}
-                              gripper_r_tip:
-                                {}
+                          ftsensor_r_base:
+                            ftsensor_r:
+                              ftsensor_r_tool:
+                                gripper_r_base:
+                                  gripper_r_finger_l:
+                                    {}
+                                  gripper_r_finger_r:
+                                    {}
+                                  gripper_r_tip:
+                                    {}
       Update Interval: 0
       Value: true
     - Class: rviz/Group
@@ -432,25 +462,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 1.5170027017593384
+      Distance: 1.2060737609863281
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.13317203521728516
-        Y: 0.011876777745783329
-        Z: 0.2064405381679535
+        X: 0.08673890680074692
+        Y: 0.0664779469370842
+        Z: 0.23540203273296356
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.6597976684570312
+      Pitch: 0.4947977066040039
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 0.16000008583068848
+      Yaw: 0.37999972701072693
     Saved: ~
 Window Geometry:
   Displays:

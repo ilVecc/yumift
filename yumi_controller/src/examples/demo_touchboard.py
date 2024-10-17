@@ -4,22 +4,22 @@ import numpy as np
 import rospy
 import tf.transformations as trans
 
-from yumi_controller.msg import Trajectory_point, Trajectory_msg
+from yumi_controller.msg import YumiTrajectoryPoint, YumiTrajectory
 
 
 def main():
     # starting ROS node and subscribers
     rospy.init_node("demo_touchboard", anonymous=True)
-    pub = rospy.Publisher("/trajectory", Trajectory_msg, queue_size=1)
+    pub = rospy.Publisher("/trajectory", YumiTrajectory, queue_size=1)
     rospy.sleep(0.1)
 
     # --------------------------------------------------
 
-    msg = Trajectory_msg()
+    msg = YumiTrajectory()
     msg.header.stamp = rospy.Time.now()
     msg.mode = "coordinated"
     msg.trajectory = [
-        Trajectory_point(
+        YumiTrajectoryPoint(
             positionAbsolute = [0.45, 0.0, 0.3],
             orientationAbsolute = [1, 0, 0, 0],
             positionRelative = [0, 0.22, 0],

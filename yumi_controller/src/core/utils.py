@@ -8,7 +8,7 @@ from geometry_msgs.msg import Pose, WrenchStamped
 from abb_rapid_sm_addin_msgs.srv import SetSGCommand
 from abb_robot_msgs.srv import TriggerWithResultCode
 
-from yumi_controller.msg import Kinematics_msg
+from yumi_controller.msg import YumiKinematics
 
 from dynamics import utils as utils_dyn
 from core.trajectory import YumiParam
@@ -371,8 +371,8 @@ class YumiDualStateUpdater(YumiCoordinatedRobotState):
         rospy.Subscriber("/ftsensor_l/world_tip", WrenchStamped, self._callback_ext_force, callback_args="left", tcp_nodelay=True, queue_size=3)
         
         # TODO need a mutex here for data access
-        rospy.Subscriber("/jacobian_R_L", Kinematics_msg, self._callback, queue_size=3, tcp_nodelay=True)
-        rospy.wait_for_message("/jacobian_R_L", Kinematics_msg)
+        rospy.Subscriber("/jacobian_R_L", YumiKinematics, self._callback, queue_size=3, tcp_nodelay=True)
+        rospy.wait_for_message("/jacobian_R_L", YumiKinematics)
     
     @staticmethod
     def _WrenchStampedMsg_to_ndarray(wrench_stamped: WrenchStamped):
@@ -396,7 +396,7 @@ class YumiDualStateUpdater(YumiCoordinatedRobotState):
         elif arm == "left":
             self._wrenches[6:12] = self._WrenchStampedMsg_to_ndarray(data)
     
-    def _callback(self, data: Kinematics_msg) -> None:
+    def _callback(self, data: YumiKinematics) -> None:
         """ Updates forward kinematics using KDL instead of TF tree
         """
         #############################      individual motion      #############################

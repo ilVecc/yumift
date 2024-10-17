@@ -24,7 +24,7 @@ class Task(object):
         self.constr_mat: np.ndarray = np.array([])
         self.constr_vec: np.ndarray = np.array([])
         self.constr_type: Task.ConstraintType = None
-        self.slack_ratio: float = slack_ratio         # Between qdot and w cost
+        self.slack_ratio: float = slack_ratio         # Between solution and w cost
 
     @property
     def ndim(self):
@@ -102,7 +102,7 @@ class HQPSolver(object):
     def __init__(self):
         #self.SoT = SoT                  # List of Task objects
         #self.slack_boundary = 1e-5      # Currently unused.
-        #self.slack_ratio = 5e4          # Between qdot and w cost
+        #self.slack_ratio = 5e4          # Between solution and w cost
         self.slack: List[np.ndarray] = []
         
     def solve(self, SoT: List[Task] = []):

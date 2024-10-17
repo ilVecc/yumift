@@ -1,4 +1,4 @@
-rostopic pub /trajectory yumi_controller/Trajectory_msg "header:
+rostopic pub /trajectory yumi_controller/YumiTrajectory "header:
   seq: 0
   stamp:
     secs: 0

@@ -1,22 +1,22 @@
 #!/usr/bin/env python
 import rospy
 
-from yumi_controller.msg import Trajectory_point, Trajectory_msg
+from yumi_controller.msg import YumiTrajectoryPoint, YumiTrajectory
 
 
 def main():
     # starting ROS node and subscribers
     rospy.init_node("trajectory_test", anonymous=True)
-    pub = rospy.Publisher("/trajectory", Trajectory_msg, queue_size=1)
+    pub = rospy.Publisher("/trajectory", YumiTrajectory, queue_size=1)
     rospy.sleep(0.1)
 
     # --------------------------------------------------
 
-    msg = Trajectory_msg()
+    msg = YumiTrajectory()
     msg.header.stamp = rospy.Time.now()
     msg.mode = "individual"
     msg.trajectory = [
-        Trajectory_point(
+        YumiTrajectoryPoint(
             positionRight = [0.5, -0.2, 0.2],
             positionLeft  = [0.5,  0.2, 0.2],
             orientationRight = [1, 0, 0, 0],
@@ -24,7 +24,7 @@ def main():
             gripperRight = 20.0,
             gripperLeft  = 20.0,
             pointTime = 8.0),
-        Trajectory_point(
+        YumiTrajectoryPoint(
             positionRight = [0.5, -0.2, 0.2],
             positionLeft  = [0.5,  0.2, 0.2],
             orientationRight = [1, 0, 0, 0],

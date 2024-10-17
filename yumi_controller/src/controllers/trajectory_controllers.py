@@ -13,7 +13,7 @@ import threading
 from collections import deque
 
 from std_msgs.msg import Int64
-from yumi_controller.msg import Trajectory_msg, Trajectory_point
+from yumi_controller.msg import YumiTrajectory as YumiTrajectoryMsg, YumiTrajectoryPoint
 from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import Path
 
@@ -28,7 +28,7 @@ from gains import GAINS
 
 class YumiTrajectoryController(YumiDualController):
     """ Class for running trajectory control using an instance of `YumiDualController`.
-        Trajectory parameters are sent with ROS Message `Trajectory_msg` and from 
+        Trajectory parameters are sent with ROS Message `YumiTrajectory` and from 
         those a `YumiTrajectory` is constructed and tracked using the chosen 
         `YumiDualCartesianVelocityControlLaw`.
     """
@@ -53,7 +53,7 @@ class YumiTrajectoryController(YumiDualController):
         self.reset()  # init trajectory (set current position)
         
         # listen for trajectory commands
-        rospy.Subscriber("/trajectory", Trajectory_msg, self._callback_trajectory, tcp_nodelay=True, queue_size=1)
+        rospy.Subscriber("/trajectory", YumiTrajectoryMsg, self._callback_trajectory, tcp_nodelay=True, queue_size=1)
         self.pub_current_segment = rospy.Publisher("current_segment", Int64, tcp_nodelay=True, queue_size=1)
         
         ########################     VISUALIZATION     ########################
@@ -105,7 +105,7 @@ class YumiTrajectoryController(YumiDualController):
     def _sanitize_rot(rot: Optional[List[float]]):
         return quat.from_float_array(np.roll(np.asarray(rot), 1)) if rot is not None else quat.one
     
-    def _callback_trajectory(self, data: Trajectory_msg):
+    def _callback_trajectory(self, data: YumiTrajectoryMsg):
         """ Gets called when a new set of trajectory parameters is received. 
             The variable names in this function and the the trajectory class 
             follows individual motion with left and right. This means when 
@@ -138,11 +138,11 @@ class YumiTrajectoryController(YumiDualController):
         trajectory = [YumiTrajectoryParam(currentPoint, duration=0)]
         
         # append trajectory points from msg
-        # ATTENTION: Trajectory_point wants quaternions as (x,y,z,w) while all 
+        # ATTENTION: YumiTrajectoryPoint wants quaternions as (x,y,z,w) while all 
         #            quaternions in the code are as (w,x,y,z)
         # TODO fix this
         for point in data.trajectory:
-            point: Trajectory_point
+            point: YumiTrajectoryPoint
             # either right or absolute
             pos_1 = self._sanitize_pos(point.positionRight if is_individual else point.positionAbsolute)
             rot_1 = self._sanitize_rot(point.orientationRight if is_individual else point.orientationAbsolute)

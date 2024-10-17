@@ -59,9 +59,9 @@ find_package(
 ## Generate messages in the 'msg' folder
 add_message_files(
   FILES
-  Kinematics_msg.msg
-  Trajectory_point.msg
-  Trajectory_msg.msg
+  YumiKinematics.msg
+  YumiTrajectoryPoint.msg
+  YumiTrajectory.msg
 )
 
 ## Generate services in the 'srv' folder

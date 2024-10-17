@@ -69,6 +69,10 @@ class Parameters():
     k0 = 10
     
     @classmethod
+    def secondary_nothing(cls, q, dq): 
+        return np.zeros(cls.dof)
+    
+    @classmethod
     def secondary_neutral(cls, q, dq): 
         return - cls.k0 * (1/cls.dof) * (dq - cls.neutral_pos) / cls.q_span ** 2
     

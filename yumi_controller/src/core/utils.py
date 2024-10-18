@@ -403,41 +403,18 @@ class YumiDualStateUpdater(YumiCoordinatedRobotState):
         jacobians_arms = np.asarray(data.jacobian[1].data).reshape((6,7,2))
         self.jacobian = utils_dyn.jacobian_combine(jacobians_arms[:,:,0], jacobians_arms[:,:,1])
         
-        # update gripper poses ...
-        
-        # pose_arm_r = self._PoseMsg_to_frame(data.forwardKinematics[2])
-        # pose_arm_l = self._PoseMsg_to_frame(data.forwardKinematics[3])
-        # self.pose_gripper_r = pose_arm_r @ self.arm_to_gripper_r  # T_BG = T_BA * T_AG
-        # self.pose_gripper_l = pose_arm_l @ self.arm_to_gripper_l
-        
-        self.pose_gripper_r = self._PoseMsg_to_frame(data.forwardKinematics[0])
-        self.pose_gripper_l = self._PoseMsg_to_frame(data.forwardKinematics[1])
-        
-        
-        
-        # ... and jacobian (from base frame to tip of gripper, for both arms) ...
-        
-        # dist_vec_r = self.pose_gripper_r.pos - pose_arm_r.pos
-        # dist_vec_l = self.pose_gripper_l.pos - pose_arm_l.pos
-        # jacobian_gripper_r = utils_dyn.jacobian_change_end_frame(dist_vec_r, self.jacobian_r)
-        # jacobian_gripper_l = utils_dyn.jacobian_change_end_frame(dist_vec_l, self.jacobian_l)
-        # self.jacobian_grippers = utils_dyn.jacobian_combine(jacobian_gripper_r, jacobian_gripper_l)
-        
+        # update gripper jacobian ...
         jacobian_grippers = np.asarray(data.jacobian[0].data).reshape((6,7,2))
         jacobian_gripper_r = jacobian_grippers[:,:,0]
         jacobian_gripper_l = jacobian_grippers[:,:,1]
         self.jacobian_grippers = utils_dyn.jacobian_combine(jacobian_gripper_r, jacobian_gripper_l)
-        
-        # ... and velocity (now that the jacobian has been updated)
+        # ... and pose ...
+        self.pose_gripper_r = self._PoseMsg_to_frame(data.forwardKinematics[0])
+        self.pose_gripper_l = self._PoseMsg_to_frame(data.forwardKinematics[1])
+        # ... and velocity
         pose_grippers_vel = self.jacobian_grippers @ self.joint_vel
         self.pose_gripper_r.vel = pose_grippers_vel[:6]
         self.pose_gripper_l.vel = pose_grippers_vel[6:]
-        
-        # Q: couldn't we just have used  self.jacobian_grippers  immediately for velocity update,
-        #    just like with elbows below? 
-        # A: nope, because  self.jacobian_grippers  depends self.pose_gripper_*, which must be 
-        #    calculated first (to avoid using the old one), so velocity update must be deferred
-        # NOT ANYMORE! :)
         
         # update elbow jacobian ... 
         jacobians_elbows = np.asarray(data.jacobian[2].data).reshape((6,4,2))

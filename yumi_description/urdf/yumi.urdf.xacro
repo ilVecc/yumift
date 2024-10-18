@@ -4,38 +4,25 @@
   <xacro:include filename="$(find yumi_description)/urdf/Util/materials.xacro" />
   <!-- Import utilities -->
   <xacro:include filename="$(find yumi_description)/urdf/Util/utilities.xacro" />
+  <!-- Import Gazebo plugins -->
+  <xacro:include filename="$(find yumi_description)/urdf/Yumi/gazebo.urdf.xacro"/>
   <!--Import the yumi xacro -->
-  <xacro:include filename="$(find yumi_description)/urdf/yumi.xacro"/>
+  <xacro:include filename="$(find yumi_description)/urdf/Yumi/yumi.xacro"/>
   <!--Import the yumi servo gripper xacro -->
   <xacro:include filename="$(find yumi_description)/urdf/Grippers/smart_gripper.xacro"/>
   <!--Import the Schunk Mini40 F/T sensor -->
   <xacro:include filename="$(find yumi_description)/urdf/Sensors/ftsensor.xacro"/>
-  <!-- Import Gazebo plugins -->
-  <xacro:include filename="$(find yumi_description)/urdf/Gazebo/gazebo.urdf.xacro"/>
-
-  <xacro:property name="yumi_setup" value="$(arg yumi_setup)" />
-  <xacro:property name="yumi_parent" value=" " />
-
-  <xacro:if value="${yumi_setup == 'robot_centric'}">
-  	<!-- Pure YuMi URDF, with no joints connecting it to any other robot or pedestal. Neither accessories. -->
-  </xacro:if>
-  
-  <xacro:if value="${yumi_setup == 'default'}">
-    <xacro:property name="yumi_parent" value="world" />
-    <!-- world frame -->
-    <joint name="world_joint" type="fixed">
-      <parent link="yumi_base_link"/>
-      <child link="world"/>
-      <origin xyz="0.181 0 0" rpy="0 0 ${-PI/2}" />
-    </joint>
-    <link name="world"/>
-  </xacro:if>
-
 
   <!--yumi-->
-  <xacro:yumi name="yumi" hardware_interface="hardware_interface/$(arg arms_interface)" parent="${yumi_parent}" >
-    <origin xyz="0 0 0.1" rpy="0 0 0" />
-  </xacro:yumi>
+  <xacro:yumi name="yumi" hardware_interface="hardware_interface/$(arg arms_interface)"/>
+
+  <!-- workspace (i.e. world/task frame) -->
+  <joint name="workspace_joint" type="fixed">
+    <parent link="yumi_base_link"/>
+    <child link="workspace"/>
+    <origin xyz="0.181 0 0" rpy="0 0 ${-PI/2}" />
+  </joint>
+  <link name="workspace"/>
 
   <!--right sensor-->
   <xacro:schunk_mini40 name="ftsensor_r" parent="yumi_link_7_r">

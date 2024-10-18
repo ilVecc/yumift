@@ -166,10 +166,7 @@ class YumiDualController(object, metaclass=ABCMeta):
     """
     def __init__(self):
         # TODO make this controller-indipendent
-        self.yumi_state = utils.YumiDualStateUpdater(
-            Parameters.frame_local_arm_to_gripper_right,
-            Parameters.frame_local_arm_to_gripper_left,
-            symmetry=0.)
+        self.yumi_state = utils.YumiDualStateUpdater(symmetry=0.)
         
         # routine variables
         self._routine_request = None
@@ -255,9 +252,12 @@ class YumiDualController(object, metaclass=ABCMeta):
             timestep=Parameters.dt)
         
         # joint potential 
+        weights = np.array([1., 1., 1., 1., 1., 1., 0.5, 
+                            1., 1., 1., 1., 1., 1., 0.5])
         self._tasks["joint_position_potential"] = tasks.JointPositionPotential(
             dof=Parameters.dof,
             default_pos=Parameters.neutral_pos,
+            weights=weights,  # less strict on the last wrist joints
             timestep=Parameters.dt)
 
     def start(self):
@@ -459,7 +459,6 @@ class YumiDualController(object, metaclass=ABCMeta):
         
         return vel
 
-
     def _pinv_inverse_kinematics(self, action: dict):
         
         jacobian = None
@@ -480,7 +479,7 @@ class YumiDualController(object, metaclass=ABCMeta):
             return np.zeros(Parameters.dof)
         
         jacobian_pinv = np.linalg.pinv(jacobian)
-        vel = jacobian_pinv @ xdot + (np.eye(Parameters.dof) - jacobian_pinv @ jacobian) @ Parameters.secondary_neutral(None, self.yumi_state.joint_vel)
+        vel = jacobian_pinv @ xdot + (np.eye(Parameters.dof) - jacobian_pinv @ jacobian) @ Parameters.secondary_nothing(None, self.yumi_state.joint_vel)
                 
         
         return vel

@@ -357,18 +357,14 @@ class YumiDualStateUpdater(YumiCoordinatedRobotState):
 
     def __init__(
         self,
-        arm_to_gripper_r: utils_dyn.Frame,
-        arm_to_gripper_l: utils_dyn.Frame,
         symmetry: float = 0.
     ) -> None:
         super().__init__(symmetry=symmetry)
-        self.arm_to_gripper_r = arm_to_gripper_r
-        self.arm_to_gripper_l = arm_to_gripper_l
         
         # read force sensors
         self._wrenches = np.zeros(12)  # [fR, mR, fL, mL]
-        rospy.Subscriber("/ftsensor_r/world_tip", WrenchStamped, self._callback_ext_force, callback_args="right", tcp_nodelay=True, queue_size=3)
-        rospy.Subscriber("/ftsensor_l/world_tip", WrenchStamped, self._callback_ext_force, callback_args="left", tcp_nodelay=True, queue_size=3)
+        rospy.Subscriber("/ftsensor_r/world", WrenchStamped, self._callback_ext_force, callback_args="right", tcp_nodelay=True, queue_size=3)
+        rospy.Subscriber("/ftsensor_l/world", WrenchStamped, self._callback_ext_force, callback_args="left", tcp_nodelay=True, queue_size=3)
         
         # TODO need a mutex here for data access
         rospy.Subscriber("/jacobian_R_L", YumiKinematics, self._callback, queue_size=3, tcp_nodelay=True)
@@ -408,24 +404,25 @@ class YumiDualStateUpdater(YumiCoordinatedRobotState):
         self.jacobian = utils_dyn.jacobian_combine(jacobians_arms[:,:,0], jacobians_arms[:,:,1])
         
         # update gripper poses ...
-        pose_arm_r = self._PoseMsg_to_frame(data.forwardKinematics[2])
-        pose_arm_l = self._PoseMsg_to_frame(data.forwardKinematics[3])
-        self.pose_gripper_r = pose_arm_r @ self.arm_to_gripper_r  # T_BG = T_BA * T_AG
-        self.pose_gripper_l = pose_arm_l @ self.arm_to_gripper_l
         
-        # TODO
-        # new_pose_gripper_r = self._PoseMsg_to_frame(data.forwardKinematics[0])
-        # new_pose_gripper_l = self._PoseMsg_to_frame(data.forwardKinematics[1])
-        # print(self.pose_gripper_r)
-        # print(new_pose_gripper_r)
-        # print(self.pose_gripper_l - new_pose_gripper_l)
+        # pose_arm_r = self._PoseMsg_to_frame(data.forwardKinematics[2])
+        # pose_arm_l = self._PoseMsg_to_frame(data.forwardKinematics[3])
+        # self.pose_gripper_r = pose_arm_r @ self.arm_to_gripper_r  # T_BG = T_BA * T_AG
+        # self.pose_gripper_l = pose_arm_l @ self.arm_to_gripper_l
+        
+        self.pose_gripper_r = self._PoseMsg_to_frame(data.forwardKinematics[0])
+        self.pose_gripper_l = self._PoseMsg_to_frame(data.forwardKinematics[1])
+        
+        
         
         # ... and jacobian (from base frame to tip of gripper, for both arms) ...
+        
         # dist_vec_r = self.pose_gripper_r.pos - pose_arm_r.pos
         # dist_vec_l = self.pose_gripper_l.pos - pose_arm_l.pos
         # jacobian_gripper_r = utils_dyn.jacobian_change_end_frame(dist_vec_r, self.jacobian_r)
         # jacobian_gripper_l = utils_dyn.jacobian_change_end_frame(dist_vec_l, self.jacobian_l)
         # self.jacobian_grippers = utils_dyn.jacobian_combine(jacobian_gripper_r, jacobian_gripper_l)
+        
         jacobian_grippers = np.asarray(data.jacobian[0].data).reshape((6,7,2))
         jacobian_gripper_r = jacobian_grippers[:,:,0]
         jacobian_gripper_l = jacobian_grippers[:,:,1]
@@ -440,6 +437,7 @@ class YumiDualStateUpdater(YumiCoordinatedRobotState):
         #    just like with elbows below? 
         # A: nope, because  self.jacobian_grippers  depends self.pose_gripper_*, which must be 
         #    calculated first (to avoid using the old one), so velocity update must be deferred
+        # NOT ANYMORE! :)
         
         # update elbow jacobian ... 
         jacobians_elbows = np.asarray(data.jacobian[2].data).reshape((6,4,2))
@@ -501,6 +499,7 @@ class YumiDualStateUpdater(YumiCoordinatedRobotState):
         
         # update wrenches
         # (using the kineto-statics duality,  self.pose_wrench = link_mat.T @ wrench_coordinated )
+        # TODO might be broken
         wrench_coordinated = np.linalg.pinv(link_mat.T) @ self.pose_wrench
         self.pose_wrench_abs = wrench_coordinated[:6]
         self.pose_wrench_rel = wrench_coordinated[6:]
@@ -569,74 +568,3 @@ class YumiGrippersCommand(object):
 
         except Exception as ex:
             print(f"SmartGripper error : {ex}")
-
-
-class TfBroadcastControllerFrames(object):
-    """ Class for adding new frames to the tf tree and used internally for control.
-    """
-    def __init__(self, arm_to_gripper_right : utils_dyn.Frame, arm_to_gripper_left : utils_dyn.Frame, yumi_to_world : utils_dyn.Frame):
-        """ Set up the frames to broadcast.
-            :param arm_to_gripper_right: class instance of FramePose describing the local transformation from yumi_link_7_r to gripper_r_tip
-            :param arm_to_gripper_left: class instance of FramePose describing the local transformation from yumi_link_7_l to gripper_l_tip
-            :param yumi_to_world: class instance of FramePose describing the local transformation from yumi_base_link to world
-        """
-        self._broadcaster = tf.TransformBroadcaster()
-        self._arm_to_gripper_r = arm_to_gripper_right
-        self._arm_to_gripper_l = arm_to_gripper_left
-        self._yumi_to_world = yumi_to_world
-
-    @property
-    def arm_to_gripper_r(self):
-        """ Returns the frame
-        """
-        return self._arm_to_gripper_r
-
-    @arm_to_gripper_r.setter
-    def arm_to_gripper_r(self, gripperRight):
-        """ Update the frame
-            :param gripperRight: class instance of FramePose describing the local transformation from yumi_link_7_r to gripper_r_tip
-        """
-        self._arm_to_gripper_r = gripperRight
-
-    @property
-    def arm_to_gripper_l(self):
-        """ Returns the frame
-        """
-        return self._arm_to_gripper_l
-
-    @arm_to_gripper_l.setter
-    def arm_to_gripper_l(self, gripperLeft):
-        """ Update the frame
-            :param gripperLeft: class instance of FramePose describing the local transformation from yumi_link_7_l to gripper_l_tip
-        """
-        self._arm_to_gripper_l = gripperLeft
-
-    @property
-    def yumi_to_world(self):
-        """ Returns the frame
-        """
-        return self._yumi_to_world
-
-    @yumi_to_world.setter
-    def yumi_to_world(self, yumiToWorld):
-        """ Update the frame
-            :param yumiToWorld: class instance of FramePose describing the local transformation from yumi_base_link to world
-        """
-        self._yumi_to_world = yumiToWorld
-
-
-    def broadcast(self):
-        """ Sends out to the tf tree
-        """
-        self._broadcaster.sendTransform(
-            tuple(self._yumi_to_world.pos),
-            tuple(np.roll(quat.as_float_array(self._yumi_to_world.rot), -1)),
-            rospy.Time.now(), "world", "yumi_base_link")
-        self._broadcaster.sendTransform(
-            tuple(self._arm_to_gripper_r.pos),
-            tuple(np.roll(quat.as_float_array(self._arm_to_gripper_r.rot), -1)),
-            rospy.Time.now(), "gripper_r_tip", "yumi_link_7_r")
-        self._broadcaster.sendTransform(
-            tuple(self._arm_to_gripper_l.pos),
-            tuple(np.roll(quat.as_float_array(self._arm_to_gripper_l.rot), -1)),
-            rospy.Time.now(), "gripper_l_tip", "yumi_link_7_l")

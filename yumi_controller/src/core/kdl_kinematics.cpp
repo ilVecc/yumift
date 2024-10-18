@@ -132,11 +132,8 @@ class Calc_jacobian
     std::unique_ptr<KDL::ChainJntToJacSolver> jac_solver_left_elbow;
 
     // forward kinematics solvers
-    std::unique_ptr<KDL::ChainFkSolverPos_recursive> fk_solver_right_tool;
-    std::unique_ptr<KDL::ChainFkSolverPos_recursive> fk_solver_left_tool;
-    std::unique_ptr<KDL::ChainFkSolverPos_recursive> fk_solver_right_arm;
-    std::unique_ptr<KDL::ChainFkSolverPos_recursive> fk_solver_left_arm;
-    // std::unique_ptr<KDL::ChainFkSolverPos_recursive> fk_left_to_right;
+    std::unique_ptr<KDL::ChainFkSolverPos_recursive> fk_solver_right_chain;
+    std::unique_ptr<KDL::ChainFkSolverPos_recursive> fk_solver_left_chain;
 
     // order input data
     std::vector<double> joint_state;
@@ -230,11 +227,8 @@ Calc_jacobian::Calc_jacobian(ros::NodeHandle *nh){
     jac_solver_left_elbow = std::make_unique<KDL::ChainJntToJacSolver>(yumi_left_elbow);
 
     // Forward kinematics solver
-    fk_solver_right_tool = std::make_unique<KDL::ChainFkSolverPos_recursive>(yumi_right_tool);
-    fk_solver_left_tool = std::make_unique<KDL::ChainFkSolverPos_recursive>(yumi_left_tool);
-    
-    fk_solver_right_arm = std::make_unique<KDL::ChainFkSolverPos_recursive>(yumi_right_arm);
-    fk_solver_left_arm = std::make_unique<KDL::ChainFkSolverPos_recursive>(yumi_left_arm);
+    fk_solver_right_chain = std::make_unique<KDL::ChainFkSolverPos_recursive>(yumi_right_tool);
+    fk_solver_left_chain = std::make_unique<KDL::ChainFkSolverPos_recursive>(yumi_left_tool);
 
     joint_state.resize(18);
     joint_velocity.resize(14);
@@ -332,7 +326,7 @@ void Calc_jacobian::update(){
 
     std_msgs::Float64MultiArray jac;
 
-    // arm 
+    // grippers
     jac_solver_right_tool->JntToJac(q_right_arm, jacobian_right_tool);
     jac_solver_left_tool->JntToJac(q_left_arm, jacobian_left_tool);
     jacobian_data(7, jacobian_right_tool, jacobian_left_tool, &jac);
@@ -354,14 +348,14 @@ void Calc_jacobian::update(){
 
     // --------------------- Forward Kinematics --------------------------------------------------
     // last frame includes the base!
-    fk_solver_right_tool->JntToCart(q_right_arm, frame_right_tool, 9);
-    fk_solver_left_tool->JntToCart(q_left_arm, frame_left_tool, 9);
+    fk_solver_right_chain->JntToCart(q_right_arm, frame_right_tool, 13);
+    fk_solver_left_chain->JntToCart(q_left_arm, frame_left_tool, 13);
 
-    fk_solver_right_arm->JntToCart(q_right_arm, frame_right_arm, 8);
-    fk_solver_left_arm->JntToCart(q_left_arm, frame_left_arm, 8);
+    fk_solver_right_chain->JntToCart(q_right_arm, frame_right_arm, 8);
+    fk_solver_left_chain->JntToCart(q_left_arm, frame_left_arm, 8);
 
-    fk_solver_right_arm->JntToCart(q_right_arm, frame_right_elbow, 5);
-    fk_solver_left_arm->JntToCart(q_left_arm, frame_left_elbow, 5);
+    fk_solver_right_chain->JntToCart(q_right_arm, frame_right_elbow, 5);
+    fk_solver_left_chain->JntToCart(q_left_arm, frame_left_elbow, 5);
 
     geometry_msgs::Pose pose;
 

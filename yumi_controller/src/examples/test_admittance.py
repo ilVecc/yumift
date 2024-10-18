@@ -49,7 +49,7 @@ def main() -> None:
         pub_err_rot.publish(Vector3(*(a*k)))
         pub_err_wel.publish(Vector3(*der))
     
-    rospy.Subscriber("/ftsensor_l/world_tip_force", WrenchStamped, callback)
+    rospy.Subscriber("/ftsensor_l/world", WrenchStamped, callback)
     
     rospy.spin()
 

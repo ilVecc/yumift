@@ -70,7 +70,35 @@ class JointVelocityBoundsTask(Task):
 
 
 #
+# Potential-based control
+#
+
+class JointPositionPotential(Task):
+    """ Task for keeping a good joint configuration. 
+    """
+    def __init__(self, dof: int, default_pos: np.ndarray, weights: np.ndarray, timestep: float):
+        super().__init__(dof, 2e2)
+        self.constr_type = Task.ConstraintType.EQUAL
+        self.timestep = timestep
+        self.default_pos = default_pos
+        self.weights = weights
+
+    def compute(self, joint_position: np.ndarray):
+        """ Sets up constraints for joint potential,
+            :param joint_position: current joint state
+        """
+        
+        vec = (self.default_pos - joint_position) * 0.5 * self.weights
+
+        self.constr_mat = 100 * self.timestep * np.eye(self.ndim)
+        self.constr_vec = vec
+        
+        return self
+
+
+#
 # Mode control (jacobian-based)
+# TODO these are yumi specific, move to a different file
 #
 
 class IndividualControl(JacobianControlTask):
@@ -218,33 +246,5 @@ class EndEffectorProximity(Task):
         
         self.constr_mat = np.expand_dims(jacobian_proximity, axis=0)
         self.constr_vec = -np.array([self.min_dist - diff_norm])
-        
-        return self
- 
-
-#
-# Potential-based control
-#
-
-class JointPositionPotential(Task):
-    """ Task for keeping a good joint configuration. 
-    """
-    def __init__(self, dof: int, default_pos: np.ndarray, timestep: float):
-        super().__init__(dof, 2e2)
-        self.constr_type = Task.ConstraintType.EQUAL
-        self.timestep = timestep
-        self.default_pos = default_pos
-
-    def compute(self, joint_position: np.ndarray):
-        """ Sets up constraints for joint potential,
-            :param joint_position: current joint state
-        """
-        
-        vec = (self.default_pos - joint_position) * 0.5
-        # less strict on the last wrist joints
-        vec[[6,13]] = vec[[6,13]] / 2
-
-        self.constr_mat = 100 * self.timestep * np.eye(self.ndim)
-        self.constr_vec = vec
         
         return self

@@ -1,7 +1,4 @@
 import numpy as np
-import quaternion as quat
-
-from dynamics.utils import Frame
 
 # TODO make these loadable
 
@@ -9,12 +6,12 @@ class Parameters():
     """ This class stores all tunable parameters for the controller.
     """
     
+    # degrees of freedom for the robot (DO NOT TOUCH, obv.)
+    dof = 14
+    
     # Hz the controller is running, is also defined in `kdl_kinematics.cpp` (both needs to be the same!)
     update_rate = 50 
     dt = 1/update_rate
-    
-    # degrees of freedom for the robot (DO NOT TOUCH, obv.)
-    dof = 14
     
     # initial state
     init_pos = np.array([ 1.0, -2.0, -1.2, 0.6, -2.0, 1.0, 0.0,   # right arm
@@ -80,9 +77,3 @@ class Parameters():
     def secondary_center(cls, q, dq): 
         return - cls.k0 * (1/cls.dof) * (dq - cls.q_avg) / cls.q_span ** 2
     ###########################################################################
-
-    # TODO move these frames to the urdf (?)
-    # set local offset between "yumi_link_7_*" and "yumi_grip_*" which becomes the frame controlled
-    frame_local_arm_to_gripper_right = Frame(position=np.array([0, 0, 0.175]), quaternion=quat.one)
-    frame_local_arm_to_gripper_left  = Frame(position=np.array([0, 0, 0.175]), quaternion=quat.one)
-    frame_local_yumi_to_world        = Frame(position=np.array([0.181, 0, 0]), quaternion=quat.from_rotation_vector([0, 0, -np.pi/2]))

@@ -39,7 +39,6 @@
       <robotNamespace>/yumi</robotNamespace>
     </plugin>
   </gazebo>
-  <!-- Pure YuMi URDF, with no joints connecting it to any other robot or pedestal. Neither accessories. -->
   <link name="yumi_base_link"/>
   <joint name="yumi_base_link_to_body" type="fixed">
     <parent link="yumi_base_link"/>
@@ -635,6 +634,13 @@
       <mechanicalReduction>1</mechanicalReduction>
     </actuator>
   </transmission>
+  <!-- workspace (i.e. world/task frame) -->
+  <joint name="workspace_joint" type="fixed">
+    <parent link="yumi_base_link"/>
+    <child link="workspace"/>
+    <origin rpy="0 0 -1.57079632679" xyz="0.181 0 0"/>
+  </joint>
+  <link name="workspace"/>
   <!--joint between {parent} and base-->
   <joint name="yumi_link_7_r_joint" type="fixed">
     <parent link="yumi_link_7_r"/>

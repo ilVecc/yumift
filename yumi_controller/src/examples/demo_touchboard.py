@@ -15,16 +15,39 @@ def main():
 
     # --------------------------------------------------
 
+    # msg = YumiTrajectory()
+    # msg.header.stamp = rospy.Time.now()
+    # msg.mode = "coordinated"
+    # msg.trajectory = [
+    #     YumiTrajectoryPoint(
+    #         positionAbsolute = [0.45, 0.0, 0.3],
+    #         orientationAbsolute = [1, 0, 0, 0],
+    #         positionRelative = [0, 0.22, 0],
+    #         orientationRelative = trans.quaternion_about_axis(np.radians(180), [1, 0, 0]),
+    #         pointTime = 8.0),
+    # ]
+    # pub.publish(msg)
+    
     msg = YumiTrajectory()
     msg.header.stamp = rospy.Time.now()
-    msg.mode = "coordinated"
+    msg.mode = "individual"
     msg.trajectory = [
         YumiTrajectoryPoint(
-            positionAbsolute = [0.45, 0.0, 0.3],
-            orientationAbsolute = [1, 0, 0, 0],
-            positionRelative = [0, 0.22, 0],
-            orientationRelative = trans.quaternion_about_axis(np.radians(180), [1, 0, 0]),
+            positionRight = [0.45, -0.11, 0.3],
+            orientationRight = trans.quaternion_about_axis(np.radians(-90), [1, 0, 0]),
+            positionLeft  = [0.45, 0.11, 0.3],
+            orientationLeft = trans.quaternion_about_axis(np.radians(90), [1, 0, 0]),
+            gripperRight = 20,
+            gripperLeft  = 20,
             pointTime = 8.0),
+        YumiTrajectoryPoint(
+            positionRight = [0.45, -0.11, 0.3],
+            orientationRight = trans.quaternion_about_axis(np.radians(-90), [1, 0, 0]),
+            positionLeft  = [0.45, 0.11, 0.3],
+            orientationLeft = trans.quaternion_about_axis(np.radians(90), [1, 0, 0]),
+            gripperRight = 0,
+            gripperLeft  = 0,
+            pointTime = 2.0),
     ]
     pub.publish(msg)
     

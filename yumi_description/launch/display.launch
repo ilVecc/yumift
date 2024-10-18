@@ -2,7 +2,7 @@
 
   <arg name="model" default="$(find yumi_description)/urdf/yumi.urdf"/>
   <arg name="gui" default="false" />
-  <arg name="rvizconfig" default="$(find yumi_description)/rviz/urdf.rviz" />
+  <arg name="rvizconfig" default="$(find yumi_description)/rviz/yumi.rviz" />
 
   <param name="robot_description" command="$(find xacro)/xacro $(arg model)" />
 

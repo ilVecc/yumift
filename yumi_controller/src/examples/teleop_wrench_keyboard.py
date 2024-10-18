@@ -226,7 +226,7 @@ if __name__=="__main__":
     if stamped:
         WrenchMsg = WrenchStamped
 
-    pub_thread = PublishThread("/ftsensor_l/world_tip", repeat)
+    pub_thread = PublishThread("/ftsensor_l/world", repeat)
 
     fx = 0
     fy = 0

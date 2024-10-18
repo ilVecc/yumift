@@ -24,7 +24,7 @@ def main() -> None:
         pub_f.publish(Vector3(*f))
         pub_lp.publish(Vector3(*lp_f))
     
-    rospy.Subscriber("/ftsensor_l/world_tip", WrenchStamped, callback)
+    rospy.Subscriber("/ftsensor_l/world", WrenchStamped, callback)
     
     rospy.spin()
 

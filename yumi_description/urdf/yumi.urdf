@@ -645,7 +645,7 @@
   <joint name="yumi_link_7_r_joint" type="fixed">
     <parent link="yumi_link_7_r"/>
     <child link="ftsensor_r_base"/>
-    <origin rpy="0 0 1.57079632679" xyz="0 0 0.007"/>
+    <origin rpy="0 0 0" xyz="0 0 0.007"/>
   </joint>
   <link name="ftsensor_r_base"/>
   <joint name="ftsensor_r_base_joint" type="fixed">
@@ -809,7 +809,7 @@
   <joint name="yumi_link_7_l_joint" type="fixed">
     <parent link="yumi_link_7_l"/>
     <child link="ftsensor_l_base"/>
-    <origin rpy="0 0 1.57079632679" xyz="0 0 0.007"/>
+    <origin rpy="0 0 0" xyz="0 0 0.007"/>
   </joint>
   <link name="ftsensor_l_base"/>
   <joint name="ftsensor_l_base_joint" type="fixed">

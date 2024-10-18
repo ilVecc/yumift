@@ -391,7 +391,7 @@ int main(int argc, char** argv){
     Calc_jacobian calc_jacobian(&nh);
     // Hz update fequenzy, this detemines the update frequenzy in the contollerMaster.py, 
     // needs to be the same in both places
-    ros::Rate loop_rate(50);
+    ros::Rate loop_rate(250);
 
     while (ros::ok()){
         //if (calc_jacobian.state_received >= 1){ // Do not send anything if nothing has been received 

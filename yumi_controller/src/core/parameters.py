@@ -10,7 +10,7 @@ class Parameters():
     dof = 14
     
     # Hz the controller is running, is also defined in `kdl_kinematics.cpp` (both needs to be the same!)
-    update_rate = 50 
+    update_rate = 250 
     dt = 1/update_rate
     
     # initial state

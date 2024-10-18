@@ -26,7 +26,7 @@
 
   <!--right sensor-->
   <xacro:schunk_mini40 name="ftsensor_r" parent="yumi_link_7_r">
-    <origin xyz="0 0 0.007" rpy="0 0 ${PI/2}" />
+    <origin xyz="0 0 0.007" rpy="0 0 0" />
   </xacro:schunk_mini40>
 
   <!--right gripper-->
@@ -36,7 +36,7 @@
 
   <!--left sensor-->
   <xacro:schunk_mini40 name="ftsensor_l" parent="yumi_link_7_l">
-    <origin xyz="0 0 0.007" rpy="0 0 ${PI/2}" />
+    <origin xyz="0 0 0.007" rpy="0 0 0" />
   </xacro:schunk_mini40>
 
   <!--left gripper-->

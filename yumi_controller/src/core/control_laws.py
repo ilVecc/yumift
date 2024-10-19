@@ -27,6 +27,7 @@ class YumiDualCartesianVelocityControlLaw(object):
         self.control_rel = CartesianVelocityControlLaw(gains["coordinated"]["relative"]["position"], gains["coordinated"]["relative"]["rotation"], gains["coordinated"]["relative"]["max_deviation"])
         self.grip_r = None
         self.grip_l = None
+        self.dt = Parameters.dt
         
     @property
     def current_pose(self):
@@ -99,6 +100,9 @@ class YumiDualCartesianVelocityControlLaw(object):
         self.grip_r = None
         self.grip_l = None
 
+    def update_current_dt(self, dt: float):
+        self.dt = dt
+
     def update_current_pose(self, yumi_state: YumiCoordinatedRobotState):
         """ 
         Updates individual and coordinated poses
@@ -108,7 +112,7 @@ class YumiDualCartesianVelocityControlLaw(object):
         self.control_abs.update_current_pose(yumi_state.pose_abs)
         self.control_rel.update_current_pose(yumi_state.pose_rel)
     
-    def update_desired_pose(self, target_state: YumiCoordinatedRobotState):
+    def update_target_pose(self, target_state: YumiCoordinatedRobotState):
         """ Updates the desired velocities and target position. 
             ATTENTION: this function uses `pose_gripper_r` and `pose_gripper_l` as
             desired target for both the individual (right and left) and the coordinated 
@@ -262,11 +266,11 @@ class YumiDualAdmittanceControlLaw(YumiDualCartesianVelocityControlLaw):
         self.wrench_abs = yumi_state.pose_wrench_abs
         self.wrench_rel = yumi_state.pose_wrench_rel
     
-    def update_desired_pose(self, target_state: YumiCoordinatedRobotState):
+    def update_target_pose(self, target_state: YumiCoordinatedRobotState):
         # here we inject the wrenches into the trajectory
-        # "target trajectory" becomes "desired trajectory", so that now 
-        # "target" includes both the trajectory and the effect of external
-        # forces at the individual/coordinated frames 
+        # "target" is renamed to "desired", so that "target" can now be repurposed 
+        # include both the "desired" trajectory and the effect of external forces 
+        # at the individual/coordinated frames (obtained by admittances)
         des_pos = np.concatenate([target_state.pose_gripper_r.pos, target_state.pose_gripper_l.pos])
         des_rot = np.stack([target_state.pose_gripper_r.rot, target_state.pose_gripper_l.rot])
         des_vel = np.concatenate([target_state.pose_gripper_r.vel, target_state.pose_gripper_l.vel])
@@ -297,8 +301,8 @@ class YumiDualAdmittanceControlLaw(YumiDualCartesianVelocityControlLaw):
             adm_torque_2 = self.admittance_torque_rel
         
         #### FORCES ####
-        error_pos_1, error_vel_1 = adm_force_1.compute(forces_1)
-        error_pos_2, error_vel_2 = adm_force_2.compute(forces_2)
+        error_pos_1, error_vel_1 = adm_force_1.compute(forces_1, self.dt)
+        error_pos_2, error_vel_2 = adm_force_2.compute(forces_2, self.dt)
         
         error_pos = np.concatenate([error_pos_1, error_pos_2])
         target_pos = des_pos + error_pos
@@ -307,8 +311,8 @@ class YumiDualAdmittanceControlLaw(YumiDualCartesianVelocityControlLaw):
         target_vel[[0,1,2,6,7,8]] = des_vel[[0,1,2,6,7,8]] + error_vel
         
         #### TORQUES ####
-        error_rot_1, error_wel_1 = adm_torque_1.compute(torques_1)
-        error_rot_2, error_wel_2 = adm_torque_2.compute(torques_2)
+        error_rot_1, error_wel_1 = adm_torque_1.compute(torques_1, self.dt)
+        error_rot_2, error_wel_2 = adm_torque_2.compute(torques_2, self.dt)
         
         target_rot_r = quat.from_float_array(error_rot_1) * des_rot[0]
         target_rot_l = quat.from_float_array(error_rot_2) * des_rot[1]
@@ -323,4 +327,4 @@ class YumiDualAdmittanceControlLaw(YumiDualCartesianVelocityControlLaw):
             grip_l=des_grip_l)
         target_state.pose_gripper_r = Frame(target_pos[0:3], target_rot[0], target_vel[0:6])
         target_state.pose_gripper_l = Frame(target_pos[3:6], target_rot[1], target_vel[6:12])
-        return super().update_desired_pose(target_state)
+        return super().update_target_pose(target_state)

@@ -289,19 +289,19 @@ class YumiCoordinatedRobotState(YumiRobotState):
         # grippers
         self.pose_gripper_r = utils_dyn.Frame()
         self.pose_gripper_l = utils_dyn.Frame()
-        self.jacobian_grippers = np.zeros((12, 14))
+        self.jacobian_grippers: np.ndarray = np.zeros((12, 14))
         # elbows
         self.pose_elbow_r = utils_dyn.Frame()
         self.pose_elbow_l = utils_dyn.Frame()
-        self.jacobian_elbows = np.zeros((12, 8))
+        self.jacobian_elbows: np.ndarray = np.zeros((12, 8))
         # coordinated
         assert -1 < symmetry and symmetry < +1, "Symmetry value must be in range [-1,+1]"
         self.alpha = (symmetry + 1) * 0.5
         self.pose_abs = utils_dyn.Frame()
         self.pose_rel = utils_dyn.Frame()
-        self.pose_wrench_abs = np.zeros(6)
-        self.pose_wrench_rel = np.zeros(6)
-        self.jacobian_coordinated = np.zeros((12, 14))
+        self.pose_wrench_abs: np.ndarray = np.zeros(6)
+        self.pose_wrench_rel: np.ndarray = np.zeros(6)
+        self.jacobian_coordinated: np.ndarray = np.zeros((12, 14))
     
     @property
     def poses_individual(self):
@@ -361,13 +361,16 @@ class YumiDualStateUpdater(YumiCoordinatedRobotState):
     ) -> None:
         super().__init__(symmetry=symmetry)
         
+        # add time information
+        self.timestamp = rospy.Time.now()
+        
         # read force sensors
         self._wrenches = np.zeros(12)  # [fR, mR, fL, mL]
-        rospy.Subscriber("/ftsensor_r/world", WrenchStamped, self._callback_ext_force, callback_args="right", tcp_nodelay=True, queue_size=3)
-        rospy.Subscriber("/ftsensor_l/world", WrenchStamped, self._callback_ext_force, callback_args="left", tcp_nodelay=True, queue_size=3)
+        rospy.Subscriber("/ftsensor_r/world", WrenchStamped, self._callback_ext_force, callback_args="right", queue_size=1, tcp_nodelay=False)
+        rospy.Subscriber("/ftsensor_l/world", WrenchStamped, self._callback_ext_force, callback_args="left", queue_size=1, tcp_nodelay=False)
         
         # TODO need a mutex here for data access
-        rospy.Subscriber("/jacobian_R_L", YumiKinematics, self._callback, queue_size=3, tcp_nodelay=True)
+        rospy.Subscriber("/jacobian_R_L", YumiKinematics, self._callback, queue_size=1, tcp_nodelay=False)
         rospy.wait_for_message("/jacobian_R_L", YumiKinematics)
     
     @staticmethod
@@ -395,6 +398,7 @@ class YumiDualStateUpdater(YumiCoordinatedRobotState):
     def _callback(self, data: YumiKinematics) -> None:
         """ Updates forward kinematics using KDL instead of TF tree
         """
+        self.timestamp = data.header.stamp
         #############################      individual motion      #############################
         # update joint position, velocity ... 
         self.joint_pos = np.asarray(data.jointPosition)[:14]  # simulation adds gripping position
@@ -507,8 +511,8 @@ class YumiGrippersCommand(object):
     """
     def __init__(self):
         # rosservice, for control over grippers
-        self._service_SetSGCommand = rospy.ServiceProxy("/yumi/rws/sm_addin/set_sg_command", SetSGCommand)
-        self._service_RunSGRoutine = rospy.ServiceProxy("/yumi/rws/sm_addin/run_sg_routine", TriggerWithResultCode)
+        self._service_SetSGCommand = rospy.ServiceProxy("/yumi/rws/sm_addin/set_sg_command", SetSGCommand, persistent=True)
+        self._service_RunSGRoutine = rospy.ServiceProxy("/yumi/rws/sm_addin/run_sg_routine", TriggerWithResultCode, persistent=True)
         self._prev_gripper_r = 0
         self._prev_gripper_l = 0
 

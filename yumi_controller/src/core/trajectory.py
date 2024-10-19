@@ -52,7 +52,7 @@ class YumiTrajectoryParam(MultiParam[YumiParam]):
         super().__init__(param, duration)
     
 
-@sampled
+# @sampled
 class YumiTrajectory(MultiTrajectory[YumiParam]):
     """ Generates a trajectory from trajectory parameters, the process is identical for individual and coordinated manipulation.
         The variable names follows individual motion with left and right. This means when coordinate manipulation is used, right

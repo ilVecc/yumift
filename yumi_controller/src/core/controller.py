@@ -155,9 +155,9 @@ class ResetPoseRoutine(Routine):
         pass
 
 
-
-
-
+###############################################################################
+#                                CONTROLLERS                                  #
+###############################################################################
 
 class YumiDualController(object, metaclass=ABCMeta):
     """ Class for controlling YuMi, inherit this class and create your own 
@@ -192,7 +192,7 @@ class YumiDualController(object, metaclass=ABCMeta):
         # EGM error handler
         self._auto_mode = True
         self._start_rapid = rospy.ServiceProxy("/yumi/rws/start_rapid", TriggerWithResultCode)
-        rospy.Subscriber("/yumi/rws/system_states", SystemState, self._callback_system_state, queue_size=3, tcp_nodelay=True)
+        rospy.Subscriber("/yumi/rws/system_states", SystemState, self._callback_system_state, queue_size=1, tcp_nodelay=False)
     
     def _callback_system_state(self, data: SystemState):
         rws_auto_mode = data.auto_mode
@@ -358,7 +358,8 @@ class YumiDualController(object, metaclass=ABCMeta):
         
         # yumi control command and gripper control command (if any)
         self._pub_yumi.send_velocity_cmd(q_tgt)
-        self._pub_grip.send_position_cmd(action.get("gripper_right"), action.get("gripper_left"))
+        if action.get("gripper_right") or action.get("gripper_left"):
+            self._pub_grip.send_position_cmd(action.get("gripper_right"), action.get("gripper_left"))
     
     def _hqp_inverse_kinematics(self, action: dict):
         """ Sets up stack of tasks and solves the inverse kinematics problem for

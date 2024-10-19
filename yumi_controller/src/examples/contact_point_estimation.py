@@ -28,8 +28,8 @@ def main():
     # starting ROS node and subscribers
     rospy.init_node("contact_point_estimation", anonymous=True)
     
-    rospy.Subscriber("/ftsensor_r/tool_tip", WrenchStamped, _callback_set_wrench, callback_args="r", queue_size=10)
-    rospy.Subscriber("/ftsensor_l/tool_tip", WrenchStamped, _callback_set_wrench, callback_args="l", queue_size=10)
+    rospy.Subscriber("/ftsensor_r/tool_tip", WrenchStamped, _callback_set_wrench, callback_args="r", queue_size=1)
+    rospy.Subscriber("/ftsensor_l/tool_tip", WrenchStamped, _callback_set_wrench, callback_args="l", queue_size=1)
     
     
     

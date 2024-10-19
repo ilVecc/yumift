@@ -48,24 +48,25 @@ class YumiTrajectoryController(YumiDualController):
         self.effective_mode = None
         
         # prepare trajectory buffer
-        self.trajectory = YumiTrajectory(Parameters.dt)
+        self.initial_time = rospy.Time.now()
+        self.trajectory = YumiTrajectory()
         self.lock_trajectory = threading.Lock()
         self.reset()  # init trajectory (set current position)
         
         # listen for trajectory commands
-        rospy.Subscriber("/trajectory", YumiTrajectoryMsg, self._callback_trajectory, tcp_nodelay=True, queue_size=1)
-        self.pub_current_segment = rospy.Publisher("current_segment", Int64, tcp_nodelay=True, queue_size=1)
+        rospy.Subscriber("/trajectory", YumiTrajectoryMsg, self._callback_trajectory, queue_size=1, tcp_nodelay=False)
+        self.pub_current_segment = rospy.Publisher("current_segment", Int64, queue_size=1, tcp_nodelay=False)
         
-        ########################     VISUALIZATION     ########################
-        self._path_len_cache = 500
-        # publish desired path
-        self._path_1 = deque(maxlen=self._path_len_cache)
-        self._path_2 = deque(maxlen=self._path_len_cache)
-        self._pub_path_1 = rospy.Publisher("path_1", Path, tcp_nodelay=True, queue_size=1)
-        self._pub_path_2 = rospy.Publisher("path_2", Path, tcp_nodelay=True, queue_size=1)
-        # publish current and desired frames
-        self._broadcaster = tf.TransformBroadcaster()
-        #######################################################################
+        # ########################     VISUALIZATION     ########################
+        # self._path_len_cache = 1
+        # # publish desired path
+        # self._path_1 = deque(maxlen=self._path_len_cache)
+        # self._path_2 = deque(maxlen=self._path_len_cache)
+        # self._pub_path_1 = rospy.Publisher("path_1", Path, tcp_nodelay=True, queue_size=1)
+        # self._pub_path_2 = rospy.Publisher("path_2", Path, tcp_nodelay=True, queue_size=1)
+        # # publish current and desired frames
+        # self._broadcaster = tf.TransformBroadcaster()
+        # #######################################################################
 
     def reset(self):
         """ Initialize the controller setting the current point as desired trajectory. 
@@ -112,10 +113,10 @@ class YumiTrajectoryController(YumiDualController):
             coordinate manipulation is used, right is absolute motion and left 
             becomes relative motion. 
         """
-        self._path_1.clear()
-        self._path_2.clear()
-        self._pub_path_1.publish(Path())
-        self._pub_path_2.publish(Path())
+        # self._path_1.clear()
+        # self._path_2.clear()
+        # self._pub_path_1.publish(Path())
+        # self._pub_path_2.publish(Path())
         
         # go through allowed routines (eg. "routine_reset_pose")
         if data.mode.startswith("routine_"):
@@ -168,6 +169,7 @@ class YumiTrajectoryController(YumiDualController):
             self.control_law.mode = "individual" if is_individual else "coordinated"
             self.effective_mode = data.mode
             self.trajectory.update(trajectory)
+            self.initial_time = rospy.Time.now()
         print(f"New trajectory received in \"{self.effective_mode}\" mode")
     
     @staticmethod
@@ -180,42 +182,45 @@ class YumiTrajectoryController(YumiDualController):
         # START MODIFING THE TARGET
         self.lock_trajectory.acquire()
         
+        # update timing information
+        now = rospy.Time.now()
+        self.control_law.update_current_dt((now - self.yumi_state.timestamp).to_sec())
+        
         # update pose and wrench for the control law class
         self.control_law.update_current_pose(self.yumi_state)
         
         # calculate new target velocities and positions for this time step
-        yumi_target_param: YumiParam = self.trajectory.compute()
+        yumi_target_param: YumiParam = self.trajectory.compute((now - self.initial_time).to_sec())
         yumi_target_state = YumiParam_to_YumiCoordinatedRobotState(yumi_target_param)
-        self.control_law.update_desired_pose(yumi_target_state)
+        self.control_law.update_target_pose(yumi_target_state)
 
-        ########################     VISUALIZATION     ########################
-        # broadcast current coordinated poses
-        self._broadcaster.sendTransform(self.yumi_state.pose_abs.pos, self._wxyz_to_xyzw(self.yumi_state.pose_abs.rot), rospy.Time.now(), "now_absolute_pose", "yumi_base_link")
-        self._broadcaster.sendTransform(self.yumi_state.pose_rel.pos, self._wxyz_to_xyzw(self.yumi_state.pose_rel.rot), rospy.Time.now(), "now_relative_pose", "now_absolute_pose")
-        # broadcast desired coordinated poses
-        if not self.control_law.mode == "individual":
-            self._broadcaster.sendTransform(yumi_target_state.pose_gripper_r.pos, self._wxyz_to_xyzw(yumi_target_state.pose_gripper_r.rot), rospy.Time.now(), "des_absolute_pose", "yumi_base_link")
-            self._broadcaster.sendTransform(yumi_target_state.pose_gripper_l.pos, self._wxyz_to_xyzw(yumi_target_state.pose_gripper_l.rot), rospy.Time.now(), "des_relative_pose", "des_absolute_pose")
-        # create desired pose for specified control mode
-        des_parent_1, des_parent_2 = "yumi_base_link", "yumi_base_link" if self.control_law.mode == "individual" else "des_absolute_pose"
-        des_pose_1, des_pose_2 = yumi_target_state.pose_gripper_r, yumi_target_state.pose_gripper_l
-        self._path_1.append(self._PoseParam_to_PoseStamped(des_pose_1, des_parent_1))
-        self._path_2.append(self._PoseParam_to_PoseStamped(des_pose_2, des_parent_2))
+        # ########################     VISUALIZATION     ########################
+        # # broadcast current coordinated poses
+        # self._broadcaster.sendTransform(self.yumi_state.pose_abs.pos, self._wxyz_to_xyzw(self.yumi_state.pose_abs.rot), rospy.Time.now(), "now_absolute_pose", "yumi_base_link")
+        # self._broadcaster.sendTransform(self.yumi_state.pose_rel.pos, self._wxyz_to_xyzw(self.yumi_state.pose_rel.rot), rospy.Time.now(), "now_relative_pose", "now_absolute_pose")
+        # # broadcast desired coordinated poses
+        # if not self.control_law.mode == "individual":
+        #     self._broadcaster.sendTransform(yumi_target_state.pose_gripper_r.pos, self._wxyz_to_xyzw(yumi_target_state.pose_gripper_r.rot), rospy.Time.now(), "des_absolute_pose", "yumi_base_link")
+        #     self._broadcaster.sendTransform(yumi_target_state.pose_gripper_l.pos, self._wxyz_to_xyzw(yumi_target_state.pose_gripper_l.rot), rospy.Time.now(), "des_relative_pose", "des_absolute_pose")
+        # # create desired pose for specified control mode
+        # des_parent_1, des_parent_2 = "yumi_base_link", "yumi_base_link" if self.control_law.mode == "individual" else "des_absolute_pose"
+        # des_pose_1, des_pose_2 = yumi_target_state.pose_gripper_r, yumi_target_state.pose_gripper_l
+        # self._path_1.append(self._PoseParam_to_PoseStamped(des_pose_1, des_parent_1))
+        # self._path_2.append(self._PoseParam_to_PoseStamped(des_pose_2, des_parent_2))
         
-        # publish everything
-        path_1 = Path()
-        path_1.header.frame_id = des_parent_1
-        path_1.header.stamp = rospy.Time.now()
-        path_1.poses = list(self._path_1)
+        # # publish everything
+        # path_1 = Path()
+        # path_1.header.frame_id = des_parent_1
+        # path_1.header.stamp = rospy.Time.now()
+        # path_1.poses = list(self._path_1)
+        # self._pub_path_1.publish(path_1)
         
-        path_2 = Path()
-        path_2.header.frame_id = des_parent_2
-        path_2.header.stamp = rospy.Time.now()
-        path_2.poses = list(self._path_2)
-        
-        self._pub_path_1.publish(path_1)
-        self._pub_path_2.publish(path_2)
-        #######################################################################
+        # path_2 = Path()
+        # path_2.header.frame_id = des_parent_2
+        # path_2.header.stamp = rospy.Time.now()
+        # path_2.poses = list(self._path_2)
+        # self._pub_path_2.publish(path_2)
+        # #######################################################################
         
         # CALCULATE VELOCITIES
         action = dict()
@@ -293,11 +298,12 @@ def main():
     def shutdown_callback():
         yumi_controller.pause()
         print("Controller shutting down")
-        rospy.sleep(0.5)
+        rospy.sleep(2.0)
     
     rospy.on_shutdown(shutdown_callback)
     
-    yumi_controller.start()
+    
+    yumi_controller.start()  # locking
 
 
 if __name__ == "__main__":

@@ -41,7 +41,7 @@ class YumiLeadController(YumiDualController):
         self.control_law.update_current_pose(self.yumi_state)
         
         # calculate new target velocities and positions for this time step
-        self.control_law.update_desired_pose(self.yumi_state)
+        self.control_law.update_target_pose(self.yumi_state)
         
         # CALCULATE VELOCITIES
         action = dict()

@@ -237,7 +237,7 @@ class DiscretizedStateSpaceModel(object):
     def clear(self):
         self.x = self.x0
     
-    def __call__(self, u: np.ndarray, h_new: float = None, output: bool = True):
+    def __call__(self, u: np.ndarray, h_new: float = None, return_output: bool = True):
         """ Returns the state (and the output) of the system for a given input.
         """
         if h_new is not None:
@@ -247,7 +247,7 @@ class DiscretizedStateSpaceModel(object):
         # compute the new state
         self.x = self.F @ self.x + self.G @ u
         # compute the new output
-        if output and self.C is not None:
+        if return_output and self.C is not None:
             y = self.C @ self.x + self.D @ u
             return np.squeeze(self.x, axis=-1), y
         else:

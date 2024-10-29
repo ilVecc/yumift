@@ -7,7 +7,7 @@ from yumi_controller.msg import YumiTrajectoryPoint, YumiTrajectory
 def main():
     # starting ROS node and subscribers
     rospy.init_node("trajectory_test", anonymous=True)
-    pub = rospy.Publisher("/trajectory", YumiTrajectory, queue_size=1)
+    pub = rospy.Publisher("/trajectory", YumiTrajectory, queue_size=1, latch=True)
     rospy.sleep(0.1)
 
     # --------------------------------------------------

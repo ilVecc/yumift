@@ -1,8 +1,8 @@
 import numpy as np
 import quaternion as quat
 
-from .utils import YumiCoordinatedRobotState
 from .parameters import Parameters
+from .robot_state import YumiCoordinatedRobotState
 
 from dynamics.control_laws import ControlLawError, CartesianVelocityControlLaw
 from dynamics.filters import AdmittanceForce, AdmittanceTorque
@@ -225,7 +225,7 @@ class YumiDualAdmittanceControlLaw(YumiDualCartesianVelocityControlLaw):
         e, de, dde      error (and derivatives) on the desired point due to external forces
     in either individual or coordinated motion.
     """
-    def __init__(self, gains):
+    def __init__(self, gains, discretization="forward"):
         super().__init__(gains)
         adm_f_r = gains["individual"]["right"]["admittance"]["force"]
         adm_t_r = gains["individual"]["right"]["admittance"]["torque"]
@@ -235,14 +235,14 @@ class YumiDualAdmittanceControlLaw(YumiDualCartesianVelocityControlLaw):
         adm_t_abs = gains["coordinated"]["absolute"]["admittance"]["torque"]
         adm_f_rel = gains["coordinated"]["relative"]["admittance"]["force"]
         adm_t_rel = gains["coordinated"]["relative"]["admittance"]["torque"]
-        self.admittance_force_r = AdmittanceForce(adm_f_r["m"], adm_f_r["k"], adm_f_r["d"], Parameters.dt)
-        self.admittance_torque_r = AdmittanceTorque(adm_t_r["m"], adm_t_r["k"], adm_t_r["d"], Parameters.dt)
-        self.admittance_force_l = AdmittanceForce(adm_f_l["m"], adm_f_l["k"], adm_f_l["d"], Parameters.dt)
-        self.admittance_torque_l = AdmittanceTorque(adm_t_l["m"], adm_t_l["k"], adm_t_l["d"], Parameters.dt)
-        self.admittance_force_abs = AdmittanceForce(adm_f_abs["m"], adm_f_abs["k"], adm_f_abs["d"], Parameters.dt)
-        self.admittance_torque_abs = AdmittanceTorque(adm_t_abs["m"], adm_t_abs["k"], adm_t_abs["d"], Parameters.dt)
-        self.admittance_force_rel = AdmittanceForce(adm_f_rel["m"], adm_f_rel["k"], adm_f_rel["d"], Parameters.dt)
-        self.admittance_torque_rel = AdmittanceTorque(adm_t_rel["m"], adm_t_rel["k"], adm_t_rel["d"], Parameters.dt)
+        self.admittance_force_r = AdmittanceForce(adm_f_r["m"], adm_f_r["k"], adm_f_r["d"], Parameters.dt, discretization)
+        self.admittance_torque_r = AdmittanceTorque(adm_t_r["m"], adm_t_r["k"], adm_t_r["d"], Parameters.dt, discretization)
+        self.admittance_force_l = AdmittanceForce(adm_f_l["m"], adm_f_l["k"], adm_f_l["d"], Parameters.dt, discretization)
+        self.admittance_torque_l = AdmittanceTorque(adm_t_l["m"], adm_t_l["k"], adm_t_l["d"], Parameters.dt, discretization)
+        self.admittance_force_abs = AdmittanceForce(adm_f_abs["m"], adm_f_abs["k"], adm_f_abs["d"], Parameters.dt, discretization)
+        self.admittance_torque_abs = AdmittanceTorque(adm_t_abs["m"], adm_t_abs["k"], adm_t_abs["d"], Parameters.dt, discretization)
+        self.admittance_force_rel = AdmittanceForce(adm_f_rel["m"], adm_f_rel["k"], adm_f_rel["d"], Parameters.dt, discretization)
+        self.admittance_torque_rel = AdmittanceTorque(adm_t_rel["m"], adm_t_rel["k"], adm_t_rel["d"], Parameters.dt, discretization)
         self.wrench_right = np.zeros((6,))
         self.wrench_left = np.zeros((6,))
         self.wrench_abs = np.zeros((6,))

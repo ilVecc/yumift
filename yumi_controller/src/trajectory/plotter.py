@@ -3,12 +3,19 @@ try:
 except ImportError:
     from typing_extensions import Literal
 
-import matplotlib.pyplot as plt
-from matplotlib.collections import LineCollection
-
 import numpy as np
 import quaternion as quat
 
+import matplotlib.pyplot as plt
+import matplotlib.animation as anim
+from matplotlib.collections import LineCollection
+from matplotlib.patches import FancyArrowPatch
+from mpl_toolkits.mplot3d import proj3d
+
+
+#
+# Mollweide projection plot for quaternion trajectory
+#
 
 def azel_to_quat(az, el, th):
     v = np.array([
@@ -22,13 +29,13 @@ def normalize(v, return_norm=False):
     """ Calculates the normalized vector
         :param v: np.array()
     """
-    v_norm = np.linalg.norm(v, axis=1)
+    v_norm = np.linalg.norm(np.asarray(v), axis=1)
     w = v / (v_norm + (v_norm == 0))[:, np.newaxis]
     if return_norm:
         return w, v_norm
     return w
 
-def plot_quat(q, format: Literal["trajectory", "trajectory+", "collection"] = "trajectory"):
+def plot_quat_mollweide(q, format: Literal["trajectory", "trajectory+", "collection"] = "trajectory"):
     v, a = normalize(quat.as_rotation_vector(q), return_norm=True)
 
     lon = np.arctan2(v[:, 1], v[:, 0])
@@ -58,7 +65,10 @@ def plot_quat(q, format: Literal["trajectory", "trajectory+", "collection"] = "t
 
     plt.show()
     
-    
+#
+# Frenet frame plot for SE(3) trajectory
+#
+
 def plot_traj(pos: np.ndarray, rot: np.ndarray):
     
     rotmat = quat.as_rotation_matrix(rot)
@@ -76,20 +86,80 @@ def plot_traj(pos: np.ndarray, rot: np.ndarray):
 
     plt.show()
 
+#
+# Matplotlib animation for quaternion trajectory
+#
 
-if __name__ == "__main__":
+def animate_quaternion(t: np.ndarray, Q: np.ndarray):
     
+    rotmat = quat.as_rotation_matrix(Q)
+    
+    ax = plt.figure().add_subplot(projection='3d')
+    ax.set_xlim3d(-1, +1)
+    ax.set_ylim3d(-1, +1)
+    ax.set_zlim3d(-1, +1)
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    ax.view_init(elev=20., azim=-35)
+    
+    # adapted from https://stackoverflow.com/questions/63546097/3d-curved-arrow-in-python
+    class Arrow3D(FancyArrowPatch):
+
+        def __init__(self, x, y, z, u, v, w, *args, **kwargs):
+            FancyArrowPatch.__init__(self, (0, 0), (0, 0), *args, **kwargs)
+            self._verts3d = [x, u], [y, v], [z, w]
+
+        def draw(self, renderer):
+            xs3d, ys3d, zs3d = self._verts3d
+            xs, ys, zs = proj3d.proj_transform(xs3d, ys3d, zs3d, renderer.M)
+            self.set_positions((xs[0], ys[0]), (xs[1], ys[1]))
+            FancyArrowPatch.draw(self, renderer)
+
+    def quiv(v, col):
+        # return Arrow3D([0, v[0]], [0, v[1]], [0, v[2]], mutation_scale=20, lw=1, arrowstyle="-|>", color=col, connectionstyle="arc3,rad=-0.3")
+        return Arrow3D(0,0,0,*v, mutation_scale=20, lw=1, arrowstyle="-|>", color=col)
+    
+    # canonical base
+    ax.add_artist(quiv([1, 0, 0], "orange"))
+    ax.add_artist(quiv([0, 1, 0], "limegreen"))
+    ax.add_artist(quiv([0, 0, 1], "royalblue"))
+    # initial quaternion
+    ax.add_artist(quiv(rotmat[0, :, 0], "magenta"))
+    ax.add_artist(quiv(rotmat[0, :, 1], "yellow"))
+    ax.add_artist(quiv(rotmat[0, :, 2], "cyan"))
+    # moving quaternion
+    qx = ax.add_artist(quiv(rotmat[0, :, 0], "r"))
+    qy = ax.add_artist(quiv(rotmat[0, :, 1], "g"))
+    qz = ax.add_artist(quiv(rotmat[0, :, 2], "b"))
+    
+    def update(frame):
+        nonlocal qx, qy, qz, rotmat
+        qx.remove(); qy.remove(); qz.remove()
+        qx = ax.add_artist(quiv(rotmat[frame, :, 0], "r"))
+        qy = ax.add_artist(quiv(rotmat[frame, :, 1], "g"))
+        qz = ax.add_artist(quiv(rotmat[frame, :, 2], "b"))
+    
+    # WARNING: keep this unused assignment, animation doesn't start otherwise
+    # TODO only accept uniform timing, this forced interval is very ugly
+    ani = anim.FuncAnimation(fig=plt.gcf(), func=update, frames=len(t), interval=1/np.mean(np.diff(t)))
+    plt.show()
+
+
+
+def main():    
     # out = np.array([
     #     quat.from_rotation_vector( np.pi/3 * np.array([1, 0, 0])),
     #     quat.from_rotation_vector( np.pi/2 * np.array([0.707, 0.707, 0]))
     # ])
     # plot_quat(out, "collection")
     
+    # TODO remove this append
     import sys, pathlib; sys.path.append(str(pathlib.Path(__file__).parent.parent))
     from trajectory.polynomial import CubicPoseTrajectory, PoseParam
     
-    vi = np.pi/2 * np.array([0, 0.707, 0.707])
-    vf = np.pi/2 * np.array([0.707, 0.707, 0])
+    vi = np.pi/2 * normalize([[0., 1., 1.]])[0]
+    vf = np.pi/2 * normalize([[1., 1., 0.]])[0]
     
     traj = CubicPoseTrajectory()
     pi = PoseParam(np.array([0., 0., 0.]), quat.from_rotation_vector(vi), np.zeros(6))
@@ -106,3 +176,7 @@ if __name__ == "__main__":
     out_rot = np.array(out_rot)
     
     plot_traj(out_pos, out_rot)
+
+
+if __name__ == "__main__":
+    main()

@@ -6,7 +6,7 @@ import quaternion as quat
 from .base import TParam, Trajectory, MultiTrajectory
 from .base_impl import PositionParam, PoseParam, QuaternionParam
 
-from dynamics.utils import quat_min_diff
+from dynamics.quat_utils import quat_min_diff
 
 
 def normalize(v: np.ndarray, return_norm=False):
@@ -185,7 +185,7 @@ class CubicPosePath(CubicPath[PoseParam]):
 
 
 if __name__ == "__main__":
-    from .plotter import plot_quat
+    from .plotter import plot_quat_mollweide
     
     vi = np.pi/2 * np.array([0, 0.707, 0.707])
     vf = np.pi/2 * np.array([0.707, 0.707, 0])
@@ -201,6 +201,6 @@ if __name__ == "__main__":
         out.append(param.quat)
     
     out = np.array(out)
-    plot_quat(out, "trajectory")
+    plot_quat_mollweide(out, "trajectory")
     
     

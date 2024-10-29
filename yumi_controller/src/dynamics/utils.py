@@ -3,6 +3,8 @@ from typing import Tuple
 import numpy as np
 import quaternion as quat
 
+from dynamics.quat_utils import quat_avg
+
 
 class Frame(object):
     """
@@ -39,9 +41,9 @@ class Frame(object):
 
     def __matmul__(self, frame: "Frame") -> "Frame":
         """ Perform this transformation on the other transformation/frame. 
-            This operation makes sense when  self  is a transformation wrt  frame .
-            Being a transformation, self.vel should be 0, but can actually be anything 
-            to be added to  frame 's transformed velocity.
+            This operation makes sense when `self` is a transformation wrt `frame`.
+            Being a transformation, `self.vel` should be `0`, but can actually 
+            be anything to be added to `frame`'s transformed velocity.
         """
         return Frame(
             # t := q1 * t2 * ~q1 + t1
@@ -346,48 +348,11 @@ def jacobian_combine(*jacobians: np.ndarray) -> np.ndarray:
         out[x:x+i, y:y+j] = jacobians[idx]
     return out
 
-# TODO out of dynamics pls
-# inspired by https://github.com/christophhagen/averaging-quaternions/blob/master/averageQuaternions.py
-def quat_avg(*Q):
-    """
-    Calculates the average quaternion of N quaternions.
-    :param Q: np.ndarray of np.quaternion with shape(N) or tuple of np.quaternion
-    """
-    # handle varargs
-    if len(Q) == 1 and isinstance(Q[0], np.ndarray):
-        Q = Q[0]
-    else:
-        Q = np.stack(Q)
-    
-    n = len(Q)
-    Q = quat.as_float_array(Q)
-    for i in range(1, n):
-        # use minimum distance pairwise
-        if Q[i-1, :] @ Q[i, :] < 0:
-            Q[i, :] = -Q[i, :]
-    A = np.zeros(shape=(4, 4))
-    for i in range(n):
-        q = Q[i, :]
-        A += np.outer(q, q)  #  === q.T @ q
-    A /= n
-    eigvals, eigvecs = np.linalg.eig(A)
-    # the vector will be type(complex) with only real part, so casting to real is safe
-    avgQ = np.real(eigvecs[:, np.argmax(eigvals)])
-    avgQ = quat.from_float_array(avgQ)
-    return avgQ
-
-# TODO out of dynamics pls
-def quat_min_diff(qi: np.quaternion, qf: np.quaternion) -> np.quaternion:
-    if quat.as_float_array(qi) @ quat.as_float_array(qf) < 0:
-        return -qf
-    return qf
-
 
 def skew_matrix(vector) -> np.ndarray:
     return np.array([[0, -vector[2], vector[1]],
                      [vector[2], 0, -vector[0]],
                      [-vector[1], vector[0], 0]])
-
 
 def normalize(v, return_norm=False) -> np.ndarray:
     """ Calculates the normalized vector

@@ -1,6 +1,8 @@
 import numpy as np
 import quaternion as quat
 
+from dynamics.quat_utils import quat_min_diff
+
 from . import utils
 
 def position_error_clipped(current_pos: np.ndarray, target_pos: np.ndarray, max_error=np.inf):
@@ -22,7 +24,7 @@ def rotation_error_clipped(current_rot: np.quaternion, target_rot: np.quaternion
     """
     # use minimum distance
     # TODO should't target_rot be flipped instead?
-    current_rot = utils.quat_min_diff(target_rot, current_rot)
+    current_rot = quat_min_diff(target_rot, current_rot)
     rotation_error = target_rot * current_rot.conjugate()
     rotation_error_dir, rotation_error_angle = utils.normalize(quat.as_rotation_vector(rotation_error), return_norm=True)
     return rotation_error_dir * min([max_error, rotation_error_angle])

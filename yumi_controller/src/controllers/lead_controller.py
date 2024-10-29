@@ -21,7 +21,8 @@ class YumiLeadController(YumiDualController):
         self.debug = True
         
         # define control law
-        self.control_law = YumiDualAdmittanceControlLaw(GAINS)
+        # TODO maybe set M=??, D=??, K=0
+        self.control_law = YumiDualAdmittanceControlLaw(GAINS, "forward")
         self.effective_mode = "individual"
         
         self.reset()  # init trajectory (set current position)
@@ -37,6 +38,11 @@ class YumiLeadController(YumiDualController):
         """ Calculate target velocity for the current time step.
         """
         
+        # update timing information
+        now = rospy.Time.now()
+        dt = (now - self.yumi_state.timestamp).to_sec()
+        self.control_law.update_current_dt(dt)
+        
         # update pose and wrench for the control law class
         self.control_law.update_current_pose(self.yumi_state)
         
@@ -49,6 +55,7 @@ class YumiLeadController(YumiDualController):
         try:
             # get space based on control mode ...
             action["control_space"] = self.control_law.mode
+            action["timestep"] = dt
             vel_1, vel_2 = self.control_law.compute_target_velocity()
             # ... but use the effective mode to set the velocities
             if self.effective_mode == "individual":
@@ -82,7 +89,6 @@ def main():
     def shutdown_callback():
         yumi_controller.pause()
         print("Controller shutting down")
-        rospy.sleep(0.5)
     
     rospy.on_shutdown(shutdown_callback)
     

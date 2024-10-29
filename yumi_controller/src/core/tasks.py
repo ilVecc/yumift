@@ -4,6 +4,10 @@ from .hqp import Task
 from dynamics import utils
 
 
+#
+# Generic tasks to subclass
+#
+
 class JacobianControlTask(Task):
     """ Task for controlling a generic jacobian
     """
@@ -22,21 +26,32 @@ class JacobianControlTask(Task):
         return self
 
 
+class TimestepTask(Task):
+    def __init__(self, dof: int, slack_ratio: float, timestep: float):
+        super().__init__(dof, slack_ratio)
+        self.timestep: float
+        self.update_timestep(timestep)
+    
+    def update_timestep(self, timestep: float = None):
+        if timestep is not None:
+            self.timestep = timestep
+
+
 #
 # Joint bounds
 #
 
-class JointPositionBoundsTask(Task):
+class JointPositionBoundsTask(TimestepTask):
     """ Task for keeping joint positions from saturating
     """
     def __init__(self, dof: int, bounds_lower: np.ndarray, bounds_upper: np.ndarray, timestep: float):
-        super().__init__(dof, 1e3)
+        super().__init__(dof, 1e3, timestep)
         self.constr_type = Task.ConstraintType.UPPER
         self.bounds_lower = bounds_lower
         self.bounds_upper = bounds_upper
-        self.timestep = timestep
 
-    def compute(self, joint_position: np.ndarray):
+    def compute(self, joint_position: np.ndarray, timestep: float = None):
+        self.update_timestep(timestep)
         constr_mat_lower = -self.timestep * np.eye(self.ndim)
         constr_mat_upper =  self.timestep * np.eye(self.ndim)
         constr_vec_lower = -self.bounds_lower + joint_position
@@ -73,20 +88,20 @@ class JointVelocityBoundsTask(Task):
 # Potential-based control
 #
 
-class JointPositionPotential(Task):
+class JointPositionPotential(TimestepTask):
     """ Task for keeping a good joint configuration. 
     """
     def __init__(self, dof: int, default_pos: np.ndarray, weights: np.ndarray, timestep: float):
-        super().__init__(dof, 2e2)
+        super().__init__(dof, 2e2, timestep)
         self.constr_type = Task.ConstraintType.EQUAL
-        self.timestep = timestep
         self.default_pos = default_pos
         self.weights = weights
 
-    def compute(self, joint_position: np.ndarray):
+    def compute(self, joint_position: np.ndarray, timestep: float = None):
         """ Sets up constraints for joint potential,
             :param joint_position: current joint state
         """
+        self.update_timestep(timestep)
         
         vec = (self.default_pos - joint_position) * 0.5 * self.weights
 
@@ -185,21 +200,22 @@ class RelativeControl(JacobianControlTask):
         return super().compute(control_vel_rel, jacobian_coordinated_rel)
 
 
-class ElbowProximity(Task):
+class ElbowProximity(TimestepTask):
     """ Task for keeping a proximity between the elbows of the robot
     """
     def __init__(self, dof: int, min_dist: float, timestep: float):
-        super().__init__(dof, 1e3)
+        super().__init__(dof, 1e3, timestep)
         self.constr_type = Task.ConstraintType.UPPER
-        self.timestep = timestep
         self.min_dist = min_dist
 
-    def compute(self, jacobian_elbows: np.ndarray, pose_elbow_r: utils.Frame, pose_elbow_l: utils.Frame):
+    def compute(self, jacobian_elbows: np.ndarray, pose_elbow_r: utils.Frame, pose_elbow_l: utils.Frame, timestep: float = None):
         """ Sets up the constraint for elbow proximity
             :param jacobian_elbows: combined jacobian of the grippers
             :param pose_elbow_r: pose of the right elbow
             :param pose_elbow_l: pose of the left elbow
         """
+        self.update_timestep(timestep)
+        
         jacobian = np.zeros((2, self.dof))
         jacobian[0, 0:4] = jacobian_elbows[1, 0:4]  # select y-axis
         jacobian[1, 7:11] = jacobian_elbows[7, 4:8]  # select y-axis
@@ -217,22 +233,23 @@ class ElbowProximity(Task):
         return self
 
 
-class EndEffectorProximity(Task):
+class EndEffectorProximity(TimestepTask):
     """ Task for keeping minimum proximity between the grippers 
     """
     def __init__(self, dof: int, min_dist: float, timestep: float):
-        super().__init__(dof, 1e3)
+        super().__init__(dof, 1e3, timestep)
         self.constr_type = Task.ConstraintType.UPPER
-        self.timestep = timestep
         self.min_dist = min_dist
 
-    def compute(self, jacobian_grippers: np.ndarray, pose_gripper_r: utils.Frame, pose_gripper_l: utils.Frame):
+    def compute(self, jacobian_grippers: np.ndarray, pose_gripper_r: utils.Frame, pose_gripper_l: utils.Frame, timestep: float = None):
         """ Sets up the constraints collision avoidance, i.e. the grippers will deviate 
             from control command in order to not collide.
             :param jacobian_grippers: shape(12,14) combined jacobian of the grippers
             :param pose_gripper_r: pose of the right gripper 
             :param pose_gripper_l: pose of the left gripper
         """
+        self.update_timestep(timestep)
+        
         jacobian = np.zeros((4, self.dof))
         jacobian[0:2, 0:7] = jacobian_grippers[0:2, 0:7]  # select xy-plane
         jacobian[2:4, 7:14] = jacobian_grippers[6:8, 7:14]  # select xy-plane

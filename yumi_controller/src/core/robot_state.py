@@ -1,17 +1,15 @@
 import numpy as np
 import quaternion as quat
 
-import rospy, tf
+import rospy
 
-from std_msgs.msg import Float64MultiArray
 from geometry_msgs.msg import Pose, WrenchStamped
-from abb_rapid_sm_addin_msgs.srv import SetSGCommand
-from abb_robot_msgs.srv import TriggerWithResultCode
 
 from yumi_controller.msg import YumiKinematics
 
 from dynamics import utils as utils_dyn
 from core.trajectory import YumiParam
+from dynamics.quat_utils import quat_min_diff
 
 
 class YumiRobotState(utils_dyn.RobotState):
@@ -399,6 +397,10 @@ class YumiDualStateUpdater(YumiCoordinatedRobotState):
         """ Updates forward kinematics using KDL instead of TF tree
         """
         self.timestamp = data.header.stamp
+        self._update_individual(data)
+        self._update_coordinated()
+    
+    def _update_individual(self, data: YumiKinematics):
         #############################      individual motion      #############################
         # update joint position, velocity ... 
         self.joint_pos = np.asarray(data.jointPosition)[:14]  # simulation adds gripping position
@@ -435,10 +437,14 @@ class YumiDualStateUpdater(YumiCoordinatedRobotState):
         self.pose_wrench = self._wrenches
         self.joint_torque = self.jacobian_grippers.T @ self.pose_wrench
         #######################################################################################
-        
+    
+    def _update_coordinated(self):
         #############################      coordinated motion     #############################
         # absolute pose, avg of the grippers
-        rot_diff = utils_dyn.quat_min_diff(self.pose_gripper_l.rot, self.pose_gripper_r.rot) * self.pose_gripper_l.rot.conjugate()
+        
+        # TODO this produces big leaps when the poses are exactly opposite
+        #      a kind of "quaternion difference singularity"
+        rot_diff = quat_min_diff(self.pose_gripper_l.rot, self.pose_gripper_r.rot) * self.pose_gripper_l.rot.conjugate()
         pos_abs = (1-self.alpha)*self.pose_gripper_r.pos + self.alpha*self.pose_gripper_l.pos
         rot_abs = quat.from_rotation_vector((1-self.alpha) * quat.as_rotation_vector(rot_diff)) * self.pose_gripper_l.rot
         self.pose_abs = utils_dyn.Frame(pos_abs, rot_abs)
@@ -457,10 +463,17 @@ class YumiDualStateUpdater(YumiCoordinatedRobotState):
         pos_rel = coeff_r * pose_r_wrt_abs.pos - coeff_l * pose_l_wrt_abs.pos
         rot_r_rel = quat.from_rotation_vector(coeff_r * quat.as_rotation_vector(pose_r_wrt_abs.rot))
         rot_l_rel = quat.from_rotation_vector(coeff_l * quat.as_rotation_vector(pose_l_wrt_abs.rot))
-        rot_rel = utils_dyn.quat_min_diff(rot_l_rel, rot_r_rel) * rot_l_rel.conjugate()
+        rot_rel = quat_min_diff(rot_l_rel, rot_r_rel) * rot_l_rel.conjugate()
         self.pose_rel = utils_dyn.Frame(pos_rel, rot_rel)
         
+        with np.printoptions(precision=3, suppress=True):
+            # print(quat.as_float_array(rot_diff))
+            print(quat.as_float_array(self.pose_rel.rot))
+            # print(quat.as_float_array(self.pose_abs.rot))
+            # print()
+        
         # relative linking matrix: maps gripper velocities to the velocity difference wrt absolute frame
+        # TODO investigate this
         base_ee_to_abs_rel_trans = utils_dyn.jacobian_change_frames( 0.5 * (self.pose_gripper_r.pos - self.pose_gripper_l.pos), pose_abs_inv.rot )
         link_mat_rel = base_ee_to_abs_rel_trans @ np.block([ coeff_r*np.eye(6), -coeff_l*np.eye(6) ])
         
@@ -474,78 +487,14 @@ class YumiDualStateUpdater(YumiCoordinatedRobotState):
         self.jacobian_coordinated = link_mat @ self.jacobian_grippers
         
         # set velocities
+        pose_grippers_vel = np.concatenate([self.pose_gripper_r.vel, self.pose_gripper_l.vel])
         pose_coordinated_vel = link_mat @ pose_grippers_vel
         self.pose_abs.vel = pose_coordinated_vel[:6]
         self.pose_rel.vel = pose_coordinated_vel[6:]
         
         # update wrenches
-        # (using the kineto-statics duality,  self.pose_wrench = link_mat.T @ wrench_coordinated )
-        # TODO might be broken
-        wrench_coordinated = np.linalg.pinv(link_mat.T) @ self.pose_wrench
+        # (using the kineto-statics duality, i.e. pose_wrench = link_mat.T @ wrench_coordinated )
+        wrench_coordinated = np.linalg.inv(link_mat.T) @ self.pose_wrench
         self.pose_wrench_abs = wrench_coordinated[:6]
         self.pose_wrench_rel = wrench_coordinated[6:]
         #######################################################################################
-        
-
-class YumiVelocityCommand(object):
-    """ Used for storing the velocity command for yumi
-    """
-    def __init__(self):
-        self._prev_joint_vel = np.zeros(14)
-        self._pub = rospy.Publisher("/yumi/egm/joint_group_velocity_controller/command", Float64MultiArray, queue_size=1, tcp_nodelay=True)
-
-    def send_velocity_cmd(self, joint_velocity: np.ndarray):
-        """ Velocity should be an np.array() with 14 elements, [right arm, left arm]
-        """
-        # flip the arry to [left, right]
-        self._prev_joint_vel = joint_velocity
-        joint_velocity = np.hstack([joint_velocity[7:14], joint_velocity[0:7]]).tolist()
-        msg = Float64MultiArray()
-        msg.data = joint_velocity
-        self._pub.publish(msg)
-
-
-class YumiGrippersCommand(object):
-    """ Class for controlling the grippers on YuMi, the grippers are controlled
-        in [mm] and uses ros service
-    """
-    def __init__(self):
-        # rosservice, for control over grippers
-        self._service_SetSGCommand = rospy.ServiceProxy("/yumi/rws/sm_addin/set_sg_command", SetSGCommand, persistent=True)
-        self._service_RunSGRoutine = rospy.ServiceProxy("/yumi/rws/sm_addin/run_sg_routine", TriggerWithResultCode, persistent=True)
-        self._prev_gripper_r = 0
-        self._prev_gripper_l = 0
-
-    def send_position_cmd(self, gripper_r=None, gripper_l=None):
-        """ Set new gripping position
-            :param gripperRight: float [mm]
-            :param gripperLeft: float [mm]
-        """
-        tol = 1e-5
-        try:
-            # stacks/set the commands for the grippers 
-            # do not send the same command twice as grippers will momentarily regrip
-
-            # for right gripper
-            if gripper_r is not None:
-                if abs(self._prev_gripper_r - gripper_r) >= tol:
-                    if gripper_r <= 0.1:
-                        self._service_SetSGCommand.call(task="T_ROB_R", command=6)
-                    else:
-                        self._service_SetSGCommand.call(task="T_ROB_R", command=5, target_position=gripper_r)
-                    self._prev_gripper_r = gripper_r
-
-            # for left gripper
-            if gripper_l is not None:
-                if abs(self._prev_gripper_l - gripper_l) >= tol:
-                    if gripper_l <= 0.1: # if gripper set close to zero then grip in 
-                        self._service_SetSGCommand.call(task="T_ROB_L", command=6)
-                    else: # otherwise move to position 
-                        self._service_SetSGCommand.call(task="T_ROB_L", command=5, target_position=gripper_l)
-                    self._prev_gripper_l = gripper_l
-
-            # sends of the commands to the robot
-            self._service_RunSGRoutine.call()
-
-        except Exception as ex:
-            print(f"SmartGripper error : {ex}")

@@ -3,14 +3,17 @@ from abc import ABCMeta, abstractmethod
 
 import rospy
 import numpy as np
-import threading
 
 from enum import Enum, auto
 
+from std_msgs.msg import Float64MultiArray
 from abb_robot_msgs.msg import SystemState
 from abb_robot_msgs.srv import TriggerWithResultCode
+from abb_rapid_sm_addin_msgs.srv import SetSGCommand
 
-from . import tasks, utils, hqp
+
+from . import tasks, hqp
+from .robot_state import YumiDualStateUpdater
 from .parameters import Parameters
 
 from dynamics.utils import RobotState
@@ -118,12 +121,12 @@ class ResetPoseRoutine(Routine):
         self._final_time_min = min_time
         self._final_time = self._final_time_min
         self._time = 0
-        self._max_speed = 3  # deg/s
+        self._max_speed = 1  # rad/s
         
     def init(self, robot_state_init: RobotState) -> None:
         current_joint_position = robot_state_init.joint_pos
         max_error = np.max(self._reset_position - current_joint_position)
-        min_time = np.degrees(max_error) / self._max_speed
+        min_time = max_error / self._max_speed
         self._final_time = max(min_time, self._final_time_min) 
         self._time = 0
         self._a0, self._a1, self._a2, self._a3 = CubicTrajectory.calculate_coefficients(
@@ -135,7 +138,7 @@ class ResetPoseRoutine(Routine):
         current_joint_position = robot_state_curr.joint_pos
         
         # advance by time step
-        self._time += Parameters.dt
+        self._time += Parameters.dt  # TODO super wrong, use real data
 
         # if final time is reached, exit with "done" state
         if self._time <= self._final_time:
@@ -166,14 +169,14 @@ class YumiDualController(object, metaclass=ABCMeta):
     """
     def __init__(self):
         # TODO make this controller-indipendent
-        self.yumi_state = utils.YumiDualStateUpdater(symmetry=0.)
+        self.yumi_state = YumiDualStateUpdater(symmetry=0.)
         
         # routine variables
         self._routine_request = None
         self._routine_machine = RoutineStateMachine(self)
         self._routine_machine.register("reset_pose", ResetPoseRoutine())
 
-        # signal system ready
+        # signal "controller is ready"
         self._ready = False
         
         # inverse kinematics with HQP solver (and EGM stopper for safety when tasks are problematic)
@@ -183,18 +186,16 @@ class YumiDualController(object, metaclass=ABCMeta):
         self._prepare_hqp_tasks()
         
         # command publishers
-        self._pub_yumi = utils.YumiVelocityCommand()
-        self._pub_grip = utils.YumiGrippersCommand() 
+        self._pub_yumi = YumiVelocityCommand()
+        self._pub_grip = YumiGrippersCommand() 
         
-        # connect to robot kinematics and wait for them
-        self._controller_lock = threading.Lock()
-        
-        # EGM error handler
+        # signal "robot can move" (i.e. EGM is ready)
         self._auto_mode = True
+        # EGM error handler
         self._start_rapid = rospy.ServiceProxy("/yumi/rws/start_rapid", TriggerWithResultCode)
-        rospy.Subscriber("/yumi/rws/system_states", SystemState, self._callback_system_state, queue_size=1, tcp_nodelay=False)
+        rospy.Subscriber("/yumi/rws/system_states", SystemState, self._callback_yumi_state, queue_size=1, tcp_nodelay=False)
     
-    def _callback_system_state(self, data: SystemState):
+    def _callback_yumi_state(self, data: SystemState):
         rws_auto_mode = data.auto_mode
         # if auto_mode was off and now we are getting it back (eg. acknoledgment of EGM error)
         if not self._auto_mode and rws_auto_mode:
@@ -265,31 +266,31 @@ class YumiDualController(object, metaclass=ABCMeta):
             be called after having initialized everything in the controller. 
             Use .pause() in another thread to undo this operation.
         """
+        rate = rospy.Rate(Parameters.update_rate)
         self._ready = True
         while not rospy.is_shutdown():
-            with self._controller_lock:
-                # fetch action and execute command
-                if self.is_controller_ready() and self.is_motion_allowed():
-                    # run requested routine (if None, run the policy)
-                    action = self._routine_machine.run(self._routine_request)
-                    self._routine_request = None
-                else:
-                    # do not move if manual mode kicks in
-                    print("Controller not ready yet")
-                    action = self._routine_machine.reset()
-                self._set_action(action)
-
+            # fetch action and execute command
+            if self._ready and self._auto_mode:
+                # run requested routine (if None, run the policy)
+                action = self._routine_machine.run(self._routine_request)
+                self._routine_request = None
+            else:
+                # do not move if manual mode kicks in
+                print("Controller not ready yet")
+                action = self._routine_machine.reset()
+            self._set_action(action)
+            rate.sleep()
+        # when the controller is shut down, send a stop command
+        action = {
+            "control_space": "joint_space",
+            "joint_velocities": np.zeros(Parameters.dof)}
+        self._set_action(action)
+            
     def pause(self):
         """ Stop sending commands but keep receiveing updates. 
             Use .start() to undo this operation.
         """
         self._ready = False
-
-    def is_controller_ready(self):
-        return self._ready
-
-    def is_motion_allowed(self):
-        return self._auto_mode
 
     def on_control_regained(self):
         """ Decides what happens when control mode goes from "manual" to "auto". 
@@ -319,10 +320,10 @@ class YumiDualController(object, metaclass=ABCMeta):
             There are three control modes, joint space control, individual 
             control in cartesian space with yumi_base_link as reference frame, 
             coordinated manipulation with absolute and relative control. 
-            All the inverse kinematics are solved with an HQP solver. This 
-            function has to call the `_set_action(action)` function. The easily 
-            available observations  (through more exists) are found in 
-            `self.jointState`, `self.yumiGripPoseR` and `self.yumiGripPoseL`
+            All the inverse kinematics are solved with an HQP solver. The output
+            of this function will be used in the `_set_action(action)` function. 
+            The state of the robot is found in `self.yumi_state`, in particular 
+            the `joint_pos`, `pose_gripper_r`, and `pose_gripper_l` variables.
         """
         raise NotImplementedError()
 
@@ -332,6 +333,7 @@ class YumiDualController(object, metaclass=ABCMeta):
             :key `action["routine_*"]`: specific commands (eg. `"routine_reset_pose"`)
             :key `action["control_space"]`: determines which control mode {`"joint_space"`, `"individual"`, `"coordinated"`}
             :key `action["joint_velocities"]`: [right, left] shape(14) with joint velocities (rad/s) (needed for mode `"joint_space"`)
+            :key `action["timestep"]`: float with the current timestep, if needed by the IK solver (s) (needed for each mode except `"joint_space"`)
             :key `action["right_velocity"]`: shape(6) with cartesian velocities (m/s, rad/s) (needed for mode `"individual"`)
             :key `action["left_velocity"]`: shape(6) with cartesian velocities (m/s, rad/s) (needed for mode `"individual"`)
             :key `action["absolute_velocity"]`: shape(6) with cartesian velocities in yumi base frame (m/s, rad/s) (needed for mode `"coordinated"`)
@@ -344,7 +346,7 @@ class YumiDualController(object, metaclass=ABCMeta):
         if action["control_space"] == "joint_space":
             q_tgt = action["joint_velocities"]
         else:
-            # q_tgt = self._hqp_inverse_kinematics(action)
+            # q_tgt = self._hqp_inverse_kinematics(action)  # TODO totally broken
             q_tgt = self._pinv_inverse_kinematics(action)
             
         # log joints with clipping velocities
@@ -357,8 +359,9 @@ class YumiDualController(object, metaclass=ABCMeta):
             print(f"Joints [{labels} ] are clipping!")
         
         # yumi control command and gripper control command (if any)
+        # avoid sendind commands all the time to minimize latency
         self._pub_yumi.send_velocity_cmd(q_tgt)
-        if action.get("gripper_right") or action.get("gripper_left"):
+        if action.get("gripper_right") is not None or action.get("gripper_left") is not None:
             self._pub_grip.send_position_cmd(action.get("gripper_right"), action.get("gripper_left"))
     
     def _hqp_inverse_kinematics(self, action: dict):
@@ -370,6 +373,8 @@ class YumiDualController(object, metaclass=ABCMeta):
             if key not in action:
                 action[key] = value
 
+        dt = action["timestep"]
+        
         # stack of tasks, in descending hierarchy
         SoT = []
         # (1) velocity bound
@@ -378,14 +383,15 @@ class YumiDualController(object, metaclass=ABCMeta):
 
         # (2) position bound
         if action["joint_position_bound"]:
-            SoT.append(self._tasks["joint_position_bound"].compute(self.yumi_state.joint_pos))
+            SoT.append(self._tasks["joint_position_bound"].compute(joint_position=self.yumi_state.joint_pos, timestep=dt))
 
         # (3) elbow proximity limit task
         if action["elbow_collision"]:
             SoT.append(self._tasks["self_collision_elbow"].compute(
                 jacobian_elbows=self.yumi_state.jacobian_elbows,  
                 pose_elbow_r=self.yumi_state.pose_elbow_r, 
-                pose_elbow_l=self.yumi_state.pose_elbow_l))
+                pose_elbow_l=self.yumi_state.pose_elbow_l, 
+                timestep=dt))
 
         # (4) velocity command task
         if action["control_space"] == "individual":
@@ -394,7 +400,8 @@ class YumiDualController(object, metaclass=ABCMeta):
                 SoT.append(self._tasks["end_effector_collision"].compute(
                     jacobian_grippers=self.yumi_state.jacobian_grippers,
                     pose_gripper_r=self.yumi_state.pose_gripper_r,
-                    pose_gripper_l=self.yumi_state.pose_gripper_l))
+                    pose_gripper_l=self.yumi_state.pose_gripper_l, 
+                    timestep=dt))
             
             # (4.1) individual control
             if "right_velocity" in action and "left_velocity" in action:
@@ -442,7 +449,7 @@ class YumiDualController(object, metaclass=ABCMeta):
 
         # (5) joint potential task (tries to keep the robot in a natural configuration)
         if action["joint_potential"]:
-            SoT.append(self._tasks["joint_position_potential"].compute(joint_position=self.yumi_state.joint_pos))
+            SoT.append(self._tasks["joint_position_potential"].compute(joint_position=self.yumi_state.joint_pos, timestep=dt))
 
         # solve HQP problem
         try:
@@ -469,18 +476,89 @@ class YumiDualController(object, metaclass=ABCMeta):
             xdot[0:6] = action.get("right_velocity", np.zeros(6))
             xdot[6:12] = action.get("left_velocity", np.zeros(6))
             jacobian = self.yumi_state.jacobian_grippers
+            
+            jacobian_pinv = np.linalg.pinv(jacobian)
+            vel = jacobian_pinv @ xdot + (np.eye(Parameters.dof) - jacobian_pinv @ jacobian) @ Parameters.secondary_neutral(None, self.yumi_state.joint_vel)
         
         elif action["control_space"] == "coordinated":    
             xdot[0:6] = action.get("absolute_velocity", np.zeros(6))
             xdot[6:12] = action.get("relative_velocity", np.zeros(6))
             jacobian = self.yumi_state.jacobian_coordinated
             
+            jacobian_pinv = np.linalg.pinv(jacobian)
+            vel = jacobian_pinv @ xdot  # TODO secondary objective?
+        
         else:
             print(f"Unknown control mode ({action['control_space']}), stopping")
             return np.zeros(Parameters.dof)
         
-        jacobian_pinv = np.linalg.pinv(jacobian)
-        vel = jacobian_pinv @ xdot + (np.eye(Parameters.dof) - jacobian_pinv @ jacobian) @ Parameters.secondary_nothing(None, self.yumi_state.joint_vel)
-                
-        
         return vel
+
+
+###############################################################################
+#                                   UTILS                                     #
+###############################################################################
+
+
+class YumiVelocityCommand(object):
+    """ Used for storing the velocity command for yumi
+    """
+    def __init__(self):
+        self._prev_joint_vel = np.zeros(14)
+        self._pub = rospy.Publisher("/yumi/egm/joint_group_velocity_controller/command", Float64MultiArray, queue_size=1, tcp_nodelay=True)
+
+    def send_velocity_cmd(self, joint_velocity: np.ndarray):
+        """ Velocity should be an np.array() with 14 elements, [right arm, left arm]
+        """
+        # flip the arry to [left, right]
+        self._prev_joint_vel = joint_velocity
+        joint_velocity = np.hstack([joint_velocity[7:14], joint_velocity[0:7]]).tolist()
+        msg = Float64MultiArray()
+        msg.data = joint_velocity
+        self._pub.publish(msg)
+
+
+class YumiGrippersCommand(object):
+    """ Class for controlling the grippers on YuMi, the grippers are controlled
+        in [mm] and uses ros service
+    """
+    def __init__(self):
+        # rosservice, for control over grippers
+        self._service_SetSGCommand = rospy.ServiceProxy("/yumi/rws/sm_addin/set_sg_command", SetSGCommand, persistent=True)
+        self._service_RunSGRoutine = rospy.ServiceProxy("/yumi/rws/sm_addin/run_sg_routine", TriggerWithResultCode, persistent=True)
+        self._prev_gripper_r = 0
+        self._prev_gripper_l = 0
+
+    def send_position_cmd(self, gripper_r=None, gripper_l=None):
+        """ Set new gripping position
+            :param gripperRight: float [mm]
+            :param gripperLeft: float [mm]
+        """
+        tol = 1e-5
+        try:
+            # stacks/set the commands for the grippers 
+            # do not send the same command twice as grippers will momentarily regrip
+
+            # for right gripper
+            if gripper_r is not None:
+                if abs(self._prev_gripper_r - gripper_r) >= tol:
+                    if gripper_r <= 0.1:
+                        self._service_SetSGCommand.call(task="T_ROB_R", command=6)
+                    else:
+                        self._service_SetSGCommand.call(task="T_ROB_R", command=5, target_position=gripper_r)
+                    self._prev_gripper_r = gripper_r
+
+            # for left gripper
+            if gripper_l is not None:
+                if abs(self._prev_gripper_l - gripper_l) >= tol:
+                    if gripper_l <= 0.1: # if gripper set close to zero then grip in 
+                        self._service_SetSGCommand.call(task="T_ROB_L", command=6)
+                    else: # otherwise move to position 
+                        self._service_SetSGCommand.call(task="T_ROB_L", command=5, target_position=gripper_l)
+                    self._prev_gripper_l = gripper_l
+
+            # sends of the commands to the robot
+            self._service_RunSGRoutine.call()
+
+        except Exception as ex:
+            print(f"SmartGripper error : {ex}")

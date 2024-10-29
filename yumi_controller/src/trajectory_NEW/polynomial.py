@@ -6,7 +6,7 @@ import quaternion as quat
 from .base import TParam, Trajectory, Path
 from .base_impl import PositionParam, PoseParam, QuaternionParam
 
-from dynamics.utils import quat_min_diff
+from dynamics.quat_utils import quat_min_diff
 
 
 def normalize(v: np.ndarray, return_norm=False):

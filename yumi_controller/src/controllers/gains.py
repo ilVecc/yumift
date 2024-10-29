@@ -1,36 +1,37 @@
 import numpy as np
 
 # Maximu deviation in trajectory
-MAX_DEVIATION = np.array([0.015, 0.25])*100  # [lin, ang]
+MAX_DEVIATION = np.array([0.015, 0.25]) * 100  # [lin, ang]
 
 # Gain for individual right control
-K_P_IR = 4.0   # Gain for positional error
-K_O_IR = 8.0   # Gain for angular error
+K_P_IR = 2.0   # Gain for positional error
+K_O_IR = 4.0   # Gain for angular error
 K_F_IR = 0.05  # Gain for force error
-K_T_IR = 2.5   # Gain for torque error
+K_T_IR = 1.5   # Gain for torque error
 # Gain for individual right control
 K_P_IL = K_P_IR
 K_O_IL = K_O_IR
 K_F_IL = K_F_IR
 K_T_IL = K_T_IR
 # Gain for coordinated absolute control
-K_P_CA = 4.0
-K_O_CA = 8.0
+K_P_CA = 2.0
+K_O_CA = 4.0
 K_F_CA = 0.02
 K_T_CA = 0.4
 # Gain for coordinated relative control
-K_P_CR = 4.0
-K_O_CR = 8.0
+K_P_CR = 2.0
+K_O_CR = 4.0
 K_F_CR = 0.02
 K_T_CR = 0.4
 
+# TODO fix these values
 # Gains for individual right admittances
-ADM_F_M_IR = np.diag([1.0, 1.0, 1.0])
+ADM_F_M_IR = np.eye(3) * 2.5
 ADM_F_D_IR = None
-ADM_F_K_IR = np.diag([30, 30, 30])
-ADM_T_M_IR = np.diag([0.01, 0.01, 0.002])
+ADM_F_K_IR = np.eye(3) * 30
+ADM_T_M_IR = np.diag([0.001, 0.001, 0.002]) * 1000
 ADM_T_D_IR = None
-ADM_T_K_IR = np.diag([2, 2, 0.2])
+ADM_T_K_IR = np.diag([0.2, 0.2, 0.2]) * 1000
 # Gains for individual left admittances
 ADM_F_M_IL = ADM_F_M_IR
 ADM_F_D_IL = ADM_F_D_IR
@@ -39,19 +40,19 @@ ADM_T_M_IL = ADM_T_M_IR
 ADM_T_D_IL = ADM_T_D_IR
 ADM_T_K_IL = ADM_T_K_IR
 # Gains for coordinated absolute admittances
-ADM_F_M_CA = np.diag([0.75, 0.75, 0.75])
+ADM_F_M_CA = np.eye(3) * 3
 ADM_F_D_CA = None
-ADM_F_K_CA = np.diag([30, 30, 30])
-ADM_T_M_CA = np.diag([0.01, 0.01, 0.002])
+ADM_F_K_CA = np.eye(3) * 30
+ADM_T_M_CA = np.diag([0.01, 0.01, 0.002]) * 1000
 ADM_T_D_CA = None
-ADM_T_K_CA = np.diag([2, 2, 0.2])
+ADM_T_K_CA = np.diag([2, 2, 0.2]) * 10000
 # Gains for coordinated relative admittances
-ADM_F_M_CR = np.diag([0.75, 0.75, 0.75])
+ADM_F_M_CR = np.eye(3) * 1000
 ADM_F_D_CR = None
-ADM_F_K_CR = np.diag([30, 30, 30])
-ADM_T_M_CR = np.diag([0.01, 0.01, 0.002])
+ADM_F_K_CR = np.eye(3) * 10000
+ADM_T_M_CR = np.diag([0.01, 0.01, 0.002]) * 1000
 ADM_T_D_CR = None
-ADM_T_K_CR = np.diag([2, 2, 0.2])
+ADM_T_K_CR = np.diag([2, 2, 0.2]) * 10000
 
 GAINS = {
     "individual": {

@@ -3,11 +3,11 @@ from typing import List
 import numpy as np
 import quaternion as quat
 
-from trajectory.base import Param, MultiParam, MultiTrajectory, FakeTrajectory, sampled
+from trajectory.base import Param, MultiParam, MultiTrajectory, FakeTrajectory
 from trajectory.base_impl import PoseParam
 from trajectory.polynomial import CubicPosePath
 
-from dynamics.utils import quat_min_diff
+from dynamics.quat_utils import quat_min_diff
 
 
 class YumiParam(Param):
@@ -160,13 +160,19 @@ class YumiTrajectory(MultiTrajectory[YumiParam]):
         """ Updates the desired velocities and target position based on the current 
             trajectory segment, moving to the next one if necessary.
         """
+        # since we use a FakeTrajectory and rely on two other inner trajectories,
+        # there should be no need to call super().compute(t), but the grippers 
+        # are not handled by the two trajectories, so calling the method is needed
+        # in order to update the state of the grippers via ._update_segment()
+        super().compute(t)
+        
         # we must be override this method since we provided a FakeTrajectory object 
         pose_r = self.traj_right.compute(t)
         pose_l = self.traj_left.compute(t)
         
         # get desired gripper position (gripper must be updated once per segment)
         # TODO allow for intra-segment update of gripper
-        desired_gripper_left = self._path_params[self._segment_idx_curr].param.grip_left
         desired_gripper_right = self._path_params[self._segment_idx_curr].param.grip_right
+        desired_gripper_left = self._path_params[self._segment_idx_curr].param.grip_left
 
         return YumiParam(pose_r.pos, pose_r.rot, pose_r.vel, desired_gripper_right, pose_l.pos, pose_l.rot, pose_l.vel, desired_gripper_left)

@@ -182,6 +182,9 @@ def sampled(trajectory_class: PlanOrTrajType) -> PlanOrTrajType:
     trajectory_class.compute = compute
     return trajectory_class
 
+#
+# IMPLEMENTATIONS
+#
 
 class FakeTrajectory(Trajectory[Any]):
     """ Trajectory useful when constructing a complex path which does not use
@@ -192,6 +195,7 @@ class FakeTrajectory(Trajectory[Any]):
         super().__init__()
     def compute(self, t) -> Any:
         return None
+
 
 
 if __name__ == "__main__":

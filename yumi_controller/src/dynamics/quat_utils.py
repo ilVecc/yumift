@@ -1,4 +1,5 @@
 import numpy as np
+import quaternion as quat
 
 #
 # Here we represent quaternions with
@@ -103,6 +104,49 @@ def jac_q(q):
     ])
     return Jq
 
+
+# inspired by https://github.com/christophhagen/averaging-quaternions/blob/master/averageQuaternions.py
+def quat_avg(*Q):
+    """
+    Calculates the average quaternion of N quaternions.
+    :param Q: np.ndarray of np.quaternion with shape(N) or tuple of np.quaternion
+    """
+    # handle varargs
+    if len(Q) == 1 and isinstance(Q[0], np.ndarray):
+        Q = Q[0]
+    else:
+        Q = np.stack(Q)
+
+    n = len(Q)
+    Q = quat.as_float_array(Q)
+    for i in range(1, n):
+        # use minimum distance pairwise
+        if Q[i-1, :] @ Q[i, :] < 0:
+            Q[i, :] = -Q[i, :]
+    A = np.zeros(shape=(4, 4))
+    for i in range(n):
+        q = Q[i, :]
+        A += np.outer(q, q)  #  === q.T @ q
+    A /= n
+    eigvals, eigvecs = np.linalg.eig(A)
+    # the vector will be type(complex) with only real part, so casting to real is safe
+    avgQ = np.real(eigvecs[:, np.argmax(eigvals)])
+    avgQ = quat.from_float_array(avgQ)
+    return avgQ
+
+def quat_min_diff(qi: np.quaternion, qf: np.quaternion) -> np.quaternion:
+    """ Returns the representation of `qf` that is nearest to `qi` for interpolation purposes.
+        :param qi: initial quaternion
+        :param qf: final quaternion
+    """
+    if quat.as_float_array(qi) @ quat.as_float_array(qf) < 0:
+        return -qf
+    return qf
+
+# def quat_consistent_diff(qi: np.quaternion, qf: np.quaternion, qr: np.quaternion = None):
+#     qf = quat_min_diff(qi, qf)
+
+
 if __name__ == "__main__":
     Q1 = np.array([1., 0., 0., 0.])
     Q2 = from_axis_angle(np.pi/4, np.array([0., 0., 1.]))
@@ -113,4 +157,3 @@ if __name__ == "__main__":
     assert np.allclose( Q2, exp(log(Q2)) )
     assert np.allclose( rot(np.array([1., 1., 0.]), Q2), np.array([0., np.sqrt(2), 0.]) )
     assert np.allclose( jac_Q(Q2) @ jac_q(log(Q2)), np.eye(3) )
-    

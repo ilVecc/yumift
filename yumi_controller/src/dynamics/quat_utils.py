@@ -143,6 +143,7 @@ def quat_min_diff(qi: np.quaternion, qf: np.quaternion) -> np.quaternion:
         return -qf
     return qf
 
+# TODO is this useful?
 # def quat_consistent_diff(qi: np.quaternion, qf: np.quaternion, qr: np.quaternion = None):
 #     qf = quat_min_diff(qi, qf)
 

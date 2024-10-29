@@ -25,7 +25,7 @@ def main():
             orientationAbsolute = [1, 0, 0, 0],
             positionRelative = [0, 0.22, 0],
             orientationRelative = trans.quaternion_about_axis(np.radians(170), [1, 0, 0]),
-            pointTime = 8.0),
+            pointTime = 6.0),
     ]
     pub.publish(msg)
     
@@ -40,7 +40,7 @@ def main():
     #         orientationLeft = trans.quaternion_about_axis(np.radians(90), [1, 0, 0]),
     #         gripperRight = 20.,
     #         gripperLeft  = 20.,
-    #         pointTime = 10.0),
+    #         pointTime = 3.0),
     #     YumiTrajectoryPoint(
     #         positionRight = [0.45, -0.11, 0.3],
     #         orientationRight = trans.quaternion_about_axis(np.radians(-90), [1, 0, 0]),
@@ -48,12 +48,12 @@ def main():
     #         orientationLeft = trans.quaternion_about_axis(np.radians(90), [1, 0, 0]),
     #         gripperRight = 0.,
     #         gripperLeft  = 0.,
-    #         pointTime = 2.0),
+    #         pointTime = 3.0),
     # ]
     # pub.publish(msg)
     
     print("positioning message sent")
-    rospy.sleep(10)
+    rospy.sleep(6)
 
 
 if __name__ == "__main__":

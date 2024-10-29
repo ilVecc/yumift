@@ -19,8 +19,8 @@ def main():
         YumiTrajectoryPoint(
             positionAbsolute = [0.35, 0, 0.20],
             positionRelative = [0, 0.25, 0],
-            orientationAbsolute = [1, 0, 0, 0],
-            orientationRelative = [0, 0, 0, 1],
+            orientationAbsolute = [0, 1, 0, 0],
+            orientationRelative = [1, 0, 0, 0],
             pointTime = 8.0),
         YumiTrajectoryPoint(
             local = True,                                 # this point is defined w.r.t. to the previous one
@@ -29,12 +29,12 @@ def main():
         YumiTrajectoryPoint(
             local = True,
             positionAbsolute = [0, 0.10, 0.20],           # [0.45, 0.0, 0.20] + [0, 0.10, 0.20] = [0.45, 0.10, 0.40]
-            orientationAbsolute = [1, 0, 0, 0],           # [1, 0, 0, 0] * [1, 0, 0, 0] = [0, 0, 0, 1]
+            orientationAbsolute = [0, 1, 0, 0],           # [0, 1, 0, 0] * [0, 1, 0, 0] = [1, 0, 0, 0]
             pointTime = 8.0),
         YumiTrajectoryPoint(
             local = True,
             positionAbsolute = [-0.10, -0.10, -0.20],
-            orientationAbsolute = [1, 0, 0, 0],           # [1, 0, 0, 0] * [0, 0, 0, 1] = [1, 0, 0, 0]
+            orientationAbsolute = [0, 1, 0, 0],           # [0, 1, 0, 0] * [1, 0, 0, 0] = [0, 1, 0, 0]
             pointTime = 8.0),
     ]
 

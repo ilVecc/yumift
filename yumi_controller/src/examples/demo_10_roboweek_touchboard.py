@@ -22,9 +22,9 @@ def main():
     msg.trajectory = [
         YumiTrajectoryPoint(
             positionAbsolute = [0.45, 0.0, 0.3],
-            orientationAbsolute = [1, 0, 0, 0],
+            orientationAbsolute = [0, 1, 0, 0],
             positionRelative = [0, 0.22, 0],
-            orientationRelative = trans.quaternion_about_axis(np.radians(170), [1, 0, 0]),
+            orientationRelative = np.roll(trans.quaternion_about_axis(np.radians(170), [1, 0, 0]), 1),
             pointTime = 6.0),
     ]
     pub.publish(msg)
@@ -35,17 +35,17 @@ def main():
     # msg.trajectory = [
     #     YumiTrajectoryPoint(
     #         positionRight = [0.45, -0.11, 0.3],
-    #         orientationRight = trans.quaternion_about_axis(np.radians(-90), [1, 0, 0]),
+    #         orientationRight = np.roll(trans.quaternion_about_axis(np.radians(-90), [1, 0, 0]), 1),
     #         positionLeft  = [0.45, 0.11, 0.3],
-    #         orientationLeft = trans.quaternion_about_axis(np.radians(90), [1, 0, 0]),
+    #         orientationLeft = np.roll(trans.quaternion_about_axis(np.radians(90), [1, 0, 0]), 1),
     #         gripperRight = 20.,
     #         gripperLeft  = 20.,
     #         pointTime = 3.0),
     #     YumiTrajectoryPoint(
     #         positionRight = [0.45, -0.11, 0.3],
-    #         orientationRight = trans.quaternion_about_axis(np.radians(-90), [1, 0, 0]),
+    #         orientationRight = np.roll(trans.quaternion_about_axis(np.radians(-90), [1, 0, 0]), 1),
     #         positionLeft  = [0.45, 0.11, 0.3],
-    #         orientationLeft = trans.quaternion_about_axis(np.radians(90), [1, 0, 0]),
+    #         orientationLeft = np.roll(trans.quaternion_about_axis(np.radians(90), [1, 0, 0]), 1),
     #         gripperRight = 0.,
     #         gripperLeft  = 0.,
     #         pointTime = 3.0),

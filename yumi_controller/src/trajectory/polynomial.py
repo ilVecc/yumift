@@ -128,7 +128,7 @@ class CubicQuatTrajectory(CubicTrajectory[QuaternionParam]):
         qf: np.quaternions = quat_final.quat
         # use minimum distance
         self._qi = qi
-        qr = quat_min_diff(qi, qf) * self._qi.conjugate()
+        qr = quat_min_diff(self._qi, qf)
         self._r, vf = normalize(quat.as_rotation_vector(qr), return_norm=True)
         self._a0, self._a1, self._a2, self._a3 = CubicTrajectory.calculate_coefficients(0, 0, vf, 0, tf)
     

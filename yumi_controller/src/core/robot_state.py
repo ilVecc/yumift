@@ -444,7 +444,7 @@ class YumiDualStateUpdater(YumiCoordinatedRobotState):
         
         # TODO this produces big leaps when the poses are exactly opposite
         #      a kind of "quaternion difference singularity"
-        rot_diff = quat_min_diff(self.pose_gripper_l.rot, self.pose_gripper_r.rot) * self.pose_gripper_l.rot.conjugate()
+        rot_diff = quat_min_diff(self.pose_gripper_l.rot, self.pose_gripper_r.rot)
         pos_abs = (1-self.alpha)*self.pose_gripper_r.pos + self.alpha*self.pose_gripper_l.pos
         rot_abs = quat.from_rotation_vector((1-self.alpha) * quat.as_rotation_vector(rot_diff)) * self.pose_gripper_l.rot
         self.pose_abs = utils_dyn.Frame(pos_abs, rot_abs)
@@ -463,7 +463,7 @@ class YumiDualStateUpdater(YumiCoordinatedRobotState):
         pos_rel = coeff_r * pose_r_wrt_abs.pos - coeff_l * pose_l_wrt_abs.pos
         rot_r_rel = quat.from_rotation_vector(coeff_r * quat.as_rotation_vector(pose_r_wrt_abs.rot))
         rot_l_rel = quat.from_rotation_vector(coeff_l * quat.as_rotation_vector(pose_l_wrt_abs.rot))
-        rot_rel = quat_min_diff(rot_l_rel, rot_r_rel) * rot_l_rel.conjugate()
+        rot_rel = quat_min_diff(rot_l_rel, rot_r_rel)
         self.pose_rel = utils_dyn.Frame(pos_rel, rot_rel)
         
         with np.printoptions(precision=3, suppress=True):

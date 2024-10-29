@@ -135,13 +135,13 @@ def quat_avg(*Q):
     return avgQ
 
 def quat_min_diff(qi: np.quaternion, qf: np.quaternion) -> np.quaternion:
-    """ Returns the representation of `qf` that is nearest to `qi` for interpolation purposes.
+    """ Returns the quaternion that achieves `qr * qi = qf` that using the shorthest path.
         :param qi: initial quaternion
         :param qf: final quaternion
     """
     if quat.as_float_array(qi) @ quat.as_float_array(qf) < 0:
-        return -qf
-    return qf
+        qf = -qf
+    return qf * qi.conj()
 
 # TODO is this useful?
 # def quat_consistent_diff(qi: np.quaternion, qf: np.quaternion, qr: np.quaternion = None):

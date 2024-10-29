@@ -22,30 +22,30 @@ def main():
         YumiTrajectoryPoint(
             positionRight = [0.35, -0.2, 0.2],   # position right arm [m], yumi_base_link is the origin
             positionLeft  = [0.35,  0.2, 0.2],   # position left arm [m]
-            orientationRight = [1, 0, 0, 0],     # orientation right arm, quaterniorns [x, y, z, w]
-            orientationLeft  = [1, 0, 0, 0],     # orientation left arm
+            orientationRight = [0, 1, 0, 0],     # orientation right arm, quaterniorns [w, x, y, z]
+            orientationLeft  = [0, 1, 0, 0],     # orientation left arm
             gripperRight = 0.0,                  # gripper width for the fingers [mm]
             gripperLeft  = 0.0,
             pointTime = 5.0),                    # time to get to this point [s]
         YumiTrajectoryPoint(
             positionRight = [0.35, -0.1, 0.04],
             positionLeft  = [0.35,  0.1, 0.04],
-            orientationRight = [1, 0, 0, 0],
-            orientationLeft  = [1, 0, 0, 0],
+            orientationRight = [0, 1, 0, 0],
+            orientationLeft  = [0, 1, 0, 0],
             pointTime = 2.0),
         YumiTrajectoryPoint(
             positionRight = [0.35, -0.10, 0.04],
             positionLeft  = [0.35,  0.15, 0.04],
-            orientationRight = [1, 0, 0, 0],
-            orientationLeft  = [1, 0, 0, 0],
+            orientationRight = [0, 1, 0, 0],
+            orientationLeft  = [0, 1, 0, 0],
             gripperRight = 20,
             gripperLeft  = 20,
             pointTime = 2.0),
         YumiTrajectoryPoint(
             positionRight = [0.35, -0.10, 0.04],
             positionLeft  = [0.35,  0.15, 0.04],
-            orientationRight = [1, 0, 0, 0],
-            orientationLeft  = [1, 0, 0, 0],
+            orientationRight = [0, 1, 0, 0],
+            orientationLeft  = [0, 1, 0, 0],
             pointTime = 2.0)
     ]
 
@@ -62,26 +62,26 @@ def main():
         YumiTrajectoryPoint(
             positionAbsolute = [0.35, 0.0, 0.2],  # absolute  position, the avg of the gripper positions
             positionRelative = [0, 0.25, 0],      # relatibe  position, the difference of the gripper positions in the absolute frame
-            orientationAbsolute = [1, 0, 0, 0],
-            orientationRelative = [0, 0, 0, 1],
+            orientationAbsolute = [0, 1, 0, 0],
+            orientationRelative = [1, 0, 0, 0],
             pointTime = 5.0),
         YumiTrajectoryPoint(
             positionAbsolute = [0.45, 0.1, 0.2],
             positionRelative = [0, 0.25, 0],
-            orientationAbsolute = [1, 0, 0, 0],
-            orientationRelative = [0, 0, 0, 1],
+            orientationAbsolute = [0, 1, 0, 0],
+            orientationRelative = [1, 0, 0, 0],
             pointTime = 5.0),
         YumiTrajectoryPoint(
             positionAbsolute = [0.45, 0.1, 0.4],
             positionRelative = [0, 0.25, 0],
-            orientationAbsolute = [1, 0, 0, 0],
-            orientationRelative = [0, 0, 0, 1],
+            orientationAbsolute = [0, 1, 0, 0],
+            orientationRelative = [1, 0, 0, 0],
             pointTime = 5.0),
         YumiTrajectoryPoint(
             positionAbsolute = [0.35, 0.0, 0.2],
             positionRelative = [0, 0.25, 0],
-            orientationAbsolute = [1, 0, 0, 0],
-            orientationRelative = [0, 0, 0, 1],
+            orientationAbsolute = [0, 1, 0, 0],
+            orientationRelative = [1, 0, 0, 0],
             pointTime = 5.0)
     ]
 
@@ -98,68 +98,68 @@ def main():
         YumiTrajectoryPoint(
             positionAbsolute = [0.4, 0.0, 0.2],
             positionRelative = [0, 0.25, 0],
-            orientationAbsolute = trans.quaternion_from_euler(0, 0, np.radians(210), "rzyx"),
-            orientationRelative = [0, 0, 0, 1],
+            orientationAbsolute = np.roll(trans.quaternion_from_euler(0, 0, np.radians(210), "rzyx"), 1),
+            orientationRelative = [1, 0, 0, 0],
             pointTime = 8.0),
         YumiTrajectoryPoint(
             positionAbsolute = [0.4, 0.0, 0.2],
             positionRelative = [0, 0.25, 0],
-            orientationAbsolute = trans.quaternion_from_euler(0, 0, np.radians(150), "rzyx"),
-            orientationRelative = [0, 0, 0, 1],
+            orientationAbsolute = np.roll(trans.quaternion_from_euler(0, 0, np.radians(150), "rzyx"), 1),
+            orientationRelative = [1, 0, 0, 0],
             pointTime = 8.0),
         YumiTrajectoryPoint(
             positionAbsolute = [0.4, 0.0, 0.2],
             positionRelative = [0, 0.25, 0],
-            orientationAbsolute = trans.quaternion_from_euler(0, 0, np.radians(180), "rzyx"),
-            orientationRelative = [0, 0, 0, 1],
+            orientationAbsolute = np.roll(trans.quaternion_from_euler(0, 0, np.radians(180), "rzyx"), 1),
+            orientationRelative = [1, 0, 0, 0],
             pointTime = 8.0),
         YumiTrajectoryPoint(
             positionAbsolute = [0.4, 0.0, 0.2],
             positionRelative = [0, 0.25, 0],
-            orientationAbsolute = trans.quaternion_from_euler(np.radians(40), 0, np.radians(180), "rzyx"),
-            orientationRelative = [0, 0, 0, 1],
+            orientationAbsolute = np.roll(trans.quaternion_from_euler(np.radians(40), 0, np.radians(180), "rzyx"), 1),
+            orientationRelative = [1, 0, 0, 0],
             pointTime = 8.0),
         YumiTrajectoryPoint(
             positionAbsolute = [0.4, 0.0, 0.2],
             positionRelative = [0, 0.25, 0],
-            orientationAbsolute = trans.quaternion_from_euler(np.radians(-40), 0, np.radians(180), "rzyx"),
-            orientationRelative = [0, 0, 0, 1],
+            orientationAbsolute = np.roll(trans.quaternion_from_euler(np.radians(-40), 0, np.radians(180), "rzyx"), 1),
+            orientationRelative = [1, 0, 0, 0],
             pointTime = 8.0),
         YumiTrajectoryPoint(
             positionAbsolute = [0.4, 0.0, 0.2],
             positionRelative = [0, 0.25, 0],
-            orientationAbsolute = trans.quaternion_from_euler(0, 0, np.radians(180), "rzyx"),
-            orientationRelative = [0, 0, 0, 1],
+            orientationAbsolute = np.roll(trans.quaternion_from_euler(0, 0, np.radians(180), "rzyx"), 1),
+            orientationRelative = [1, 0, 0, 0],
             pointTime = 8.0),
         YumiTrajectoryPoint(
             positionAbsolute = [0.4, 0.0, 0.2],
             positionRelative = [0, 0.25, 0],
-            orientationAbsolute = trans.quaternion_from_euler(0, np.radians(40), np.radians(180), "rzyx"),
-            orientationRelative = [0, 0, 0, 1],
+            orientationAbsolute = np.roll(trans.quaternion_from_euler(0, np.radians(40), np.radians(180), "rzyx"), 1),
+            orientationRelative = [1, 0, 0, 0],
             pointTime = 8.0),
         YumiTrajectoryPoint(
             positionAbsolute = [0.4, 0.0, 0.2],
             positionRelative = [0, 0.25, 0],
-            orientationAbsolute = trans.quaternion_from_euler(0, np.radians(-40), np.radians(180), "rzyx"),
-            orientationRelative = [0, 0, 0, 1],
+            orientationAbsolute = np.roll(trans.quaternion_from_euler(0, np.radians(-40), np.radians(180), "rzyx"), 1),
+            orientationRelative = [1, 0, 0, 0],
             pointTime = 16.0),
         YumiTrajectoryPoint(
             positionAbsolute = [0.4, 0.0, 0.2],
             positionRelative = [0, 0.25, 0],
-            orientationAbsolute = trans.quaternion_from_euler(0, 0, np.radians(180), "rzyx"),
-            orientationRelative = [0, 0, 0, 1],
+            orientationAbsolute = np.roll(trans.quaternion_from_euler(0, 0, np.radians(180), "rzyx"), 1),
+            orientationRelative = [1, 0, 0, 0],
             pointTime = 8.0),
         YumiTrajectoryPoint(
             positionAbsolute = [0.4, 0.0, 0.2],
             positionRelative = [0, 0.25, 0],
-            orientationAbsolute = trans.quaternion_from_euler(0, 0, np.radians(180), "rzyx"),
-            orientationRelative = trans.quaternion_from_euler(0, 0, np.radians(60), "rzyx"),
+            orientationAbsolute = np.roll(trans.quaternion_from_euler(0, 0, np.radians(180), "rzyx"), 1),
+            orientationRelative = np.roll(trans.quaternion_from_euler(0, 0, np.radians(60), "rzyx"), 1),
             pointTime = 8.0),
         YumiTrajectoryPoint(
             positionAbsolute = [0.4, 0.0, 0.2],
             positionRelative = [0, 0.25, 0],
-            orientationAbsolute = trans.quaternion_from_euler(0, 0, np.radians(180), "rzyx"),
-            orientationRelative = [0, 0, 0, 1],
+            orientationAbsolute = np.roll(trans.quaternion_from_euler(0, 0, np.radians(180), "rzyx"), 1),
+            orientationRelative = [1, 0, 0, 0],
             pointTime = 8.0)
     ]
 

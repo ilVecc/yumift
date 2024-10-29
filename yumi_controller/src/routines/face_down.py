@@ -18,9 +18,9 @@ def main():
     msg.trajectory = [
         YumiTrajectoryPoint(
             positionRight = [0.4, -0.3, 0.3],
-            orientationRight = [1, 0, 0, 0],
+            orientationRight = [0, 1, 0, 0],
             positionLeft  = [0.4,  0.3, 0.3],
-            orientationLeft  = [1, 0, 0, 0],
+            orientationLeft  = [0, 1, 0, 0],
             pointTime = 4.0),
     ]
     pub.publish(msg)

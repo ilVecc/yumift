@@ -19,16 +19,16 @@ def main():
         YumiTrajectoryPoint(
             positionAbsolute = [0.45, 0.0, 0.2],
             positionRelative = [0, 0.30, 0],
-            orientationRelative = [0, 0, 0, 1],
-            orientationAbsolute = [1, 0, 0, 0],
+            orientationRelative = [1, 0, 0, 0],
+            orientationAbsolute = [0, 1, 0, 0],
             gripperRight = 20.0,
             gripperLeft  = 20.0,
             pointTime = 8.0),
         YumiTrajectoryPoint(
             positionAbsolute = [0.45, 0.0, 0.2],
             positionRelative = [0, 0.30, 0],
-            orientationAbsolute = [1, 0, 0, 0],
-            orientationRelative = [0, 0, 0, 1],
+            orientationAbsolute = [0, 1, 0, 0],
+            orientationRelative = [1, 0, 0, 0],
             pointTime = 8.0),
     ]
     pub.publish(msg)

@@ -104,7 +104,7 @@ class YumiTrajectoryController(YumiDualController):
     
     @staticmethod
     def _sanitize_rot(rot: Tuple[float]):
-        return quat.from_float_array(np.roll(np.asarray(rot), 1)) if rot else quat.one
+        return quat.from_float_array(np.asarray(rot)) if rot else quat.one
     
     def _callback_trajectory(self, data: YumiTrajectoryMsg):
         """ Gets called when a new set of trajectory parameters is received. 
@@ -139,9 +139,6 @@ class YumiTrajectoryController(YumiDualController):
         trajectory = [YumiTrajectoryParam(currentPoint, duration=0)]
         
         # append trajectory points from msg
-        # ATTENTION: YumiTrajectoryPoint wants quaternions as (x,y,z,w) while all 
-        #            quaternions in the code are as (w,x,y,z)
-        # TODO fix this
         for point in data.trajectory:
             point: YumiTrajectoryPoint
             # either right or absolute

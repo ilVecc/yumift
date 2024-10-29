@@ -19,8 +19,8 @@ def main():
         YumiTrajectoryPoint(
             positionRight = [0.45, -0.3, 0.3],
             positionLeft = [0.45, 0.3, 0.3],
-            orientationRight = [1, 0, 0, 0],
-            orientationLeft = [1, 0, 0, 0],
+            orientationRight = [0, 1, 0, 0],
+            orientationLeft = [0, 1, 0, 0],
             pointTime = 2.0)
     ]
     pub.publish(msg)
@@ -38,8 +38,8 @@ def main():
         YumiTrajectoryPoint(
             positionRight = [0.60, -0.3, 0.4],
             positionLeft = [0.60, 0.3, 0.4],
-            orientationRight = [-0.5, 0.5, -0.5, 0.5],
-            orientationLeft = [-0.5, 0.5, -0.5, 0.5],
+            orientationRight = [0.5, -0.5, 0.5, -0.5],
+            orientationLeft = [0.5, -0.5, 0.5, -0.5],
             pointTime = 2.0)
     ]
     pub.publish(msg)
@@ -57,8 +57,8 @@ def main():
         YumiTrajectoryPoint(
             positionRight = [0.60, -0.3, 0.4],
             positionLeft = [0.60, 0.3, 0.4],
-            orientationRight = [.707, 0.0, 0.707, 0.0],
-            orientationLeft = [0.707, 0.0, 0.707, 0.0],
+            orientationRight = [0.0, 0.707, 0.0, 0.707],
+            orientationLeft = [0.0, 0.707, 0.0, 0.707],
             pointTime = 2.0)
     ]
     pub.publish(msg)
@@ -95,8 +95,8 @@ def main():
         YumiTrajectoryPoint(
             positionRight = [0.60, -0.3, 0.4],
             positionLeft = [0.60, 0.3, 0.4],
-            orientationRight = [0.0, 0.707, 0.0, 0.707],
-            orientationLeft = [0.0, 0.707, 0.0, 0.707],
+            orientationRight = [0.707, 0.0, 0.707, 0.0],
+            orientationLeft = [0.707, 0.0, 0.707, 0.0],
             pointTime = 2.0)
     ]
     pub.publish(msg)
@@ -120,8 +120,8 @@ def main():
         YumiTrajectoryPoint(
             positionRight = [0.45, -0.3, 0.5],
             positionLeft = [0.45, 0.3, 0.5],
-            orientationRight = [0, 0, -1, 0],
-            orientationLeft = [0, 0, -1, 0],
+            orientationRight = [0, 0, 0, -1],
+            orientationLeft = [0, 0, 0, -1],
             pointTime = 2.0)
     ]
     pub.publish(msg)

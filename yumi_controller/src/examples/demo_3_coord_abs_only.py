@@ -21,15 +21,15 @@ def main():
     msg.trajectory = [
         YumiTrajectoryPoint(
             positionAbsolute = [0.45, 0.0, 0.2],
-            orientationAbsolute = [1, 0, 0, 0],
+            orientationAbsolute = [0, 1, 0, 0],
             pointTime = 8.0),
         YumiTrajectoryPoint(
             positionAbsolute = [0.45, 0.0, 0.2],
-            orientationAbsolute = trans.quaternion_about_axis(np.pi, [np.cos(np.pi/8), np.sin(np.pi/8), 0]),
+            orientationAbsolute = np.roll(trans.quaternion_about_axis(np.pi, [np.cos(np.pi/8), np.sin(np.pi/8), 0]), 1),
             pointTime = 8.0),
         YumiTrajectoryPoint(
             positionAbsolute = [0.45, 0.0, 0.2],
-            orientationAbsolute = [1, 0, 0, 0],
+            orientationAbsolute = [0, 1, 0, 0],
             pointTime = 8.0),
     ]
     pub.publish(msg)

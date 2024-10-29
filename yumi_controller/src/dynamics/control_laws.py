@@ -22,10 +22,7 @@ def rotation_error_clipped(current_rot: np.quaternion, target_rot: np.quaternion
         :param target_rot: quaternion np.array() shape(4)
         :param max_error: max error [rad]
     """
-    # use minimum distance
-    # TODO should't target_rot be flipped instead?
-    current_rot = quat_min_diff(target_rot, current_rot)
-    rotation_error = target_rot * current_rot.conjugate()
+    rotation_error = quat_min_diff(current_rot, target_rot)
     rotation_error_dir, rotation_error_angle = utils.normalize(quat.as_rotation_vector(rotation_error), return_norm=True)
     return rotation_error_dir * min([max_error, rotation_error_angle])
 

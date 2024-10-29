@@ -34,26 +34,26 @@ def main():
         # YumiTrajectoryPoint(
         #     positionAbsolute = [0.55, 0.0, 0.2],
         #     positionRelative = [0, 0.10, 0],
-        #     orientationAbsolute = [1, 0, 0, 0],
-        #     orientationRelative = [0, 0, 0, 1],
+        #     orientationAbsolute = [0, 1, 0, 0],
+        #     orientationRelative = [1, 0, 0, 0],
         #     pointTime = 8.0),
         YumiTrajectoryPoint(
             positionAbsolute = [0.55, 0.0, 0.2],
             positionRelative = [0.05, 0.05, 0.05],
-            orientationAbsolute = [1,0,0,0], #trans.quaternion_about_axis(np.radians(135), [1, 0, 0])
-            orientationRelative = trans.quaternion_about_axis(np.radians(90), [1, 0, 0]),
+            orientationAbsolute = [0,1,0,0], #trans.quaternion_about_axis(np.radians(135), [1, 0, 0])
+            orientationRelative = np.roll(trans.quaternion_about_axis(np.radians(90), [1, 0, 0]), 1),
             pointTime = 8.0),
         # YumiTrajectoryPoint(
         #     positionAbsolute = [0.55, 0.0, 0.2],
         #     positionRelative = [0, 0.50, 0],
-        #     orientationAbsolute = [1, 0, 0, 0],
-        #     orientationRelative = trans.quaternion_about_axis(np.radians(45), [1, 0, 0]),
+        #     orientationAbsolute = [0, 1, 0, 0],
+        #     orientationRelative = np.roll(trans.quaternion_about_axis(np.radians(45), [1, 0, 0]), 1),
         #     pointTime = 8.0),
         # YumiTrajectoryPoint(
         #     positionAbsolute = [0.55, 0.0, 0.2]
         #     positionRelative = [0, 0.30, 0]
-        #     orientationAbsolute = [1, 0, 0, 0]
-        #     orientationRelative = [0, 0, 0, 1]
+        #     orientationAbsolute = [0, 1, 0, 0]
+        #     orientationRelative = [1, 0, 0, 0]
         #     pointTime = 8.0),
     ]
     pub.publish(msg)

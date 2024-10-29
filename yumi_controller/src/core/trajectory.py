@@ -102,8 +102,8 @@ class YumiTrajectory(MultiTrajectory[YumiParam]):
             :Returns a velocity for q2
         """
         vel = np.zeros(3)
-        q12 = quat_min_diff(q1, q2) * q1.conj()
-        q23 = quat_min_diff(q2, q3) * q2.conj()
+        q12 = quat_min_diff(q1, q2)
+        q23 = quat_min_diff(q2, q3)
         vm1 = quat.as_rotation_vector(q12)/t2  # avg velocity for previous segment
         vm2 = quat.as_rotation_vector(q23)/t3  # avg velocity for next segment
         # if velocities are close to zero or change direction then the transitional velocity 

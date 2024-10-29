@@ -21,19 +21,19 @@ def main():
     msg.trajectory = [
         YumiTrajectoryPoint(
             positionRelative = [0, 0.30, 0],
-            orientationRelative = [0, 0, 0, 1],
+            orientationRelative = [1, 0, 0, 0],
             pointTime = 8.0),
         YumiTrajectoryPoint(
             positionRelative = [0, 0.50, 0],
-            orientationRelative = trans.quaternion_about_axis(np.radians(60), [0, 1, 0]),
+            orientationRelative = np.roll(trans.quaternion_about_axis(np.radians(60), [0, 1, 0]), 1),
             pointTime = 8.0),
         YumiTrajectoryPoint(
             positionRelative = [0, 0.50, 0],
-            orientationRelative = trans.quaternion_about_axis(np.radians(45), [1, 0, 0]),
+            orientationRelative = np.roll(trans.quaternion_about_axis(np.radians(45), [1, 0, 0]), 1),
             pointTime = 8.0),
         YumiTrajectoryPoint(
             positionRelative = [0, 0.30, 0],
-            orientationRelative = [0, 0, 0, 1],
+            orientationRelative = [1, 0, 0, 0],
             pointTime = 8.0),
     ]
     pub.publish(msg)

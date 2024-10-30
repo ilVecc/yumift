@@ -29,7 +29,7 @@ K_T_CR = 0.4
 ADM_F_M_IR = np.eye(3) * 2.5
 ADM_F_D_IR = None
 ADM_F_K_IR = np.eye(3) * 30
-ADM_T_M_IR = np.diag([0.001, 0.001, 0.002]) * 1000
+ADM_T_M_IR = np.diag([0.01, 0.01, 0.02]) * 1000
 ADM_T_D_IR = None
 ADM_T_K_IR = np.diag([0.2, 0.2, 0.2]) * 1000
 # Gains for individual left admittances

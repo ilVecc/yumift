@@ -478,7 +478,7 @@ class YumiDualController(object, metaclass=ABCMeta):
             jacobian = self.yumi_state.jacobian_grippers
             
             jacobian_pinv = np.linalg.pinv(jacobian)
-            vel = jacobian_pinv @ xdot + (np.eye(Parameters.dof) - jacobian_pinv @ jacobian) @ Parameters.secondary_neutral(None, self.yumi_state.joint_vel)
+            vel = jacobian_pinv @ xdot + (np.eye(Parameters.dof) - jacobian_pinv @ jacobian) @ Parameters.secondary_neutral(self.yumi_state.joint_pos, self.yumi_state.joint_vel)
         
         elif action["control_space"] == "coordinated":    
             xdot[0:6] = action.get("absolute_velocity", np.zeros(6))

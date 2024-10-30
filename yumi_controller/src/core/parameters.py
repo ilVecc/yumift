@@ -71,9 +71,9 @@ class Parameters():
     
     @classmethod
     def secondary_neutral(cls, q, dq): 
-        return - cls.k0 * (1/cls.dof) * (dq - cls.neutral_pos) / cls.q_span ** 2
+        return - cls.k0 * (1/cls.dof) * (q - cls.neutral_pos) / cls.q_span ** 2
     
     @classmethod
     def secondary_center(cls, q, dq): 
-        return - cls.k0 * (1/cls.dof) * (dq - cls.q_avg) / cls.q_span ** 2
+        return - cls.k0 * (1/cls.dof) * (q - cls.q_avg) / cls.q_span ** 2
     ###########################################################################

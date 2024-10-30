@@ -466,11 +466,11 @@ class YumiDualStateUpdater(YumiCoordinatedRobotState):
         rot_rel = quat_min_diff(rot_l_rel, rot_r_rel)
         self.pose_rel = utils_dyn.Frame(pos_rel, rot_rel)
         
-        with np.printoptions(precision=3, suppress=True):
-            # print(quat.as_float_array(rot_diff))
-            print(quat.as_float_array(self.pose_rel.rot))
-            # print(quat.as_float_array(self.pose_abs.rot))
-            # print()
+        # with np.printoptions(precision=3, suppress=True):
+        #     # print(quat.as_float_array(rot_diff))
+        #     print(quat.as_float_array(self.pose_rel.rot))
+        #     # print(quat.as_float_array(self.pose_abs.rot))
+        #     # print()
         
         # relative linking matrix: maps gripper velocities to the velocity difference wrt absolute frame
         # TODO investigate this

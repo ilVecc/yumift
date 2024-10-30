@@ -59,6 +59,36 @@ class Trajectory(Generic[TParam], metaclass=ABCMeta):
 
 
 
+class FakeTrajectory(Trajectory[Any]):
+    """ Trajectory useful when constructing a complex path which does not use
+        an underlying Trajectory object (i.e. in a double path, two objects
+        are needed instead of one). Remember to avoid using methods `.compute()` 
+        and `.update()` if not necessary. 
+    """
+    def __init__(self) -> None:
+        super().__init__(None, None)
+    
+    def compute(self, t) -> Any:
+        return None
+    
+
+class ConstantTrajectory(Trajectory[Any]):
+    """ Trajectory useful when constructing a complex path which remains constant
+        for some time. Remember to avoid using methods `.compute()` and `.update()` 
+        if not necessary. 
+    """
+    def __init__(self, const_param: TParam) -> None:
+        super().__init__(const_param, const_param)
+    
+    def compute(self, t) -> Any:
+        return self._param_init
+
+
+
+
+
+
+
 
 
 
@@ -127,8 +157,8 @@ class Path(Generic[TParam]):
            previous parameter);
         2) otherwise, recompute the duration based on the previous parameter's instant
         
-        :param path_description: either a [Param, Trajectory, Param, ...] sequence
-                                 or a [Trajectory, Param, Param, ...] sequence
+        :param path_description: either a `[Param, Trajectory, Param, ...]` sequence
+                                 or a `[Trajectory, Param, Param, ...]` sequence
     """
     def __init__(self, *path_description: Union[PathParam[TParam], Trajectory[TParam]]) -> None:
         
@@ -328,15 +358,6 @@ def sampled(trajectory_class: PlanOrTrajType) -> PlanOrTrajType:
     return trajectory_class
 
 
-class FakeTrajectory(Trajectory[Any]):
-    """ Trajectory useful when constructing a complex path which does not use
-        an underlying Trajectory object (i.e. in a double path, two objects
-        are needed instead of one). Remember to avoid using methods .compute() 
-        and .update() if not necessary. """
-    def __init__(self) -> None:
-        super().__init__()
-    def compute(self, t) -> Any:
-        return None
 
 
 if __name__ == "__main__":

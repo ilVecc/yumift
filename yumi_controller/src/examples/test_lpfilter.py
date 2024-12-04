@@ -7,7 +7,7 @@ import numpy as np
 import rospy
 from geometry_msgs.msg import WrenchStamped, Vector3
 
-from dynamics.filters import LPFilterTustin
+from dynamics.systems import LPFilterTustin
 
 
 def main() -> None:

@@ -1,9 +1,8 @@
 import numpy as np
 import quaternion as quat
 
-from dynamics.quat_utils import quat_min_diff
-
 from . import utils
+from .quat_utils import quat_diff
 
 def position_error_clipped(current_pos: np.ndarray, target_pos: np.ndarray, max_error=np.inf):
     """ Calculates a clipped position error
@@ -22,7 +21,7 @@ def rotation_error_clipped(current_rot: np.quaternion, target_rot: np.quaternion
         :param target_rot: quaternion np.array() shape(4)
         :param max_error: max error [rad]
     """
-    rotation_error = quat_min_diff(current_rot, target_rot)
+    rotation_error = quat_diff(current_rot, target_rot)
     rotation_error_dir, rotation_error_angle = utils.normalize(quat.as_rotation_vector(rotation_error), return_norm=True)
     return rotation_error_dir * min([max_error, rotation_error_angle])
 

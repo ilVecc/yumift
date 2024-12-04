@@ -8,7 +8,7 @@ import dynamics.quat_utils as quat_utils
 import rospy
 from geometry_msgs.msg import WrenchStamped, Vector3
 
-from dynamics.filters import AdmittanceForce, AdmittanceTorque
+from dynamics.systems import AdmittanceForce, AdmittanceTorque
 from dynamics.utils import normalize
 
 

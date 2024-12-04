@@ -9,7 +9,8 @@ class Parameters():
     # degrees of freedom for the robot (DO NOT TOUCH, obv.)
     dof = 14
     
-    # Hz the controller is running, is also defined in `kdl_kinematics.cpp` (both needs to be the same!)
+    # controller rate in Hz, also defined in `kdl_kinematics.cpp` (both needs to be the same!)
+    # this is a desired value, thus unreliable! check the actual rate
     update_rate = 250 
     dt = 1/update_rate
     
@@ -33,7 +34,7 @@ class Parameters():
         "joint_velocity_bound": True,  # UNSAFE/CLIPPING if False
         "elbow_collision": True,       # UNSAFE if False
         "gripper_collision": False,    # UNSAFE if False (only used for individual control)
-        "joint_potential": False        # WEIRD CONFIGURATION if False
+        "joint_potential": True        # WEIRD CONFIGURATION if False
     }
     
     # max values before joints becomes saturated, values are from
@@ -53,9 +54,13 @@ class Parameters():
     # elbow collision avoidance  
     elbows_min_distance = 0.200  # closes the elbows can be to each other in [m]
     
-    # For joint potential, defining a neutral pose to move towards
+    # for joint potential, defining a neutral pose to move towards
     neutral_pos = np.array([ 0.7, -1.7, -0.8, 1.0, -2.2, 1.0, 0.0, 
                             -0.7, -1.7,  0.8, 1.0,  2.2, 1.0, 0.0])
+    
+    # for joint potential, be less strict on the last wrist joints
+    potential_weight = np.array([1., 1., 1., 1., 1., 1., 0.5, 
+                                 1., 1., 1., 1., 1., 1., 0.5])
     ###########################################################################
     
     ####################     SIMPLE INVERSE KINEMATICS     ####################

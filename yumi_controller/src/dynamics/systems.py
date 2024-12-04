@@ -1,6 +1,11 @@
+from typing import Tuple
+
 import numpy as np
 from . import quat_utils
 
+###############################################################################
+#                         TUSTIN-DISCRETIZED MODELS                           #
+###############################################################################
 
 class AdmittanceTustin(object):
     
@@ -73,7 +78,7 @@ class AdmittanceTustin(object):
         y, _, _ = self.compute(u)
         return y
     
-    def compute(self, u, h=None) -> float:
+    def compute(self, u, h=None) -> Tuple[float, float, float]:
         """ Returns position, velocity and acceleration given an input force.
         """
         if h is not None:
@@ -161,9 +166,10 @@ class LPFilterTustin(object):
     def _update_output(self, y) -> None:
         self.y = y
 
-###
-### STATE SPACE MODELS
-###
+
+###############################################################################
+#                             STATE SPACE MODELS                              #
+###############################################################################
 
 class DiscretizedStateSpaceModel(object):
     """ Implementation of a discretized time-invariant state-space model.
@@ -212,8 +218,8 @@ class DiscretizedStateSpaceModel(object):
         self.h = h
         # actual coefficient used for computation
         if self.method == "exact":
-            # TODO here we SUPPOSE  A  IS DIAGONALIZABLE
-            L, V = np.linalg.eig(self.A)  # A = V @ diag(E)*h @ inv(V)
+            # TODO here we suppose `A` is diagonalizable, add jordanization
+            L, V = np.linalg.eig(self.A)  # A = V @ diag(L)*h @ inv(V)
             eAh = V @ np.exp(np.diag(L*h)) @ np.linalg.inv(V)
             F = eAh
             G = np.linalg.inv(self.A) @ (eAh - np.eye(self.n)) @ self.B
@@ -337,6 +343,7 @@ class AdmittanceForce(Admittance):
     
     def compute(self, f: np.ndarray, h_new: float = None):    
         """ Returns position and velocity given an input force.
+            This function can run in real-time at 6kHz.
         """
         return super().compute(f, h_new)
 
@@ -348,6 +355,7 @@ class AdmittanceTorque(Admittance):
     
     def compute(self, m: np.ndarray, h_new: float = None):    
         """ Returns rotation and angular velocity given an input torque.
+            This function can run in real-time at 6kHz.
         """
         # TODO switch to np.quaternion here
         # q = log(Q), dq is its derivative
@@ -365,6 +373,7 @@ class AdmittanceWrench(Admittance):
     
     def compute(self, f: np.ndarray, h_new: float = None):    
         """ Returns position and velocity given an input force.
+            This function can run in real-time at 6kHz.
         """
         q, dq = super().compute(f, h_new)
         p, dp = q[:3], dq[:3]
@@ -372,175 +381,3 @@ class AdmittanceWrench(Admittance):
         w = 2*quat_utils.mult((quat_utils.jac_q(q[3:]) @ dq[3:]), quat_utils.conj(Q))
         W = w[1:]
         return (p, Q), (dp, W)
-
-
-def _main_admittance_tustin():
-    # Just a simple test for the admittance. 
-    # Here we create a 3d admittance 
-    import numpy as np
-    import matplotlib.pyplot as plt
-    
-    m = 2  # we can use floats ...
-    k = np.array([1000, 5000, 700])  # ... or Numpy array (everything will be broadcasted to the right shape)
-    k = 1000
-    d = 2*np.sqrt(m*k)  # for a critically damped admittance
-    h = 1/1000  # sampling step [s]
-    
-    adm = AdmittanceTustin(m, k, d, h)  # d=None yields the same result
-    
-    # three noisy box signals sampled with step h
-    # each will pass through a different admittance
-    t = np.linspace(0, 2.5, int(1/h), endpoint=True)
-    u = np.zeros((t.shape[0], 3))
-    u[t >= 0.5, ...] = [25, 15, 10]
-    u[t >  1.5, ...] = 0
-    u += np.random.normal(0, 0.025, size=u.shape)
-    
-    # calculate the output signal 
-    y = np.zeros_like(u)
-    dy = np.zeros_like(u)
-    for i in range(u.shape[0]):
-        y[i, ...], dy[i, ...], _ = adm.compute(u[i, ...])
-    
-    # plot the result
-    fig, ax1 = plt.subplots()
-    ax1.set_frame_on(True)
-    ax1.plot(t, u)
-    ax2 = ax1.twinx()
-    ax2.spines["right"].set_position(("axes", 1.0))
-    ax2.plot(t, y, linestyle="--")
-    ax2.plot(t, dy, linestyle="-.")
-    plt.show()
-
-def _main_lpfilter():
-    # Just a simple test for the admittance. 
-    # Here we create a 3d admittance 
-    import numpy as np
-    import matplotlib.pyplot as plt
-    
-    f = 5
-    k = 1
-    h = 1/1000  # sampling step [s]
-    
-    lp = LPFilterTustin(f, k, h)
-    
-    # three noisy box signals sampled with step h
-    # each will pass through a different admittance
-    t = np.linspace(0, 5, int(1/h), endpoint=True)
-    u = np.sin(2*np.pi*15 * t)
-    
-    # calculate the output signal 
-    y = np.zeros_like(u)
-    for i in range(u.shape[0]):
-        y[i, ...] = lp(u[i, ...])
-    
-    # plot the result
-    fig, ax1 = plt.subplots()
-    ax1.set_frame_on(True)
-    ax1.plot(t, u)
-    ax2 = ax1.twinx()
-    ax2.spines["right"].set_position(("axes", 1.0))
-    ax2.plot(t, y, linestyle="dashed")
-    plt.show()
-
-def _main_admittance_force():
-    # Just a simple test for the admittance. 
-    # Here we create a 3d admittance 
-    import numpy as np
-    import matplotlib.pyplot as plt
-    
-    m = 2
-    k = 500 #np.diag([800, 1000, 1200])
-    d = None
-    h = 1/1000  # sampling step [s]
-    adm = AdmittanceForce(m, k, d, h, method="tustin")
-    
-    # three noisy box signals sampled with step h
-    # each will pass through a different admittance
-    t = np.linspace(0, 2.5, int(1/h), endpoint=True)
-    force = np.zeros((t.shape[0], 3))
-    force[t >= 0.5, ...] = [25, 0, 0]
-    force[t >  1.5, ...] = 0
-    force += np.random.normal(0, 0.025, size=force.shape)
-    
-    # calculate the output signal
-    p, dp = adm.compute_signal(force)
-    
-    # plot the result
-    fig, ax = plt.subplots(2, 1)
-    ax[0].plot(t, force, label=r"$u$")
-    ax[0].legend()
-    ax[1].plot(t, p, linestyle="-", label=r"$y$")
-    ax[1].plot(t, dp, linestyle="--", label=r"$\dot{y}$")
-    ax[1].legend()
-    plt.show()
-
-def _main_admittance_torque():
-    # Just a simple test for the admittance. 
-    # Here we create a 3d admittance 
-    import numpy as np
-    import matplotlib.pyplot as plt
-    
-    m = 0.001
-    d = None
-    k = 0.2
-    h = 1/1000  # sampling step [s]
-    
-    adm = AdmittanceTorque(m, k, d, h, method="forward")
-    
-    # three noisy box signals sampled with step h
-    # each will pass through a different admittance
-    t = np.linspace(0, 5.0, int(1/h), endpoint=True)
-    torque = np.zeros((t.shape[0], 3))
-    torque[0.5 <= t, ...] = [0.5, 0.5, 0]
-    torque[1.0 <= t, ...] = [0.5, 0.25, 0]
-    torque[1.5 <  t, ...] = 0
-    torque += np.random.normal(0, 0.01, size=torque.shape)
-    
-    # calculate the output signal
-    Q, W = adm.compute_signal(torque)
-    
-    # plot the result
-    fig, ax = plt.subplots(2, 1)
-    ax[0].plot(t, torque, label=r"$u$")
-    ax[0].legend()
-    ax[1].plot(t, Q, linestyle="-", label=r"$y$")
-    #ax[1].plot(t, W, linestyle="--", label=r"$\dot{y}$")
-    ax[1].legend()
-    plt.show()
-
-def _main_admittance_torque_anim():
-    import quaternion as quat
-    from trajectory.plotter import animate_quaternion
-    
-    m = 0.001
-    d = 0.02
-    k = 0.0
-    h = 1/1000  # sampling step [s]
-    
-    adm = AdmittanceTorque(m, k, d, h, method="forward")
-    
-    # three noisy box signals sampled with step h
-    # each will pass through a different admittance
-    t = np.linspace(0, 10.0, int(1/h), endpoint=True)
-    torque = np.zeros((t.shape[0], 3))
-    mu, sig = 2.5, 0.5
-    torque[:, 0] = 0.45 * np.exp(-.5*((t - mu)/sig)**2)
-    torque += np.random.normal(0, 0.01, size=torque.shape)
-    
-    # calculate the output signal
-    Q, W = adm.compute_signal(torque)
-    
-    # animate the rotation
-    fixed_frame = False
-    base_rot = quat.quaternion(1/2,0,np.sqrt(3)/2,0)
-    if fixed_frame:
-        Q = quat.from_float_array(Q) * base_rot
-    else:
-        Q = base_rot * quat.from_float_array(Q)
-    
-    animate_quaternion(t, Q)
-
-
-if __name__ == "__main__":
-    _main_admittance_torque()

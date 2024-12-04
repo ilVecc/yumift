@@ -3,7 +3,7 @@ from typing import Tuple
 import numpy as np
 import quaternion as quat
 
-from dynamics.quat_utils import quat_avg
+from .quat_utils import quat_avg
 
 
 class Frame(object):

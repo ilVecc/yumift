@@ -115,6 +115,7 @@ class MultiTrajectory(Trajectory[TParam]):
         self._segment_idx_prev = -1
         self._segment_idx_curr = -1
     
+    # TODO this is slow sometimes
     def _update_segment(self, t) -> int:
         """ Updates the current target trajectory parameters or which is the 
             current segment on the trajectory.
@@ -140,7 +141,8 @@ class MultiTrajectory(Trajectory[TParam]):
         return self._segment_idx_curr
 
     def compute(self, t: float) -> TParam:
-        """ Calculates the next target using the current segment. """
+        """ Calculates the next target using the current segment. 
+        """
         t = max(0, t)
         t = self._update_segment(t)
         return self._traj_type.compute(t)
@@ -195,26 +197,4 @@ class FakeTrajectory(Trajectory[Any]):
         super().__init__()
     def compute(self, t) -> Any:
         return None
-
-
-
-if __name__ == "__main__":
-    class PointParam(Param):
-        def __init__(self, coords: np.array) -> None:
-            assert coords.size == 2
-            super().__init__(coords)
-    
-    class LinearTrajectory(Trajectory[PointParam]):
-        def compute(self, t: float) -> PointParam:
-            coords = self._param_init.value + (self._param_final.value - self._param_init.value) * t/self._duration
-            return PointParam(coords)
-    
-    traj = LinearTrajectory()
-    pi = PointParam(np.array([0, 0]))
-    pf = PointParam(np.array([1,-1]))
-    traj.update(pi, pf, 4)
-    
-    assert np.allclose(traj.compute(3).value, np.array([.75, -.75]))
-    
-    path_param = MultiParam[PointParam](pi, 3)
     

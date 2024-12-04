@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0.2)
 project(yumi_controller)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
+add_compile_options(-std=c++17)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -12,7 +12,6 @@ find_package(
   COMPONENTS
   roscpp
   rospy
-  kdl_parser
   message_generation
   std_msgs
   sensor_msgs
@@ -21,6 +20,7 @@ find_package(
   abb_robot_msgs
   abb_rapid_sm_addin_msgs
   abb_rws_service_provider
+  kdl_parser
 )
 
 ## System dependencies are found with CMake's conventions
@@ -62,6 +62,8 @@ add_message_files(
   YumiKinematics.msg
   YumiTrajectoryPoint.msg
   YumiTrajectory.msg
+  Jacobian.msg
+  RobotState.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -82,6 +84,7 @@ add_message_files(
 generate_messages(
   DEPENDENCIES
   std_msgs
+  sensor_msgs
   geometry_msgs
 )
 
@@ -212,6 +215,7 @@ install(
   sensors.launch
   sensors_comp.launch
   sensors_tools.launch
+  state_updater.launch
   DESTINATION 
   ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )

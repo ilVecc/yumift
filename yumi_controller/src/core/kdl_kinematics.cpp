@@ -76,7 +76,7 @@ void pose_data(KDL::Frame frame, geometry_msgs::Pose* pose)
 }
 
 
-class Calc_jacobian
+class YumiStatePublisher
 {
     // class for most of the kinematics calculations 
     
@@ -167,7 +167,7 @@ class Calc_jacobian
     int state_received = 0;
 
     // constructor
-    Calc_jacobian(ros::NodeHandle *nh);
+    YumiStatePublisher(ros::NodeHandle *nh);
     // just init pose for initial visualization 
     std::vector<double> init_joint_pos = {
          1.0, -2.0, -1.2, 0.6, -2.0, 1.0, 0.0, 
@@ -190,12 +190,12 @@ class Calc_jacobian
 // Member functions definitions
 
 // constructor, gets called when class instance is created
-Calc_jacobian::Calc_jacobian(ros::NodeHandle *nh){
+YumiStatePublisher::YumiStatePublisher(ros::NodeHandle *nh){
     // setup the supscribers and publishers
-    joint_state_sub = nh->subscribe("/yumi/egm/joint_states", 2, &Calc_jacobian::callback, this);
-    egm_state_sub = nh->subscribe("/yumi/egm/egm_states", 2, &Calc_jacobian::callback_egm_state, this);
+    joint_state_sub = nh->subscribe("/yumi/egm/joint_states", 2, &YumiStatePublisher::callback, this);
+    egm_state_sub = nh->subscribe("/yumi/egm/egm_states", 2, &YumiStatePublisher::callback_egm_state, this);
 
-    jacobian_pub = nh->advertise<yumi_controller::YumiKinematics>("/jacobian_R_L", 1);
+    jacobian_pub = nh->advertise<yumi_controller::YumiKinematics>("/jacobians", 1);
     joint_states_pub = nh->advertise<sensor_msgs::JointState>("/joint_states", 1);
     velocity_pub = nh->advertise<std_msgs::Float64MultiArray>("/yumi/egm/joint_group_velocity_controller/command", 1);
 
@@ -235,7 +235,7 @@ Calc_jacobian::Calc_jacobian(ros::NodeHandle *nh){
 }
 
 
-void Calc_jacobian::callback(const sensor_msgs::JointState::ConstPtr& joint_state_data){
+void YumiStatePublisher::callback(const sensor_msgs::JointState::ConstPtr& joint_state_data){
     // sort input data and add joint offset
     mtx_receiving.lock();
     for (int i = 0; i < 14; i++){
@@ -277,13 +277,13 @@ void Calc_jacobian::callback(const sensor_msgs::JointState::ConstPtr& joint_stat
 }
 
 // Check if both arms have active egm sessions
-void Calc_jacobian::callback_egm_state(const abb_egm_msgs::EGMState::ConstPtr& egm_state_data){
+void YumiStatePublisher::callback_egm_state(const abb_egm_msgs::EGMState::ConstPtr& egm_state_data){
     egm_active = egm_state_data->egm_channels[0].active == true 
               && egm_state_data->egm_channels[1].active == true;
 }
 
 // makes most calculations and sends to the controller
-void Calc_jacobian::update(){
+void YumiStatePublisher::update(){
     // if both egm session not available, publishes 0 velocity command incase one of them is active 
     if (egm_active == false){
         std_msgs::Float64MultiArray msg;
@@ -305,7 +305,7 @@ void Calc_jacobian::update(){
     mtx_receiving.lock();
 
    // joints state to kdl variables 
-    for (int i= 0 ; i < 7; i++ ){
+    for (int i= 0; i < 7; i++){
         q_right_arm(i) = joint_state[i];
         q_left_arm(i) = joint_state[i+7];
         // q_left_right(i) = joint_state[i+7];
@@ -316,7 +316,7 @@ void Calc_jacobian::update(){
         }
     }
 
-    // --------------------- Jacobians --------------------------------------------------
+    // --------------------- Jacobians ----------------------------------------
     yumi_controller::YumiKinematics kinematics_msg;
     // send joint position 
     kinematics_msg.jointPosition = joint_state;
@@ -346,7 +346,7 @@ void Calc_jacobian::update(){
 
     kinematics_msg.header.stamp = ros::Time::now();
 
-    // --------------------- Forward Kinematics --------------------------------------------------
+    // --------------------- Forward Kinematics -------------------------------
     // last frame includes the base!
     fk_solver_right_chain->JntToCart(q_right_arm, frame_right_tool, 13);
     fk_solver_left_chain->JntToCart(q_left_arm, frame_left_tool, 13);
@@ -381,24 +381,20 @@ void Calc_jacobian::update(){
 
 
 int main(int argc, char** argv){
-    // ROS
+    // ROS node setup
     ros::init(argc, argv, "kdl_kinematics");
     ros::NodeHandle nh;
     // multithreaded spinner 
     ros::AsyncSpinner spinner(0);
     spinner.start();
     // main class 
-    Calc_jacobian calc_jacobian(&nh);
-    // Hz update fequenzy, this detemines the update frequenzy in the contollerMaster.py, 
-    // needs to be the same in both places
-    ros::Rate loop_rate(250);
+    YumiStatePublisher statePublisher(&nh);
+    ros::Rate loopRate(250);  // Hz, set same value in parameters.py
 
     while (ros::ok()){
-        //if (calc_jacobian.state_received >= 1){ // Do not send anything if nothing has been received 
-        calc_jacobian.update();
+        statePublisher.update();
         std::cout << "update loop" << std::endl;
-        //}
-        loop_rate.sleep();
+        loopRate.sleep();
     }
 
     ros::waitForShutdown();

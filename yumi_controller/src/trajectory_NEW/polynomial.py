@@ -6,7 +6,7 @@ import quaternion as quat
 from .base import TParam, Trajectory, Path
 from .base_impl import PositionParam, PoseParam, QuaternionParam
 
-from dynamics.quat_utils import quat_min_diff
+from dynamics.quat_utils import quat_diff
 
 
 def normalize(v: np.ndarray, return_norm=False):
@@ -128,7 +128,7 @@ class CubicQuatTrajectory(CubicTrajectory[QuaternionParam]):
         qf: np.quaternions = quat_final.quat
         # use minimum distance
         self._qi = qi
-        qr = quat_min_diff(self._qi, qf)
+        qr = quat_diff(self._qi, qf)
         self._r, vf = normalize(quat.as_rotation_vector(qr), return_norm=True)
         self._a0, self._a1, self._a2, self._a3 = CubicTrajectory.calculate_coefficients(0, 0, vf, 0, tf)
     

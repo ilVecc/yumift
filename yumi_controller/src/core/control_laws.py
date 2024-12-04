@@ -5,7 +5,7 @@ from .parameters import Parameters
 from .robot_state import YumiCoordinatedRobotState
 
 from dynamics.control_laws import ControlLawError, CartesianVelocityControlLaw
-from dynamics.filters import AdmittanceForce, AdmittanceTorque
+from dynamics.systems import AdmittanceForce, AdmittanceTorque
 from dynamics.utils import Frame
 
 

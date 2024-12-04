@@ -123,7 +123,27 @@ roslaunch yumi_controller use_sim.launch
 ```
 
 ### Using hardware
-Use `start_egm.py` to open a connection with YuMi (when linked via the service port, the IP is `192.168.125.1`; find this argument in `yumi_controller/launch/use_real.launch`). Also, don't forget to change velocity limits in ABB driver; this is done by changing the EGM configuration file `yumi_controller/launch/bringup/config_hardware_egm.yaml`.
+First of all, you will need to setup the F/T sensors and set the following settings:
+
+|               | IP                | Config                 | Filter | Software Bias Vector (might be wrong) |
+|---------------|-------------------|------------------------|--------|---------------------------------------|
+| LEFT gripper  | `192.168.125.166` | `#2 - YuMi FT (LEFT)`  | 5 Hz   | `3215 3680   92 791 3867 -2096`       |
+| RIGHT gripper | `192.168.125.167` | `#2 - YuMi FT (RIGHT)` | 5 Hz   | `1948  238 -774 631  802 -2714`       |
+
+You can find more information on the hardware here
+- [NetBox manual](https://www.ati-ia.com/app_content/documents/9610-05-1022.pdf)
+- [Calibration files](https://www.ati-ia.com/Library/Software/FTDigitaldownload/GetCalFiles.aspx) using serials `FT14166` and `FT14167`.
+- [FT Sensors](https://schunk.com/us/en/automation-technology/force/torque-sensors/ft/ftd-mini-40-si-20-1/p/EPIM_ID-30832)
+
+When you're done, connect the YuMi via the service port (`XP23` label). 
+This will set YuMi as the DHCP server of the network, with IP `192.168.125.1`. 
+If you instead want to use YuMi with the WAN port, you must change its IP when launching `yumi_controller/launch/use_real.launch` using the parameter `ip:=X.X.X.X`.
+
+Finally, use `start_egm.py` to open a connection with YuMi.  
+Also, don't forget to change velocity limits in the EGM config to suit your need; 
+this is done by changing the EGM configuration file `yumi_controller/launch/bringup/config_hardware_egm.yaml`.
+
+To conclude, to run the overall system on hardware, run the following commands in two separate terminals
 ```
 roslaunch yumi_controller use_real.launch
 rosrun yumi_controller start_egm.py
@@ -132,11 +152,11 @@ rosrun yumi_controller start_egm.py
 ### Using the trajectory controllers
 To start the trajectory controller use
 ```
-rosrun yumi_controller trajectory_controller.py simple
+rosrun yumi_controller trajectory_controllers.py simple
 ```
 and send some example trajectories to the controller with
 ```
-rosrun yumi_controller example_1_some_trajectories.py
+rosrun yumi_controller demo_1_some_trajectories.py
 ```
 One could also send commands through the command line:
 ``` 
@@ -158,8 +178,8 @@ roslaunch yumi_controller sensors.launch
 which includes gravity compensation for the ABB SmartGrippers.
 Then, start a force-based trajectory controller
 ```
-rosrun yumi_controller trajectory_controller.py wrenched
-rosrun yumi_controller trajectory_controller.py compliant
+rosrun yumi_controller trajectory_controllers.py wrenched
+rosrun yumi_controller trajectory_controllers.py compliant
 ```
 
 

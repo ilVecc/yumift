@@ -7,7 +7,7 @@ from trajectory.base import Param, MultiParam, MultiTrajectory, FakeTrajectory
 from trajectory.base_impl import PoseParam
 from trajectory.polynomial import CubicPosePath
 
-from dynamics.quat_utils import quat_min_diff
+from dynamics.quat_utils import quat_diff
 
 
 class YumiParam(Param):
@@ -102,8 +102,8 @@ class YumiTrajectory(MultiTrajectory[YumiParam]):
             :Returns a velocity for q2
         """
         vel = np.zeros(3)
-        q12 = quat_min_diff(q1, q2)
-        q23 = quat_min_diff(q2, q3)
+        q12 = quat_diff(q1, q2)
+        q23 = quat_diff(q2, q3)
         vm1 = quat.as_rotation_vector(q12)/t2  # avg velocity for previous segment
         vm2 = quat.as_rotation_vector(q23)/t3  # avg velocity for next segment
         # if velocities are close to zero or change direction then the transitional velocity 
@@ -165,7 +165,7 @@ class YumiTrajectory(MultiTrajectory[YumiParam]):
         # are not handled by the two trajectories, so calling the method is needed
         # in order to update the state of the grippers via ._update_segment()
         super().compute(t)
-        
+                
         # we must be override this method since we provided a FakeTrajectory object 
         pose_r = self.traj_right.compute(t)
         pose_l = self.traj_left.compute(t)

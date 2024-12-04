@@ -1,11 +1,11 @@
 import numpy as np
 
-# Maximu deviation in trajectory
+# Maximum deviation in trajectory
 MAX_DEVIATION = np.array([0.015, 0.25]) * 100  # [lin, ang]
 
 # Gain for individual right control
 K_P_IR = 2.0   # Gain for positional error
-K_O_IR = 4.0   # Gain for angular error
+K_O_IR = 8.0   # Gain for angular error
 K_F_IR = 0.05  # Gain for force error
 K_T_IR = 1.5   # Gain for torque error
 # Gain for individual right control
@@ -28,7 +28,7 @@ K_T_CR = 0.4
 # Gains for individual right admittances
 ADM_F_M_IR = np.eye(3) * 2.5
 ADM_F_D_IR = None
-ADM_F_K_IR = np.eye(3) * 30
+ADM_F_K_IR = np.eye(3) * 10
 ADM_T_M_IR = np.diag([0.01, 0.01, 0.02]) * 1000
 ADM_T_D_IR = None
 ADM_T_K_IR = np.diag([0.2, 0.2, 0.2]) * 1000

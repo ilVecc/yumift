@@ -1,16 +1,28 @@
 <launch>
-    
-    <include file="$(find yumi_controller)/launch/sensors_raw.launch" />
+
+    <arg name="use_raw" default="false"/>
 
     <group ns="ftsensor_r">
-        <!-- https://answers.ros.org/question/233353/set-delay-between-starting-nodes-within-launch-file/ -->
-        <node pkg="rosservice" type="rosservice" name="grav_comp" args="call /ftsensor_r/set_tool_data -- true -3.0675 0.051" launch-prefix="bash -c 'sleep 1; $0 $@' "/>
-        <node pkg="rosservice" type="rosservice" name="tooltip_frame" args="call /ftsensor_r/set_tool_tip_frame -- true gripper_r_tip" />
+        <node pkg="netft_utils" type="netft_node" name="netft_node" output="screen" args="192.168.125.167"/>
+        <node pkg="netft_utils" type="netft_utils" name="netft_utils" output="screen" args="yumi_base_link ftsensor_r"/>
+        <node pkg="rosservice" type="rosservice" name="tooltip_frame" args="call /ftsensor_r/set_tool_tip_frame -- true gripper_r_tip"/>
     </group>
 
     <group ns="ftsensor_l">
-        <node pkg="rosservice" type="rosservice" name="grav_comp" args="call /ftsensor_l/set_tool_data -- true -3.0675 0.051" launch-prefix="bash -c 'sleep 1; $0 $@' "/>
-        <node pkg="rosservice" type="rosservice" name="tooltip_frame" args="call /ftsensor_l/set_tool_tip_frame -- true gripper_l_tip" />
+        <node pkg="netft_utils" type="netft_node" name="netft_node" output="screen" args="192.168.125.166"/>
+        <node pkg="netft_utils" type="netft_utils" name="netft_utils" output="screen" args="yumi_base_link ftsensor_l"/>
+        <node pkg="rosservice" type="rosservice" name="tooltip_frame" args="call /ftsensor_l/set_tool_tip_frame -- true gripper_l_tip"/>
+    </group>
+
+    <group unless="$(arg use_raw)">
+        <!-- https://answers.ros.org/question/233353/set-delay-between-starting-nodes-within-launch-file/ -->
+        <group ns="ftsensor_r">
+            <node pkg="rosservice" type="rosservice" name="grav_comp" args="call /ftsensor_r/set_tool_data -- true -2.5675 0.051" launch-prefix="bash -c 'sleep 1; $0 $@' "/>
+        </group>
+
+        <group ns="ftsensor_l">
+            <node pkg="rosservice" type="rosservice" name="grav_comp" args="call /ftsensor_l/set_tool_data -- true -2.5675 0.051" launch-prefix="bash -c 'sleep 1; $0 $@' "/>
+        </group>
     </group>
     
 </launch>

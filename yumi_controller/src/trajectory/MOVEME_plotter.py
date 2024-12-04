@@ -90,9 +90,44 @@ def plot_traj(pos: np.ndarray, rot: np.ndarray):
 # Matplotlib animation for quaternion trajectory
 #
 
-def animate_quaternion(t: np.ndarray, Q: np.ndarray):
+# adapted from https://stackoverflow.com/questions/63546097/3d-curved-arrow-in-python
+class Arrow3D(FancyArrowPatch):
+
+    def __init__(self, x, y, z, u, v, w, *args, **kwargs):
+        FancyArrowPatch.__init__(self, (0, 0), (0, 0), *args, **kwargs)
+        self._verts3d = [x, u], [y, v], [z, w]
+
+    def draw(self, renderer):
+        xs3d, ys3d, zs3d = self._verts3d
+        xs, ys, zs = proj3d.proj_transform(xs3d, ys3d, zs3d, renderer.M)
+        self.set_positions((xs[0], ys[0]), (xs[1], ys[1]))
+        FancyArrowPatch.draw(self, renderer)
     
-    rotmat = quat.as_rotation_matrix(Q)
+    @staticmethod
+    def quiv(v, color="r", o=[0,0,0]):
+        return Arrow3D(*o,*v, mutation_scale=20, lw=1, arrowstyle="-|>", color=color)  #, connectionstyle="arc3,rad=-0.3")
+
+def plot_quat(ax: plt.Axes, Q: np.quaternion, colors: list = ["r", "g", "b"], rotmat: np.ndarray = None):
+    """ Plot a quaternion as a reference frame
+    :param ax: the `figure.Axes` to use
+    :param Q: the quaternion to plot (takes priority over `rotmat`)
+    :param colors: a list of three color for the axes (in order, x, y, and z)
+    :param rotmat: when plotting multiple subsequent quaternions, it's better to 
+                   precompute the rotation matrices outside this function to 
+                   increase performance instead of converting the quaternion here  
+    """
+    
+    assert Q is not None or rotmat is not None, "Specify a rotation (Q or rotmat)"
+    if Q is not None:
+        rotmat = quat.as_rotation_matrix(Q)
+    
+    qx = ax.add_artist(Arrow3D.quiv(rotmat[:, 0], colors[0]))
+    qy = ax.add_artist(Arrow3D.quiv(rotmat[:, 1], colors[1]))
+    qz = ax.add_artist(Arrow3D.quiv(rotmat[:, 2], colors[2]))
+    
+    return [qx, qy, qz]
+
+def animate_quaternion(t: np.ndarray, Q: np.ndarray):
     
     ax = plt.figure().add_subplot(projection='3d')
     ax.set_xlim3d(-1, +1)
@@ -103,48 +138,24 @@ def animate_quaternion(t: np.ndarray, Q: np.ndarray):
     ax.set_zlabel('Z')
     ax.view_init(elev=20., azim=-35)
     
-    # adapted from https://stackoverflow.com/questions/63546097/3d-curved-arrow-in-python
-    class Arrow3D(FancyArrowPatch):
-
-        def __init__(self, x, y, z, u, v, w, *args, **kwargs):
-            FancyArrowPatch.__init__(self, (0, 0), (0, 0), *args, **kwargs)
-            self._verts3d = [x, u], [y, v], [z, w]
-
-        def draw(self, renderer):
-            xs3d, ys3d, zs3d = self._verts3d
-            xs, ys, zs = proj3d.proj_transform(xs3d, ys3d, zs3d, renderer.M)
-            self.set_positions((xs[0], ys[0]), (xs[1], ys[1]))
-            FancyArrowPatch.draw(self, renderer)
-
-    def quiv(v, col):
-        # return Arrow3D([0, v[0]], [0, v[1]], [0, v[2]], mutation_scale=20, lw=1, arrowstyle="-|>", color=col, connectionstyle="arc3,rad=-0.3")
-        return Arrow3D(0,0,0,*v, mutation_scale=20, lw=1, arrowstyle="-|>", color=col)
+    rotmat = quat.as_rotation_matrix(Q)
     
     # canonical base
-    ax.add_artist(quiv([1, 0, 0], "orange"))
-    ax.add_artist(quiv([0, 1, 0], "limegreen"))
-    ax.add_artist(quiv([0, 0, 1], "royalblue"))
+    plot_quat(ax, quat.one, ["orange", "limegreen", "royalblue"])
     # initial quaternion
-    ax.add_artist(quiv(rotmat[0, :, 0], "magenta"))
-    ax.add_artist(quiv(rotmat[0, :, 1], "yellow"))
-    ax.add_artist(quiv(rotmat[0, :, 2], "cyan"))
+    plot_quat(ax, None, ["magenta", "yellow", "cyan"], rotmat[0])
     # moving quaternion
-    qx = ax.add_artist(quiv(rotmat[0, :, 0], "r"))
-    qy = ax.add_artist(quiv(rotmat[0, :, 1], "g"))
-    qz = ax.add_artist(quiv(rotmat[0, :, 2], "b"))
+    qx, qy, qz = plot_quat(ax, None, ["r", "g", "b"], rotmat[0])
     
     def update(frame):
         nonlocal qx, qy, qz, rotmat
         qx.remove(); qy.remove(); qz.remove()
-        qx = ax.add_artist(quiv(rotmat[frame, :, 0], "r"))
-        qy = ax.add_artist(quiv(rotmat[frame, :, 1], "g"))
-        qz = ax.add_artist(quiv(rotmat[frame, :, 2], "b"))
+        qx, qy, qz = plot_quat(ax, None, ["r", "g", "b"], rotmat[frame])
     
     # WARNING: keep this unused assignment, animation doesn't start otherwise
     # TODO only accept uniform timing, this forced interval is very ugly
     ani = anim.FuncAnimation(fig=plt.gcf(), func=update, frames=len(t), interval=1/np.mean(np.diff(t)))
     plt.show()
-
 
 
 def main():    

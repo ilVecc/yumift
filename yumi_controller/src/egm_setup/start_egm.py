@@ -35,25 +35,23 @@ def main():
 
     # settings, see wiki for more information
     setup_uc = dict(use_filtering=True, comm_timeout=1.0)
-    xyz = dict(x=0.0, y=0.0, z=0.0)
-    quat = dict(q1=1.0, q2=0.0, q3=0.0, q4=0.0)
-    tframe = dict(trans=xyz, rot=quat)
+    xyz_origin = dict(x=0.0, y=0.0, z=0.0)
+    quat_one = dict(q1=1.0, q2=0.0, q3=0.0, q4=0.0)
+    tframe = dict(trans=xyz_origin, rot=quat_one)
     # Gripper info page 21-22 in https://abb.sluzba.cz/Pages/Public/IRC5UserDocumentationRW6/en/3HC054949%20PM%20IRB%2014000%20Gripper-en.pdf
     # mass [kg], center_of_gravity [mm], inertia [kgm^2]
-    total_load_R = dict(mass=0.230, cog=dict(x=8.2, y=11.7, z=52.0), aom=quat, ix=0.00021, iy=0.00024, iz=0.00009)
-    total_load_L = dict(mass=0.230, cog=dict(x=8.2, y=11.7, z=52.0), aom=quat, ix=0.00021, iy=0.00024, iz=0.00009)
+    total_load_R = dict(mass=0.230, cog=dict(x=8.2, y=11.7, z=52.0), aom=quat_one, ix=0.00021, iy=0.00024, iz=0.00009)
+    total_load_L = dict(mass=0.230, cog=dict(x=8.2, y=11.7, z=52.0), aom=quat_one, ix=0.00021, iy=0.00024, iz=0.00009)
     tool_R = dict(robhold=True, tframe=tframe, tload=total_load_R)
     tool_L = dict(robhold=True, tframe=tframe, tload=total_load_L)
-    work_obj = dict(robhold=False, ufprog=True,  ufmec="", uframe=dict(trans=xyz, rot=quat), oframe=dict(trans=xyz, rot=quat))
-    correction_frame=dict(trans=xyz, rot=quat)
-    sensor_frame=dict(trans=xyz, rot=quat)
-    activate_R = dict(
-        tool=tool_R, wobj=work_obj, correction_frame=correction_frame, sensor_frame=sensor_frame, 
-        cond_min_max=0.0, lp_filter=20.0, sample_rate=4, max_speed_deviation=90.0)
-    activate_L = dict(
-        tool=tool_L, wobj=work_obj, correction_frame=correction_frame, sensor_frame=sensor_frame,
-        cond_min_max=0.0, lp_filter=20.0, sample_rate=4, max_speed_deviation=90.0)
-    run = dict(cond_time=60.0, ramp_in_time=1.0, offset=dict(trans=xyz, rot=quat), pos_corr_gain=0.0)
+    work_obj = dict(robhold=False, ufprog=True,  ufmec="", uframe=dict(trans=xyz_origin, rot=quat_one), oframe=dict(trans=xyz_origin, rot=quat_one))
+    correction_frame=dict(trans=xyz_origin, rot=quat_one)
+    sensor_frame=dict(trans=xyz_origin, rot=quat_one)
+    activate_R = dict(tool=tool_R, wobj=work_obj, correction_frame=correction_frame, sensor_frame=sensor_frame, 
+                      cond_min_max=0.0, lp_filter=20.0, sample_rate=4, max_speed_deviation=90.0)
+    activate_L = dict(tool=tool_L, wobj=work_obj, correction_frame=correction_frame, sensor_frame=sensor_frame,
+                      cond_min_max=0.0, lp_filter=20.0, sample_rate=4, max_speed_deviation=90.0)
+    run = dict(cond_time=60.0, ramp_in_time=1.0, offset=dict(trans=xyz_origin, rot=quat_one), pos_corr_gain=0.0)
     stop = dict(ramp_out_time=1.0)
     settings_R = dict(allow_egm_motions=True, use_presync=False, setup_uc=setup_uc, activate=activate_R, run=run, stop=stop)
     settings_L = dict(allow_egm_motions=True, use_presync=False, setup_uc=setup_uc, activate=activate_L, run=run, stop=stop)

@@ -5,7 +5,7 @@ sys.path.append(str(pathlib.Path(__file__).absolute().parent.parent))
 import rospy
 import numpy as np
 
-from core.controller import YumiDualController
+from core.controller_base import YumiDualController
 from core.control_laws import YumiDualAdmittanceControlLaw
 from core.parameters import Parameters
 

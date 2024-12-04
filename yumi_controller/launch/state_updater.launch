@@ -1,0 +1,15 @@
+<launch>
+
+    <arg name="topic_sensor_r" default="/ftsensor_r/world"/>
+    <arg name="topic_sensor_l" default="/ftsensor_l/world"/>
+    <arg name="topic_jacobians" default="/jacobians"/>
+    <arg name="topic_robot_state" default="/yumi/robot_state_coordinated"/>
+
+    <node pkg="yumi_controller" type="robot_state_updater.py" name="yumi_robot_state_updater" output="screen">
+        <param name="topic_sensor_r" type="str" value="$(arg topic_sensor_r)"/>
+        <param name="topic_sensor_l" type="str" value="$(arg topic_sensor_l)"/>
+        <param name="topic_jacobians" type="str" value="$(arg topic_jacobians)"/>
+        <param name="topic_robot_state" type="str" value="$(arg topic_robot_state)"/>
+    </node>
+    
+</launch>

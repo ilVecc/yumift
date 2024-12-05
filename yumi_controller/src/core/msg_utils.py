@@ -3,27 +3,49 @@ import quaternion as quat
 
 import rospy
 
-from geometry_msgs.msg import Pose, PoseStamped, WrenchStamped
+from geometry_msgs.msg import Pose, PoseStamped, Wrench, Twist
+from yumi_controller.msg import RobotState, Jacobian
 
 from .robot_state import YumiCoordinatedRobotState
 from .trajectory import YumiParam
-from dynamics.utils import Frame
+from dynamics.utils import Frame, jacobian_combine
 
 
-def _WrenchStampedMsg_to_ndarray(wrench_stamped: WrenchStamped):
-    fx = wrench_stamped.wrench.force.x
-    fy = wrench_stamped.wrench.force.y
-    fz = wrench_stamped.wrench.force.z
-    mx = wrench_stamped.wrench.torque.x
-    my = wrench_stamped.wrench.torque.y
-    mz = wrench_stamped.wrench.torque.z
+def TwistMsg_to_ndarray(twist: Twist):
+    vx = twist.linear.x
+    vy = twist.linear.y
+    vz = twist.linear.z
+    wx = twist.angular.x
+    wy = twist.angular.y
+    wz = twist.angular.z
+    return np.array([vx, vy, vz, wx, wy, wz])
+
+
+def WrenchMsg_to_ndarray(wrench: Wrench):
+    fx = wrench.force.x
+    fy = wrench.force.y
+    fz = wrench.force.z
+    mx = wrench.torque.x
+    my = wrench.torque.y
+    mz = wrench.torque.z
     return np.array([fx, fy, fz, mx, my, mz])
 
 
-def _PoseMsg_to_frame(pose_msg: Pose):
+def PoseMsg_to_Frame(pose_msg: Pose):
     return Frame(
         position=np.array([pose_msg.position.x, pose_msg.position.y, pose_msg.position.z]),
         quaternion=np.quaternion(pose_msg.orientation.w, pose_msg.orientation.x, pose_msg.orientation.y, pose_msg.orientation.z))
+
+
+def Jacobian_to_ndarray(jacobian: Jacobian):
+    jac = np.zeros((6, jacobian.dof), dtype=np.float)
+    jac[0, :] = jacobian.vx
+    jac[1, :] = jacobian.vy
+    jac[2, :] = jacobian.vz
+    jac[3, :] = jacobian.wx
+    jac[4, :] = jacobian.wy
+    jac[5, :] = jacobian.wz
+    return jac
 
 
 def YumiParam_to_YumiCoordinatedRobotState(yumi_param: YumiParam):
@@ -47,7 +69,7 @@ def YumiParam_to_YumiCoordinatedRobotState(yumi_param: YumiParam):
     return yumi_state
 
 
-def _Frame_to_PoseStamped(pose: Frame, parent: str = "yumi_base_link"):
+def Frame_to_PoseStamped(pose: Frame, parent: str = "yumi_base_link"):
     msg = PoseStamped()
     msg.header.frame_id = parent
     msg.header.stamp = rospy.Time.now()
@@ -59,3 +81,38 @@ def _Frame_to_PoseStamped(pose: Frame, parent: str = "yumi_base_link"):
     msg.pose.orientation.y = pose.rot.y
     msg.pose.orientation.z = pose.rot.z
     return msg
+
+
+def RobotState_to_YumiCoordinatedRobotState(robot_state: RobotState):
+    yumi_state = YumiCoordinatedRobotState()
+    
+    yumi_state.joint_pos = np.array(robot_state.jointState[0].position[:7] + robot_state.jointState[1].position[:7])
+    yumi_state.joint_vel = np.array(robot_state.jointState[0].velocity[:7] + robot_state.jointState[1].velocity[:7])
+    yumi_state.grip_r = robot_state.jointState[0].position[7]
+    yumi_state.grip_l = robot_state.jointState[1].position[7]
+    
+    yumi_state.pose_gripper_r = PoseMsg_to_Frame(robot_state.pose[0])
+    yumi_state.pose_gripper_r.vel = TwistMsg_to_ndarray(robot_state.poseTwist[0])
+    yumi_state.pose_gripper_l = PoseMsg_to_Frame(robot_state.pose[1])
+    yumi_state.pose_gripper_l.vel = TwistMsg_to_ndarray(robot_state.poseTwist[1])
+    yumi_state.pose_wrench = np.concatenate([WrenchMsg_to_ndarray(robot_state.poseWrench[0]), WrenchMsg_to_ndarray(robot_state.poseWrench[1])])
+    
+    yumi_state.pose_abs = PoseMsg_to_Frame(robot_state.pose[2])
+    yumi_state.pose_abs.vel = TwistMsg_to_ndarray(robot_state.poseTwist[2])
+    yumi_state.pose_wrench_abs = WrenchMsg_to_ndarray(robot_state.poseWrench[2])
+    
+    yumi_state.pose_rel = PoseMsg_to_Frame(robot_state.pose[3])
+    yumi_state.pose_rel.vel = TwistMsg_to_ndarray(robot_state.poseTwist[3])
+    yumi_state.pose_wrench_rel = WrenchMsg_to_ndarray(robot_state.poseWrench[3])
+    
+    yumi_state.pose_elbow_r = PoseMsg_to_Frame(robot_state.pose[4])
+    yumi_state.pose_elbow_r.vel = TwistMsg_to_ndarray(robot_state.poseTwist[4])
+    
+    yumi_state.pose_elbow_l = PoseMsg_to_Frame(robot_state.pose[5])
+    yumi_state.pose_elbow_l.vel = TwistMsg_to_ndarray(robot_state.poseTwist[5])
+    
+    yumi_state.jacobian_grippers = jacobian_combine(Jacobian_to_ndarray(robot_state.jacobian[0]), Jacobian_to_ndarray(robot_state.jacobian[1]))
+    yumi_state.jacobian_coordinated = np.vstack([Jacobian_to_ndarray(robot_state.jacobian[2]), Jacobian_to_ndarray(robot_state.jacobian[3])])
+    yumi_state.jacobian_elbows = jacobian_combine(Jacobian_to_ndarray(robot_state.jacobian[4]), Jacobian_to_ndarray(robot_state.jacobian[5]))
+    
+    return yumi_state

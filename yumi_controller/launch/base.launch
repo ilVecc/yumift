@@ -1,4 +1,5 @@
 <launch>
     <include file="$(find yumi_description)/launch/display.launch" />
     <node pkg="yumi_controller" type="kdl_kinematics" name="kdl_kinematics" />
+    <include file="$(find yumi_controller)/launch/state_updater.launch" />
 </launch>

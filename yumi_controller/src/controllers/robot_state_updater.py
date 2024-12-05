@@ -47,9 +47,9 @@ class YumiStateUpdater(object):
         
     def _callback_ext_force(self, data: WrenchStamped, arm: str):
         if arm == "right":
-            self._wrenches[0:6] = msg_utils._WrenchStampedMsg_to_ndarray(data)
+            self._wrenches[0:6] = msg_utils.WrenchMsg_to_ndarray(data.wrench)
         elif arm == "left":
-            self._wrenches[6:12] = msg_utils._WrenchStampedMsg_to_ndarray(data)
+            self._wrenches[6:12] = msg_utils.WrenchMsg_to_ndarray(data.wrench)
     
     def _callback(self, data: YumiKinematics) -> None:
         """ Updates forward kinematics using KDL instead of TF tree
@@ -75,8 +75,8 @@ class YumiStateUpdater(object):
         jacobian_gripper_l = jacobian_grippers[:,:,1]
         state.jacobian_grippers = utils_dyn.jacobian_combine(jacobian_gripper_r, jacobian_gripper_l)
         # ... and pose ...
-        state.pose_gripper_r = msg_utils._PoseMsg_to_frame(data.forwardKinematics[0])
-        state.pose_gripper_l = msg_utils._PoseMsg_to_frame(data.forwardKinematics[1])
+        state.pose_gripper_r = msg_utils.PoseMsg_to_Frame(data.forwardKinematics[0])
+        state.pose_gripper_l = msg_utils.PoseMsg_to_Frame(data.forwardKinematics[1])
         # ... and velocity
         pose_grippers_vel = state.jacobian_grippers @ state.joint_vel
         state.pose_gripper_r.vel = pose_grippers_vel[:6]
@@ -86,8 +86,8 @@ class YumiStateUpdater(object):
         jacobians_elbows = np.asarray(data.jacobian[2].data).reshape((6,4,2))
         state.jacobian_elbows = utils_dyn.jacobian_combine(jacobians_elbows[:,:,0], jacobians_elbows[:,:,1])
         # ... and pose ...
-        state.pose_elbow_r = msg_utils._PoseMsg_to_frame(data.forwardKinematics[4])
-        state.pose_elbow_l = msg_utils._PoseMsg_to_frame(data.forwardKinematics[5])
+        state.pose_elbow_r = msg_utils.PoseMsg_to_Frame(data.forwardKinematics[4])
+        state.pose_elbow_l = msg_utils.PoseMsg_to_Frame(data.forwardKinematics[5])
         # ... and velocity
         pose_elbow_vel = state.jacobian_elbows @ state.joint_vel[[0,1,2,3,7,8,9,10]]
         state.pose_elbow_r.vel = pose_elbow_vel[:6]
@@ -155,12 +155,13 @@ class YumiStateUpdater(object):
 
 
     @staticmethod
-    def _make_jointstate_msg(joint_pos, joint_vel):
+    def _make_jointstate_msg(joint_pos, joint_vel, grip):
         msg = JointState()
         msg.header.stamp = rospy.Time.now()
-        msg.name = [f"j{i+1}" for i in range(len(joint_pos))]
-        msg.position = joint_pos.tolist()
-        msg.velocity = joint_vel.tolist()
+        msg.name = [f"j{i+1}" for i in range(len(joint_pos))] + ["grip"]
+        msg.position = joint_pos.tolist() + [grip]
+        msg.velocity = joint_vel.tolist() + [0]
+        msg.effort = [0.] * (len(joint_pos) + 1)
         return msg
 
     @staticmethod
@@ -216,8 +217,8 @@ class YumiStateUpdater(object):
         msg = RobotState()
         msg.header.stamp = rospy.Time.now()
         
-        msg_jsr = self._make_jointstate_msg(self.yumi_state.joint_pos_r, self.yumi_state.joint_vel_r)
-        msg_jsl = self._make_jointstate_msg(self.yumi_state.joint_pos_l, self.yumi_state.joint_vel_l)
+        msg_jsr = self._make_jointstate_msg(self.yumi_state.joint_pos_r, self.yumi_state.joint_vel_r, self.yumi_state.grip_r)
+        msg_jsl = self._make_jointstate_msg(self.yumi_state.joint_pos_l, self.yumi_state.joint_vel_l, self.yumi_state.grip_l)
         msg.jointState = [msg_jsr, msg_jsl]
         msg.jointStateName = ["arm_r", "arm_l"]
         
@@ -254,7 +255,7 @@ class YumiStateUpdater(object):
         msg.poseName = ["gripper_r", "gripper_l", "absolute", "relative", "elbow_r", "elbow_l"]
         
         self._robot_state_publisher.publish(msg)
-
+        
 
 def main():
     
@@ -265,14 +266,11 @@ def main():
     topic_sensor_l = rospy.get_param("~topic_sensor_l")
     topic_jacobians = rospy.get_param("~topic_jacobians")
     topic_robot_state = rospy.get_param("~topic_robot_state")
+    symmetry = rospy.get_param("~symmetry")
         
-    robot_state = YumiCoordinatedRobotState()
+    robot_state = YumiCoordinatedRobotState(symmetry=symmetry)
     robot_state_updater = YumiStateUpdater(robot_state, topic_sensor_r, topic_sensor_l, topic_jacobians, topic_robot_state)
-    
-    # rate = rospy.Rate(250)
-    # while not rospy.is_shutdown():
-    #     rate.sleep()
-    
+        
     rospy.spin()
 
 if __name__ == "__main__":

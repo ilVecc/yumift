@@ -169,7 +169,7 @@ class YumiTrajectoryController(YumiDualController):
 
         # update timing information
         now = rospy.Time.now()
-        dt = (now - self._state_updater.timestamp).to_sec()
+        dt = (now - self.timestamp).to_sec()
         self.control_law.update_current_dt(dt)
         
         # update pose and wrench for the control law class
@@ -201,8 +201,8 @@ class YumiTrajectoryController(YumiDualController):
             # create desired pose for specified control mode
             des_parent_1, des_parent_2 = "yumi_base_link", "yumi_base_link" if self.control_law.mode == "individual" else "des_absolute_pose"
             des_pose_1, des_pose_2 = yumi_target_state.pose_gripper_r, yumi_target_state.pose_gripper_l
-            self._path_1.append(msg_utils._Frame_to_PoseStamped(des_pose_1, des_parent_1))
-            self._path_2.append(msg_utils._Frame_to_PoseStamped(des_pose_2, des_parent_2))
+            self._path_1.append(msg_utils.Frame_to_PoseStamped(des_pose_1, des_parent_1))
+            self._path_2.append(msg_utils.Frame_to_PoseStamped(des_pose_2, des_parent_2))
             
             # publish everything
             path_1 = Path()

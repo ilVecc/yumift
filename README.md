@@ -24,8 +24,9 @@ If you plan to use WSL2 on an Hyper-V enable device, a good setup would be to se
 ```
 [wsl2]
 networkingMode=mirrored
+firewall=false
 ```
-in the `.wslconfig` file found in your user folder andto disable Windows Firewall (even better if you set specific rules without disabling it).
+in the `.wslconfig` file found in your user folder and to disable Windows Firewall (even better if you set specific rules without disabling it). Then run `wsl --shutdown` in a PowerShell terminal.
 
 
 * for ROS Melodic Desktop, simply follow the [official installation guide](https://wiki.ros.org/melodic/Installation/Ubuntu)
@@ -47,7 +48,8 @@ sudo apt-get install libeigen3-dev libcppunit-dev
 
 * Python3 packages, can be installed with
 ``` 
-python3 -m pip install numpy scipy quadprog
+sudo apt install python3-pip
+python3 -m pip install numpy numpy-quaterion scipy quadprog
 python3 -m pip uninstall em
 python3 -m pip install empy==3.3.4
 ```
@@ -60,8 +62,9 @@ Create a folder for the catkin workspace
 ```
 mkdir -p ~/yumift_ws/src && cd ~/yumift_ws/src
 ```
-then clone [`abb_robot_driver`](https://github.com/ros-industrial/abb_robot_driver) __OR__ run these commands (possibly outdated)
+then clone [`abb_robot_driver`](https://github.com/ros-industrial/abb_robot_driver) and run the required commands (possibly outdated, taken from the repo's README)
 ```
+git clone https://github.com/ros-industrial/abb_robot_driver.git
 sudo apt-key adv --keyserver hkp://pool.sks-keyservers.net --recv-key 0xAB17C654  # might fail, if so ignore it
 sudo apt update; sudo apt install python3-vcstool
 vcs import . --input https://github.com/ros-industrial/abb_robot_driver/raw/master/pkgs.repos 
@@ -70,7 +73,7 @@ rosdep install --from-paths . --ignore-src --rosdistro melodic
 ```
 __IF__ `rosdep` doesn't work, you need to manually install the driver interfaces with
 ```
-git clone abb_robot_driver_interfaces
+git clone https://github.com/ros-industrial/abb_robot_driver_interfaces.git
 ```
 
 Now clone [`orocos_kinematics_dynamics`](https://github.com/orocos/orocos_kinematics_dynamics) package (for Python3)
@@ -89,27 +92,30 @@ cd ~/yumift_ws/src
 Now clone [`geometry2`](https://github.com/ros/geometry2) package (for Python3)
 ```
 git clone -b melodic-devel https://github.com/ros/geometry2
-cd geometry2/
-cd ..
 ```
 and finally clone this respository
 ```
-git clone https://github.com/ilVecc/yumi_controller.git
+git clone https://github.com/ilVecc/yumift.git
 ```
 
 Now build `yumift_ws` workspace
 ``` 
+source ~/yumift_ws
 catkin build -DPYTHON_EXECUTABLE=/usr/bin/python3 -DPYTHON_INCLUDE_DIR=/usr/include/python3.6m -DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.6m.so
 ``` 
-and add source to bashrc for easy startup
+and add source to `.bashrc` for easy startup
 ``` 
 echo "source ~/yumift_ws/devel/setup.bash" >> ~/.bashrc
 source ~/.bashrc
 ``` 
 
-Finally, to `rosrun` files in the workspace, you might need to mark them as executable with
+Finally, to `rosrun` files in the workspace, you need to mark them as executable, i.e.
 ```
-sudo chmod +x src/yumi/yumi_controller/src/<FILENAME>
+sudo chmod +x ~/yumift_ws/src/yumift/yumi_controller/src/controllers/trajectory_controllers.py
+```
+and in general with
+```
+sudo chmod +x ~/yumift_ws/src/yumift/yumi_controller/src/<FILENAME>
 ```
 
 

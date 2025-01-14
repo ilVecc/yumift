@@ -491,7 +491,7 @@ class YumiDualController(object, metaclass=ABCMeta):
         self._pub_grip = YumiGrippersCommand()
 
         # signal "controller is ready"
-        self._ready = False        
+        self._ready = False
         # signal "robot can move" (i.e. EGM is ready)
         self._auto_mode = True
         

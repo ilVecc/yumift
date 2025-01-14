@@ -67,13 +67,11 @@ class YumiStateUpdater(object):
         state.joint_vel = np.asarray(data.jointVelocity)
         # ... and jacobian
         jacobians_arms = np.asarray(data.jacobian[1].data).reshape((6,7,2))
-        state.jacobian = utils_dyn.jacobian_combine(jacobians_arms[:,:,0], jacobians_arms[:,:,1])
+        state.jacobian = utils_dyn.jacobian_combine(jacobians_arms[:,:,0], jacobians_arms[:,:,1])  # right, left
         
         # update gripper jacobian ...
         jacobian_grippers = np.asarray(data.jacobian[0].data).reshape((6,7,2))
-        jacobian_gripper_r = jacobian_grippers[:,:,0]
-        jacobian_gripper_l = jacobian_grippers[:,:,1]
-        state.jacobian_grippers = utils_dyn.jacobian_combine(jacobian_gripper_r, jacobian_gripper_l)
+        state.jacobian_grippers = utils_dyn.jacobian_combine(jacobian_grippers[:,:,0], jacobian_grippers[:,:,1])  # right, left
         # ... and pose ...
         state.pose_gripper_r = msg_utils.PoseMsg_to_Frame(data.forwardKinematics[0])
         state.pose_gripper_l = msg_utils.PoseMsg_to_Frame(data.forwardKinematics[1])
@@ -84,7 +82,7 @@ class YumiStateUpdater(object):
         
         # update elbow jacobian ... 
         jacobians_elbows = np.asarray(data.jacobian[2].data).reshape((6,4,2))
-        state.jacobian_elbows = utils_dyn.jacobian_combine(jacobians_elbows[:,:,0], jacobians_elbows[:,:,1])
+        state.jacobian_elbows = utils_dyn.jacobian_combine(jacobians_elbows[:,:,0], jacobians_elbows[:,:,1])  # right, left
         # ... and pose ...
         state.pose_elbow_r = msg_utils.PoseMsg_to_Frame(data.forwardKinematics[4])
         state.pose_elbow_l = msg_utils.PoseMsg_to_Frame(data.forwardKinematics[5])
@@ -222,36 +220,36 @@ class YumiStateUpdater(object):
         msg.jointState = [msg_jsr, msg_jsl]
         msg.jointStateName = ["arm_r", "arm_l"]
         
-        msg_jacr = self._make_jacobian_msg(self.yumi_state.jacobian_gripper_r)
-        msg_jacl = self._make_jacobian_msg(self.yumi_state.jacobian_gripper_l)
-        msg_jacabs = self._make_jacobian_msg(self.yumi_state.jacobian_coordinated_abs)
-        msg_jacrel = self._make_jacobian_msg(self.yumi_state.jacobian_coordinated_rel)
-        msg_jacelbr = self._make_jacobian_msg(self.yumi_state.jacobian_elbow_r)
-        msg_jacelbl = self._make_jacobian_msg(self.yumi_state.jacobian_elbow_l)
-        msg_jacarmr = self._make_jacobian_msg(self.yumi_state.jacobian[:6, :7])
-        msg_jacarml = self._make_jacobian_msg(self.yumi_state.jacobian[6:, 7:])
-        msg.jacobian = [msg_jacr, msg_jacl, msg_jacabs, msg_jacrel, msg_jacelbr, msg_jacelbl, msg_jacarmr, msg_jacarml]
-        msg.jacobianName = ["gripper_r", "gripper_l", "absolute", "relative", "elbow_r", "elbow_l", "arm_r", "arm_l"]
+        msg_jac_r = self._make_jacobian_msg(self.yumi_state.jacobian_gripper_r)
+        msg_jac_l = self._make_jacobian_msg(self.yumi_state.jacobian_gripper_l)
+        msg_jac_abs = self._make_jacobian_msg(self.yumi_state.jacobian_coordinated_abs)
+        msg_jac_rel = self._make_jacobian_msg(self.yumi_state.jacobian_coordinated_rel)
+        msg_jac_elb_r = self._make_jacobian_msg(self.yumi_state.jacobian_elbow_r)
+        msg_jac_elb_l = self._make_jacobian_msg(self.yumi_state.jacobian_elbow_l)
+        # msg_jacarmr = self._make_jacobian_msg(self.yumi_state.jacobian[:6, :7])
+        # msg_jacarml = self._make_jacobian_msg(self.yumi_state.jacobian[6:, 7:])
+        msg.jacobian = [msg_jac_r, msg_jac_l, msg_jac_abs, msg_jac_rel, msg_jac_elb_r, msg_jac_elb_l]#, msg_jacarmr, msg_jacarml]
+        msg.jacobianName = ["gripper_r", "gripper_l", "absolute", "relative", "elbow_r", "elbow_l"]#, "arm_r", "arm_l"]
         
-        msg_poser = self._make_pose_msg(self.yumi_state.pose_gripper_r)
-        msg_posel = self._make_pose_msg(self.yumi_state.pose_gripper_l)
-        msg_poseabs = self._make_pose_msg(self.yumi_state.pose_abs)
-        msg_poserel = self._make_pose_msg(self.yumi_state.pose_rel)
-        msg_poseelbr = self._make_pose_msg(self.yumi_state.pose_elbow_r)
-        msg_poseelbl = self._make_pose_msg(self.yumi_state.pose_elbow_l)
-        msg.pose = [msg_poser, msg_posel, msg_poseabs, msg_poserel, msg_poseelbr, msg_poseelbl]
-        msg_twistr = self._make_twist_msg(self.yumi_state.pose_gripper_r.vel)
-        msg_twistl = self._make_twist_msg(self.yumi_state.pose_gripper_l.vel)
-        msg_twistabs = self._make_twist_msg(self.yumi_state.pose_abs.vel)
-        msg_twistrel = self._make_twist_msg(self.yumi_state.pose_rel.vel)
-        msg_twistelbr = self._make_twist_msg(self.yumi_state.pose_elbow_r.vel)
-        msg_twistelbl = self._make_twist_msg(self.yumi_state.pose_elbow_l.vel)
-        msg.poseTwist = [msg_twistr, msg_twistl, msg_twistabs, msg_twistrel, msg_twistelbr, msg_twistelbl]
-        msg_wrenchr = self._make_wrench_msg(self.yumi_state.pose_wrench_r)
-        msg_wrenchl = self._make_wrench_msg(self.yumi_state.pose_wrench_l)
-        msg_wrenchabs = self._make_wrench_msg(self.yumi_state.pose_wrench_abs)
-        msg_wrenchrel = self._make_wrench_msg(self.yumi_state.pose_wrench_rel)
-        msg.poseWrench = [msg_wrenchr, msg_wrenchl, msg_wrenchabs, msg_wrenchrel, Wrench(), Wrench()]
+        msg_pose_r = self._make_pose_msg(self.yumi_state.pose_gripper_r)
+        msg_pose_l = self._make_pose_msg(self.yumi_state.pose_gripper_l)
+        msg_pose_abs = self._make_pose_msg(self.yumi_state.pose_abs)
+        msg_pose_rel = self._make_pose_msg(self.yumi_state.pose_rel)
+        msg_pose_elb_r = self._make_pose_msg(self.yumi_state.pose_elbow_r)
+        msg_pose_elb_l = self._make_pose_msg(self.yumi_state.pose_elbow_l)
+        msg.pose = [msg_pose_r, msg_pose_l, msg_pose_abs, msg_pose_rel, msg_pose_elb_r, msg_pose_elb_l]
+        msg_twist_r = self._make_twist_msg(self.yumi_state.pose_gripper_r.vel)
+        msg_twist_l = self._make_twist_msg(self.yumi_state.pose_gripper_l.vel)
+        msg_twist_abs = self._make_twist_msg(self.yumi_state.pose_abs.vel)
+        msg_twist_rel = self._make_twist_msg(self.yumi_state.pose_rel.vel)
+        msg_twist_elb_r = self._make_twist_msg(self.yumi_state.pose_elbow_r.vel)
+        msg_twist_elb_l = self._make_twist_msg(self.yumi_state.pose_elbow_l.vel)
+        msg.poseTwist = [msg_twist_r, msg_twist_l, msg_twist_abs, msg_twist_rel, msg_twist_elb_r, msg_twist_elb_l]
+        msg_wrench_r = self._make_wrench_msg(self.yumi_state.pose_wrench_r)
+        msg_wrench_l = self._make_wrench_msg(self.yumi_state.pose_wrench_l)
+        msg_wrench_abs = self._make_wrench_msg(self.yumi_state.pose_wrench_abs)
+        msg_wrench_rel = self._make_wrench_msg(self.yumi_state.pose_wrench_rel)
+        msg.poseWrench = [msg_wrench_r, msg_wrench_l, msg_wrench_abs, msg_wrench_rel, Wrench(), Wrench()]
         msg.poseName = ["gripper_r", "gripper_l", "absolute", "relative", "elbow_r", "elbow_l"]
         
         self._robot_state_publisher.publish(msg)

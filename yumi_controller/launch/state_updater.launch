@@ -1,5 +1,20 @@
 <launch>
-
+    
+    <arg name="RIGHT"       value="1"/>
+    <arg name="LEFT"        value="2"/>
+    <arg name="INDIVIDUAL"  value="3"/>  <!-- RIGHT + LEFT -->
+    <arg name="ABSOLUTE"    value="4"/>
+    <arg name="RELATIVE"    value="8"/>
+    <arg name="COORDINATED" value="12"/>  <!-- ABSOLUTE + RELATIVE -->
+    <arg name="ELBOW_RIGHT" value="16"/>
+    <arg name="ELBOW_LEFT"  value="32"/>
+    <arg name="ELBOWS"      value="48"/>  <!-- ELBOW_RIGHT + ELBOW_LEFT -->
+    <arg name="ARM_RIGHT"   value="64"/>
+    <arg name="ARM_LEFT"    value="128"/>
+    <arg name="ARMS"        value="192"/>  <!-- ARM_RIGHT + ARM_LEFT -->
+    <arg name="EVERYTHING"  value="255"/>  <!-- INDIVIDUAL + COORDINATED + ELBOWS + ARMS -->
+    <arg name="update_options" default="$(arg EVERYTHING)"/>
+    
     <arg name="topic_sensor_r" default="/ftsensor_r/world"/>
     <arg name="topic_sensor_l" default="/ftsensor_l/world"/>
     <arg name="topic_jacobians" default="/jacobians"/>
@@ -11,7 +26,8 @@
         <param name="topic_sensor_l" type="str" value="$(arg topic_sensor_l)"/>
         <param name="topic_jacobians" type="str" value="$(arg topic_jacobians)"/>
         <param name="topic_robot_state" type="str" value="$(arg topic_robot_state)"/>
-        <param name="symmetry" type="int" value="$(arg coordinated_symmetry)"/>
+        <param name="coordinated_symmetry" type="int" value="$(arg coordinated_symmetry)"/>
+        <param name="update_options" type="int" value="$(arg update_options)"/>
     </node>
     
 </launch>

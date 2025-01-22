@@ -389,7 +389,7 @@ int main(int argc, char** argv){
     spinner.start();
     // main class 
     YumiStatePublisher statePublisher(&nh);
-    ros::Rate loopRate(250);  // Hz, set same value in parameters.py
+    ros::Rate loopRate(500);  // Hz, set same value in parameters.py
 
     while (ros::ok()){
         statePublisher.update();

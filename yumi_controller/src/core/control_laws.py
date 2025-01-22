@@ -9,6 +9,115 @@ from dynamics.systems import AdmittanceForce, AdmittanceTorque
 from dynamics.utils import Frame
 
 
+class YumiIndividualCartesianVelocityControlLaw(object):
+    """
+    Generates velocity commands in cartesian space with the law
+            dx := dx_tgt + k * (x_tgt - x)
+    where
+        x, dx           state and speed of the YuMi (either linear or angular)
+        x_tgt, dx_tgt   target state and speed for the YuMi (either linear or angular)
+    in individual motion only.
+    """
+    def __init__(self, gains):
+        self.mode = "individual"
+        self.control_right = CartesianVelocityControlLaw(gains["individual"]["right"]["position"], gains["individual"]["right"]["rotation"], gains["individual"]["right"]["max_deviation"])
+        self.control_left  = CartesianVelocityControlLaw(gains["individual"]["left"]["position"], gains["individual"]["left"]["rotation"], gains["individual"]["left"]["max_deviation"])
+        self.grip_r = None
+        self.grip_l = None
+        self.dt = Parameters.dt
+        
+    @property
+    def current_pose(self):
+        """
+        Return current pose as a tuple of (pos_right, rot_1, pos_2, rot_2) where _1
+        is either _right or _absolute and _2 is either _left or _relative 
+        """
+        return self.current_pose_individual
+    
+    @property
+    def current_pose_individual(self):
+        """
+        Return current individual pose as a tuple of (pos_r, rot_r, pos_l, rot_l)
+        """
+        current_pos_r = np.copy(self.control_right.current_position)
+        current_rot_r = np.copy(self.control_right.current_rotation)
+        current_pos_l = np.copy(self.control_left.current_position)
+        current_rot_l = np.copy(self.control_left.current_rotation)
+        return current_pos_r, current_rot_r, current_pos_l, current_rot_l
+    
+    @property
+    def last_target_velocity(self):
+        """
+        Return last target velocity as a tuple of (vel_1, vel_2) where _1
+        is either _right or _absolute and _2 is either _left or _relative 
+        """
+        return self.last_target_velocity_individual
+    
+    @property
+    def last_target_velocity_individual(self):
+        """
+        Return last individual target velocity as a tuple of (vel_r, vel_l)
+        """
+        vel_r_init = np.copy(self.control_right.target_velocity)
+        vel_l_init = np.copy(self.control_left.target_velocity)
+        return vel_r_init, vel_l_init
+    
+    
+    def clear(self):
+        self.control_right.clear()
+        self.control_left.clear()
+        self.grip_r = None
+        self.grip_l = None
+
+    def update_current_dt(self, dt: float):
+        self.dt = dt
+
+    def update_current_pose(self, yumi_state: YumiCoordinatedRobotState):
+        """ 
+        Updates individual poses
+        """
+        self.control_right.update_current_pose(yumi_state.pose_gripper_r)
+        self.control_left.update_current_pose(yumi_state.pose_gripper_l)
+    
+    def update_target_pose(self, target_state: YumiCoordinatedRobotState):
+        """ Updates the desired velocities and target position. 
+            ATTENTION: this function uses `pose_gripper_r` and `pose_gripper_l` as
+            desired target for both the individual (right and left) and the coordinated 
+            (absolute and relative) modes. This behaviour is desired since in this way 
+            we avoid calculating the coordinated poses from the individuals ones and 
+            vice versa, which is unnecessary since this is a velocity controller.
+            This means that `target_state` will be used as individual or coordinated 
+            based on the current value of `self.mode`.
+        """
+        self.control_right.update_desired_pose(target_state.pose_gripper_r)
+        self.control_left.update_desired_pose(target_state.pose_gripper_l)
+        self.grip_r, self.grip_l = target_state.grip_r, target_state.grip_l
+
+    def compute_individual_right_target_velocity(self):
+        """ Calculates the target velocities for individual right arm control.
+        """
+        try:
+            self.control_right.compute_target_velocity()
+        except ControlLawError as ex:
+            # turn off deviation error if gripper collision constraint is active for individual mode
+            if not Parameters.feasibility_objectives["gripper_collision"]:
+                raise ex
+        return self.control_right.target_velocity
+
+    def compute_individual_left_target_velocity(self):
+        """ Calculates the target velocities for individual left arm control.
+        """
+        try:
+            self.control_left.compute_target_velocity()
+        except Exception as ex:
+            if not Parameters.feasibility_objectives["gripper_collision"]:
+                raise ex
+        return self.control_left.target_velocity
+
+    def compute_target_velocity(self):
+        return self.compute_individual_right_target_velocity(), self.compute_individual_left_target_velocity()
+
+
 # TODO make this a CartesianVelocityControlLaw
 class YumiDualCartesianVelocityControlLaw(object):
     """

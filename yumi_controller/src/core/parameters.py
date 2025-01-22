@@ -11,10 +11,10 @@ class Parameters():
     
     # controller rate in Hz, also defined in `kdl_kinematics.cpp` (both needs to be the same!)
     # this is a desired value, thus unreliable! check the actual rate
-    update_rate = 250 
+    update_rate = 250
     dt = 1/update_rate
     
-    # initial state
+    # initial configuration
     init_pos = np.array([ 1.0, -2.0, -1.2, 0.6, -2.0, 1.0, 0.0,   # right arm
                          -1.0, -2.0,  1.2, 0.6,  2.0, 1.0, 0.0])  # left arm
     init_vel = np.zeros(14)

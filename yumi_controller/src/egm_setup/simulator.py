@@ -53,7 +53,7 @@ class YumiJointState(object):
 
 class Simulator(object):
     def __init__(self):
-        self.updateRate = 250 #hz
+        self.updateRate = 500 #hz
         self.dt = 1/self.updateRate
         self.jointState = YumiJointState(
             jointPosition=np.array([ 0.0, -2.270, -2.356, 0.524, 0.0, 0.670, 0.0,

@@ -17,12 +17,32 @@ from yumi_controller.msg import YumiTrajectory as YumiTrajectoryMsg, YumiTraject
 from nav_msgs.msg import Path
 
 from core.controller_base import YumiDualController
-from core.control_laws import YumiDualCartesianVelocityControlLaw, YumiDualWrenchFeedbackControlLaw, YumiDualAdmittanceControlLaw
+from core.control_laws import (
+    YumiIndividualCartesianVelocityControlLaw, 
+    YumiDualCartesianVelocityControlLaw, 
+    YumiDualWrenchFeedbackControlLaw, 
+    YumiDualAdmittanceControlLaw)
 from core.trajectory import YumiParam, YumiTrajectory, YumiTrajectoryParam
 from core.parameters import Parameters
 import core.msg_utils as msg_utils
 
 from gains import GAINS
+
+
+import time
+class timeit():
+    
+    def __init__(self) -> None:
+        self.init : float
+    
+    def __enter__(self):
+        self.init = time.time()
+        return self
+    
+    def __exit__(self, *args):
+        elap = time.time() - self.init
+        print(1/elap)
+
 
 
 DEBUG = False
@@ -74,6 +94,7 @@ class YumiTrajectoryController(YumiDualController):
         """
         with self.lock_trajectory:
             self.control_law.clear()
+            # TODO not all controllers have individual mode as default
             self.control_law.mode = "individual"
             self.effective_mode = self.control_law.mode
             current_pose = YumiParam(
@@ -118,8 +139,7 @@ class YumiTrajectoryController(YumiDualController):
         ########################   PREPARE TRAJECTORY   #######################
         # use current position, rotation and velocity as first trajectory points
         curr_pose_1, curr_pose_2 = self.yumi_state.poses_individual if is_individual else self.yumi_state.poses_coordinated
-        grip_r = self.control_law.grip_r
-        grip_l = self.control_law.grip_l
+        grip_r, grip_l = self.control_law.grip_r, self.control_law.grip_l
         currentPoint = YumiParam(curr_pose_1.pos, curr_pose_1.rot, curr_pose_1.vel, grip_r, 
                                  curr_pose_2.pos, curr_pose_2.rot, curr_pose_2.vel, grip_l)
         trajectory = [YumiTrajectoryParam(currentPoint, duration=0)]
@@ -163,7 +183,7 @@ class YumiTrajectoryController(YumiDualController):
     def policy(self):
         """ Calculate target velocity for the current time step.
         """
-                
+        
         # START MODIFING THE TARGET
         self.lock_trajectory.acquire()
 
@@ -179,7 +199,7 @@ class YumiTrajectoryController(YumiDualController):
         # calculate new target velocities and positions for this time step
         yumi_target_param: YumiParam = self.trajectory.compute((now - self.initial_time).to_sec())
         yumi_target_state = msg_utils.YumiParam_to_YumiCoordinatedRobotState(yumi_target_param)
-                
+        
         # TODO this is super slow in compliance mode
         self.control_law.update_target_pose(yumi_target_state)
         
@@ -266,6 +286,10 @@ class YumiTrajectoryController(YumiDualController):
 
 class SimpleTrajectoryController(YumiTrajectoryController):
     def __init__(self):
+        super().__init__("/trajectory", YumiIndividualCartesianVelocityControlLaw(GAINS))
+
+class DualTrajectoryController(YumiTrajectoryController):
+    def __init__(self):
         super().__init__("/trajectory", YumiDualCartesianVelocityControlLaw(GAINS))
         
 class WrenchedTrajectoryController(YumiTrajectoryController):
@@ -280,7 +304,7 @@ class CompliantTrajectoryController(YumiTrajectoryController):
 def main():
     
     parser = argparse.ArgumentParser("Various trajectory controllers")
-    parser.add_argument("type", nargs="?", choices=["simple", "wrenched", "compliant"], default="simple", type=str)
+    parser.add_argument("type", nargs="?", choices=["simple", "dual", "wrenched", "compliant"], default="dual", type=str)
     args = parser.parse_args()
     
     # starting ROS node
@@ -288,6 +312,8 @@ def main():
     
     if args.type == "simple":
         yumi_controller = SimpleTrajectoryController()
+    elif args.type == "dual":
+        yumi_controller = DualTrajectoryController()
     elif args.type == "wrenched":
         yumi_controller = WrenchedTrajectoryController()
     elif args.type == "compliant":

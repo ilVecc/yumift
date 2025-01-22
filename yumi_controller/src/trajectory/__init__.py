@@ -7,8 +7,8 @@ from .polynomial import (
 )
 
 
+# TODO remove me
 import time
-
 class timeit():
     
     def __init__(self) -> None:

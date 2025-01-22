@@ -1,5 +1,10 @@
 <launch>
+
+    <arg name="update_options" default="255" />
+
     <include file="$(find yumi_description)/launch/display.launch" />
     <node pkg="yumi_controller" type="kdl_kinematics" name="kdl_kinematics" />
-    <include file="$(find yumi_controller)/launch/state_updater.launch" />
+    <include file="$(find yumi_controller)/launch/state_updater.launch">
+        <arg name="update_options" value="$(arg update_options)" />
+    </include>
 </launch>

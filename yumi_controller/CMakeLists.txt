@@ -62,6 +62,7 @@ add_message_files(
   YumiKinematics.msg
   YumiTrajectoryPoint.msg
   YumiTrajectory.msg
+  YumiVelocity.msg
   Jacobian.msg
   RobotState.msg
 )

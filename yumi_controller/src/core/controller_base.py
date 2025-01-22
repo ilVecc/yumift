@@ -449,19 +449,22 @@ class YumiDualController(object, metaclass=ABCMeta):
     """ Class for controlling YuMi, inherit this class and create your own 
         `.policy()` and `.clear()` functions. The `.policy()` function outputs 
         an action `dict`, which is then passed to the `._set_action()` function.
+        This abstract class reads YuMi state from `/yumi/robot_state_coordinated`
+        and sends velocity commands to `/yumi/egm/joint_group_velocity_controller/command`
+        and gripper commands via service `/yumi/rws/sm_addin/set_sg_command`.
     """
     
     class IKSolver(Enum):
-        HQP = auto()
-        PINV = auto()
-        PINV_LIMITS = auto()
+        HQP = "hqp"
+        PINV = "pinv"
     
     def __init__(self, iksolver: IKSolver = IKSolver.PINV, symmetry : float = 0.):
-        # TODO make this controller-indipendent
+        # TODO make this robot-indipendent
         self.yumi_state = YumiCoordinatedRobotState(symmetry=symmetry)
         self.timestamp = rospy.Time.now()
         rospy.Subscriber("/yumi/robot_state_coordinated", RobotState, self._callback_yumi_state, queue_size=1, tcp_nodelay=False)
-        # ensure to start the controller with a real robot state (no wait means default state, very bad)
+        # ensure to start the controller with a real robot state 
+        # (no wait means default state (all zeros), very bad)
         rospy.wait_for_message("/yumi/robot_state_coordinated", RobotState)
         
         # routine variables
@@ -475,16 +478,7 @@ class YumiDualController(object, metaclass=ABCMeta):
         self._iksolver.register("hqp", HQPIKAlgorithm())
         self._iksolver.register("pinv", PINVIKAlgorithm())
         # select the IK solver
-        if iksolver is self.IKSolver.HQP:
-            self._iksolver.switch("hqp")
-        elif iksolver is self.IKSolver.PINV:
-            self._iksolver.switch("pinv")
-        elif iksolver is self.IKSolver.PINV_LIMITS:
-            # TODO implement me
-            # classic pseudo-inverse with secondary objective and joint limit check
-            raise AssertionError("IK solver not yet implemented")
-        else:
-            raise AssertionError("IK solver not supported")
+        self._iksolver.switch(iksolver.value)
         
         # command publishers
         self._pub_yumi = YumiVelocityCommand()
@@ -545,6 +539,7 @@ class YumiDualController(object, metaclass=ABCMeta):
                 # do not move if manual mode kicks in
                 print("Controller not ready yet")
                 action = self._routine_machine.reset()
+            # solve the action and send it
             self._set_action(action)
             rate.sleep()
         # when the controller is shut down, send a stop command
@@ -598,11 +593,11 @@ class YumiDualController(object, metaclass=ABCMeta):
             :key `action["routine_*"]`: specific commands (eg. `"routine_reset_pose"`)
             :key `action["control_space"]`: determines which control mode {`"joint_space"`, `"individual"`, `"coordinated"`}
             :key `action["joint_velocities"]`: [right, left] shape(14) with joint velocities (rad/s) (needed for mode `"joint_space"`)
-            :key `action["timestep"]`: float with the current timestep, if needed by the IK solver (s) (needed for each mode except `"joint_space"`)
             :key `action["right_velocity"]`: shape(6) with cartesian velocities (m/s, rad/s) (needed for mode `"individual"`)
             :key `action["left_velocity"]`: shape(6) with cartesian velocities (m/s, rad/s) (needed for mode `"individual"`)
             :key `action["absolute_velocity"]`: shape(6) with cartesian velocities in yumi base frame (m/s, rad/s) (needed for mode `"coordinated"`)
             :key `action["relative_velocity"]`: shape(6) with cartesian velocities in absolute frame (m/s, rad/s) (needed for mode `"coordinated"`)
+            :key `action["timestep"]`: float with the current timestep, if needed by the IK solver (s) (needed for each mode except `"joint_space"`)
             :key `action["gripper_right"]`: float for gripper position (mm)
             :key `action["gripper_left"]`: float for gripper position (mm)
             For more information see examples or documentation.
@@ -616,12 +611,12 @@ class YumiDualController(object, metaclass=ABCMeta):
         # log joints with clipping velocities
         vel_clip_r = np.abs(dq_target[0:7]) > Parameters.joint_velocity_bound
         vel_clip_l = np.abs(dq_target[7:14]) > Parameters.joint_velocity_bound
-        if np.any(vel_clip_r) or np.any(vel_clip_r):
+        if np.any(vel_clip_r) or np.any(vel_clip_l):
             idxs = np.arange(7) + 1
             labels = "".join([f" R{i}" for i in idxs[vel_clip_r]]) \
                    + "".join([f" L{i}" for i in idxs[vel_clip_l]])
             print(f"Joints [{labels} ] are clipping!")
-        
+
         # yumi control command and gripper control command (if any)
         # avoid sendind commands all the time to minimize latency
         self._pub_yumi.send_velocity_cmd(dq_target)

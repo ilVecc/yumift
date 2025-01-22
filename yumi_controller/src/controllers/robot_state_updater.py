@@ -15,6 +15,19 @@ from core.robot_state import YumiCoordinatedRobotState
 from dynamics import utils as utils_dyn
 from dynamics.quat_utils import quat_diff
 
+RIGHT        = 0b00000001
+LEFT         = 0b00000010
+INDIVIDUAL   = RIGHT | LEFT
+ABSOLUTE     = 0b00000100
+RELATIVE     = 0b00001000
+COORDINATED  = ABSOLUTE | RELATIVE
+ELBOW_RIGHT  = 0b00010000
+ELBOW_LEFT   = 0b00100000
+ELBOWS       = ELBOW_RIGHT | ELBOW_LEFT
+ARM_RIGHT    = 0b01000000
+ARM_LEFT     = 0b10000000
+ARMS         = ARM_RIGHT | ARM_LEFT
+EVERYTHING   = INDIVIDUAL | COORDINATED | ELBOWS | ARMS
 
 # TODO add flags to update only certain fields based on need
 class YumiStateUpdater(object):
@@ -25,7 +38,8 @@ class YumiStateUpdater(object):
         ftsensor_right_topic : str,
         ftsensor_left_topic : str,
         jacobians_topic : str,
-        robot_state_topic : str
+        robot_state_topic : str,
+        options : int
     ) -> None:
         super().__init__()
         
@@ -34,6 +48,9 @@ class YumiStateUpdater(object):
         
         # RobotState publisher
         self._robot_state_publisher = rospy.Publisher(robot_state_topic, RobotState, queue_size=1, tcp_nodelay=False)
+        self.options = options
+        if self.options & COORDINATED:
+            self.options |= INDIVIDUAL
         
         # read force sensors
         self._wrenches = np.zeros(12)  # [fR, mR, fL, mL]
@@ -41,7 +58,7 @@ class YumiStateUpdater(object):
         rospy.Subscriber(ftsensor_left_topic, WrenchStamped, self._callback_ext_force, callback_args="left", queue_size=1, tcp_nodelay=False)
         
         # TODO need a mutex here for data access?
-        rospy.Subscriber(jacobians_topic, YumiKinematics, self._callback, queue_size=1, tcp_nodelay=False)
+        rospy.Subscriber(jacobians_topic, YumiKinematics, self._callback_yumi, queue_size=1, tcp_nodelay=False)
         rospy.wait_for_message(jacobians_topic, YumiKinematics)
         
         
@@ -51,13 +68,14 @@ class YumiStateUpdater(object):
         elif arm == "left":
             self._wrenches[6:12] = msg_utils.WrenchMsg_to_ndarray(data.wrench)
     
-    def _callback(self, data: YumiKinematics) -> None:
+    def _callback_yumi(self, data: YumiKinematics) -> None:
         """ Updates forward kinematics using KDL instead of TF tree
         """
         self._update_individual(data)
-        self._update_coordinated()
+        if self.options & COORDINATED:
+            self._update_coordinated()
         # publish state
-        self._callback_robot_state()
+        self._callback_robot_state(self.options)
         
     
     def _update_individual(self, data: YumiKinematics):
@@ -210,47 +228,91 @@ class YumiStateUpdater(object):
         return msg
     
     
-    def _callback_robot_state(self):
+    def _callback_robot_state(self, options):
         
         msg = RobotState()
         msg.header.stamp = rospy.Time.now()
         
-        msg_jsr = self._make_jointstate_msg(self.yumi_state.joint_pos_r, self.yumi_state.joint_vel_r, self.yumi_state.grip_r)
-        msg_jsl = self._make_jointstate_msg(self.yumi_state.joint_pos_l, self.yumi_state.joint_vel_l, self.yumi_state.grip_l)
-        msg.jointState = [msg_jsr, msg_jsl]
+        msg.jointState = [self._make_jointstate_msg(self.yumi_state.joint_pos_r, self.yumi_state.joint_vel_r, self.yumi_state.grip_r), 
+                          self._make_jointstate_msg(self.yumi_state.joint_pos_l, self.yumi_state.joint_vel_l, self.yumi_state.grip_l)]
         msg.jointStateName = ["arm_r", "arm_l"]
         
-        msg_jac_r = self._make_jacobian_msg(self.yumi_state.jacobian_gripper_r)
-        msg_jac_l = self._make_jacobian_msg(self.yumi_state.jacobian_gripper_l)
-        msg_jac_abs = self._make_jacobian_msg(self.yumi_state.jacobian_coordinated_abs)
-        msg_jac_rel = self._make_jacobian_msg(self.yumi_state.jacobian_coordinated_rel)
-        msg_jac_elb_r = self._make_jacobian_msg(self.yumi_state.jacobian_elbow_r)
-        msg_jac_elb_l = self._make_jacobian_msg(self.yumi_state.jacobian_elbow_l)
-        # msg_jacarmr = self._make_jacobian_msg(self.yumi_state.jacobian[:6, :7])
-        # msg_jacarml = self._make_jacobian_msg(self.yumi_state.jacobian[6:, 7:])
-        msg.jacobian = [msg_jac_r, msg_jac_l, msg_jac_abs, msg_jac_rel, msg_jac_elb_r, msg_jac_elb_l]#, msg_jacarmr, msg_jacarml]
-        msg.jacobianName = ["gripper_r", "gripper_l", "absolute", "relative", "elbow_r", "elbow_l"]#, "arm_r", "arm_l"]
+        msg.jacobian = []
+        msg.jacobianName = []
+        msg.pose = []
+        msg.poseTwist = []
+        msg.poseWrench = []
+        msg.poseName = []
         
-        msg_pose_r = self._make_pose_msg(self.yumi_state.pose_gripper_r)
-        msg_pose_l = self._make_pose_msg(self.yumi_state.pose_gripper_l)
-        msg_pose_abs = self._make_pose_msg(self.yumi_state.pose_abs)
-        msg_pose_rel = self._make_pose_msg(self.yumi_state.pose_rel)
-        msg_pose_elb_r = self._make_pose_msg(self.yumi_state.pose_elbow_r)
-        msg_pose_elb_l = self._make_pose_msg(self.yumi_state.pose_elbow_l)
-        msg.pose = [msg_pose_r, msg_pose_l, msg_pose_abs, msg_pose_rel, msg_pose_elb_r, msg_pose_elb_l]
-        msg_twist_r = self._make_twist_msg(self.yumi_state.pose_gripper_r.vel)
-        msg_twist_l = self._make_twist_msg(self.yumi_state.pose_gripper_l.vel)
-        msg_twist_abs = self._make_twist_msg(self.yumi_state.pose_abs.vel)
-        msg_twist_rel = self._make_twist_msg(self.yumi_state.pose_rel.vel)
-        msg_twist_elb_r = self._make_twist_msg(self.yumi_state.pose_elbow_r.vel)
-        msg_twist_elb_l = self._make_twist_msg(self.yumi_state.pose_elbow_l.vel)
-        msg.poseTwist = [msg_twist_r, msg_twist_l, msg_twist_abs, msg_twist_rel, msg_twist_elb_r, msg_twist_elb_l]
-        msg_wrench_r = self._make_wrench_msg(self.yumi_state.pose_wrench_r)
-        msg_wrench_l = self._make_wrench_msg(self.yumi_state.pose_wrench_l)
-        msg_wrench_abs = self._make_wrench_msg(self.yumi_state.pose_wrench_abs)
-        msg_wrench_rel = self._make_wrench_msg(self.yumi_state.pose_wrench_rel)
-        msg.poseWrench = [msg_wrench_r, msg_wrench_l, msg_wrench_abs, msg_wrench_rel, Wrench(), Wrench()]
-        msg.poseName = ["gripper_r", "gripper_l", "absolute", "relative", "elbow_r", "elbow_l"]
+        if options & RIGHT:
+            # jacobian
+            msg.jacobian.append(self._make_jacobian_msg(self.yumi_state.jacobian_gripper_r))
+            msg.jacobianName.append("gripper_r")
+            # pose + twist + wrench
+            msg.pose.append(self._make_pose_msg(self.yumi_state.pose_gripper_r))
+            msg.poseTwist.append(self._make_twist_msg(self.yumi_state.pose_gripper_r.vel))
+            msg.poseWrench.append(self._make_wrench_msg(self.yumi_state.pose_wrench_r))
+            msg.poseName.append("gripper_r")
+            
+        if options & LEFT:
+            # jacobian
+            msg.jacobian.append(self._make_jacobian_msg(self.yumi_state.jacobian_gripper_l))
+            msg.jacobianName.append("gripper_l")
+            # pose + twist + wrench
+            msg.pose.append(self._make_pose_msg(self.yumi_state.pose_gripper_l))
+            msg.poseTwist.append(self._make_twist_msg(self.yumi_state.pose_gripper_l.vel))
+            msg.poseWrench.append(self._make_wrench_msg(self.yumi_state.pose_wrench_l))
+            msg.poseName.append("gripper_l")
+        
+        if options & ABSOLUTE:
+            # jacobian
+            msg.jacobian.append(self._make_jacobian_msg(self.yumi_state.jacobian_coordinated_abs))
+            msg.jacobianName.append("absolute")
+            # pose + twist + wrench
+            msg.pose.append(self._make_pose_msg(self.yumi_state.pose_abs))
+            msg.poseTwist.append(self._make_twist_msg(self.yumi_state.pose_abs.vel))
+            msg.poseWrench.append(self._make_wrench_msg(self.yumi_state.pose_wrench_abs))
+            msg.poseName.append("absolute")
+        
+        if options & RELATIVE:
+            # jacobian
+            msg.jacobian.append(self._make_jacobian_msg(self.yumi_state.jacobian_coordinated_rel))
+            msg.jacobianName.append("relative")
+            # pose + twist + wrench
+            msg.pose.append(self._make_pose_msg(self.yumi_state.pose_rel))
+            msg.poseTwist.append(self._make_twist_msg(self.yumi_state.pose_rel.vel))
+            msg.poseWrench.append(self._make_wrench_msg(self.yumi_state.pose_wrench_rel))
+            msg.poseName.append("relative")
+        
+        if options & ELBOW_RIGHT:
+            # jacobian
+            msg.jacobian.append(self._make_jacobian_msg(self.yumi_state.jacobian_elbow_r))
+            msg.jacobianName.append("elbow_r")
+            # pose + twist + wrench
+            msg.pose.append(self._make_pose_msg(self.yumi_state.pose_elbow_r))
+            msg.poseTwist.append(self._make_twist_msg(self.yumi_state.pose_elbow_r.vel))
+            msg.poseWrench.append(Wrench())
+            msg.poseName.append("elbow_r")
+        
+        if options & ELBOW_LEFT:
+            # jacobian
+            msg.jacobian.append(self._make_jacobian_msg(self.yumi_state.jacobian_elbow_l))
+            msg.jacobianName.append("elbow_l")
+            # pose + twist + wrench
+            msg.pose.append(self._make_pose_msg(self.yumi_state.pose_elbow_l))
+            msg.poseTwist.append(self._make_twist_msg(self.yumi_state.pose_elbow_l.vel))
+            msg.poseWrench.append(Wrench())
+            msg.poseName.append("elbow_l")
+        
+        if options & ARM_RIGHT:
+            # jacobian
+            msg.jacobian.append(self._make_jacobian_msg(self.yumi_state.jacobian[:6, :7]))
+            msg.jacobianName.append("arm_r")
+        
+        if options & ARM_LEFT:
+            # jacobian
+            msg.jacobian.append(self._make_jacobian_msg(self.yumi_state.jacobian[6:, 7:]))
+            msg.jacobianName.append("arm_l")
         
         self._robot_state_publisher.publish(msg)
         
@@ -264,10 +326,11 @@ def main():
     topic_sensor_l = rospy.get_param("~topic_sensor_l")
     topic_jacobians = rospy.get_param("~topic_jacobians")
     topic_robot_state = rospy.get_param("~topic_robot_state")
-    symmetry = rospy.get_param("~symmetry")
+    coordinated_symmetry = rospy.get_param("~coordinated_symmetry")
+    update_options = rospy.get_param("~update_options")
         
-    robot_state = YumiCoordinatedRobotState(symmetry=symmetry)
-    robot_state_updater = YumiStateUpdater(robot_state, topic_sensor_r, topic_sensor_l, topic_jacobians, topic_robot_state)
+    robot_state = YumiCoordinatedRobotState(symmetry=coordinated_symmetry)
+    robot_state_updater = YumiStateUpdater(robot_state, topic_sensor_r, topic_sensor_l, topic_jacobians, topic_robot_state, update_options)
         
     rospy.spin()
 

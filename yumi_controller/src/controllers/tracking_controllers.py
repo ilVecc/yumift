@@ -12,7 +12,7 @@ import quaternion as quat
 from yumi_controller.msg import YumiPosture as YumiPostureMsg
 
 from core.controller_base import YumiDualController
-from core.control_laws import YumiIndividualCartesianVelocityControlLaw, YumiDualCartesianVelocityControlLaw
+from core.control_laws import YumiIndividualCartesianVelocityControlLaw
 from core.trajectory import YumiParam
 import core.msg_utils as msg_utils
 
@@ -20,10 +20,9 @@ from gains import GAINS
 
 
 class YumiIndividualTrackingController(YumiDualController):
-    """ Class for running trajectory control using an instance of `YumiDualController`.
-        Trajectory parameters are sent with ROS Message `YumiTrajectory` and from 
-        those a `YumiTrajectory` is constructed and tracked using the chosen 
-        `YumiDualCartesianVelocityControlLaw`.
+    """ Class for running tracking control using an instance of `YumiDualController`.
+        Postures are sent with ROS Message `YumiPosture` and tracked using the 
+        `YumiIndividualCartesianVelocityControlLaw` control law.
     """
     def __init__(self, posture_r_topic: str, posture_l_topic: str):
         super().__init__(iksolver=self.IKSolver.PINV, symmetry=0.)
@@ -32,11 +31,10 @@ class YumiIndividualTrackingController(YumiDualController):
         self.control_law = YumiIndividualCartesianVelocityControlLaw(GAINS)
         
         # prepare trajectory buffer
-        self.initial_time = rospy.Time.now()
         self.desired_posture = YumiParam()
-        self.reset()  # init trajectory (set current position)
+        self.reset()  # init desired posture (set current position)
         
-        # listen for trajectory commands
+        # listen for posture commands
         rospy.Subscriber(posture_r_topic, YumiPostureMsg, self._callback_posture, "right", queue_size=1, tcp_nodelay=False)
         rospy.Subscriber(posture_l_topic, YumiPostureMsg, self._callback_posture, "left", queue_size=1, tcp_nodelay=False)
         
@@ -65,7 +63,6 @@ class YumiIndividualTrackingController(YumiDualController):
     def _callback_posture(self, data: YumiPostureMsg, side: str):
         """ Gets called when a posture is received.  
         """
-        
         if side == "right":
             self.desired_posture.pose_right.pos = self._sanitize_pos(data.positionRight)
             self.desired_posture.pose_right.rot = self._sanitize_rot(data.orientationRight)
@@ -76,8 +73,6 @@ class YumiIndividualTrackingController(YumiDualController):
             self.desired_posture.pose_left.rot = self._sanitize_rot(data.orientationLeft)
             self.desired_posture.pose_left.vel = self._sanitize_vel(data.velocityLeft)
             self.desired_posture.grip_left = data.gripperLeft
-        
-        self.initial_time = rospy.Time.now()
     
     def policy(self):
         """ Calculate target velocity for the current time step.
@@ -85,10 +80,10 @@ class YumiIndividualTrackingController(YumiDualController):
         
         # update timing information
         now = rospy.Time.now()
-        dt = (now - self.timestamp).to_sec()
+        dt = (now - self.current_timestamp).to_sec()
         self.control_law.update_current_dt(dt)
         
-        # update pose and wrench for the control law class
+        # update the robot state in the control law class
         self.control_law.update_current_pose(self.yumi_state)
         
         # calculate new target velocities and positions for this time step
@@ -136,16 +131,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
-
-
-
-
-

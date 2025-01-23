@@ -69,10 +69,18 @@ class PoseParam(Param):
     def pos(self) -> np.ndarray:
         return self.value[0]
 
+    @pos.setter
+    def pos(self, position) -> None:
+        self._fields[0][0] = position
+    
     @property
     def rot(self) -> np.quaternion:
         return self.value[1]
 
+    @rot.setter
+    def rot(self, rotation) -> None:
+        self._fields[0][1] = rotation
+    
     @property
     def vel(self) -> np.ndarray:
         return self.speed

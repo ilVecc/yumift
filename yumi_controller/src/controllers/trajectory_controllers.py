@@ -68,7 +68,7 @@ class YumiTrajectoryController(YumiDualController):
         self.effective_mode = None
         
         # prepare trajectory buffer
-        self.initial_time = rospy.Time.now()
+        self.trajectory_initial_time = rospy.Time.now()
         self.trajectory = YumiTrajectory()
         self.lock_trajectory = threading.Lock()
         self.reset()  # init trajectory (set current position)
@@ -172,7 +172,7 @@ class YumiTrajectoryController(YumiDualController):
             self.control_law.mode = "individual" if is_individual else "coordinated"
             self.effective_mode = data.mode
             self.trajectory.update(trajectory)
-            self.initial_time = rospy.Time.now()
+            self.trajectory_initial_time = rospy.Time.now()
         print(f"New trajectory received in \"{self.effective_mode}\" mode")
     
     if DEBUG:
@@ -189,7 +189,7 @@ class YumiTrajectoryController(YumiDualController):
 
         # update timing information
         now = rospy.Time.now()
-        dt = (now - self.timestamp).to_sec()
+        dt = (now - self.current_timestamp).to_sec()
         self.control_law.update_current_dt(dt)
         
         # update pose and wrench for the control law class
@@ -197,7 +197,7 @@ class YumiTrajectoryController(YumiDualController):
         
         # TODO this is fairy slow
         # calculate new target velocities and positions for this time step
-        yumi_target_param: YumiParam = self.trajectory.compute((now - self.initial_time).to_sec())
+        yumi_target_param: YumiParam = self.trajectory.compute((now - self.trajectory_initial_time).to_sec())
         yumi_target_state = msg_utils.YumiParam_to_YumiCoordinatedRobotState(yumi_target_param)
         
         # TODO this is super slow in compliance mode

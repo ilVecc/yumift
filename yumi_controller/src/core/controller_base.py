@@ -456,7 +456,7 @@ class YumiDualController(object, metaclass=ABCMeta):
     def __init__(self, iksolver: IKSolver = IKSolver.PINV, symmetry : float = 0.):
         # TODO make this robot-indipendent
         self.yumi_state = YumiCoordinatedRobotState(symmetry=symmetry)
-        self.timestamp = rospy.Time.now()
+        self.current_timestamp = rospy.Time.now()
         rospy.Subscriber("/yumi/robot_state_coordinated", RobotState, self._callback_yumi_state, queue_size=1, tcp_nodelay=False)
         # ensure to start the controller with a real robot state 
         # (no wait means default state (all zeros), very bad)
@@ -508,7 +508,7 @@ class YumiDualController(object, metaclass=ABCMeta):
 
     def _callback_yumi_state(self, data: RobotState):
         self.yumi_state = RobotState_to_YumiCoordinatedRobotState(data)
-        self.timestamp = rospy.Time.now()
+        self.current_timestamp = rospy.Time.now()
     
     # 
     # Core functions

@@ -107,7 +107,7 @@ class YumiIndividualTrackingController(YumiDualController):
 
 class SimpleTrackingController(YumiIndividualTrackingController):
     def __init__(self):
-        super().__init__("/posture")
+        super().__init__("/posture_r", "/posture_l")
 
 
 def main():

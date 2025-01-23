@@ -130,7 +130,7 @@ def main():
     # starting ROS node
     rospy.init_node("tracking_controllers", anonymous=False)
     
-    if args.type == "simple":
+    if args.type == "single":
         yumi_controller = SingleTrackingController()
     elif args.type == "whole":
         yumi_controller = WholeTrackingController()

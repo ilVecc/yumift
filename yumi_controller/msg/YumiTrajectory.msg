@@ -1,4 +1,4 @@
 std_msgs/Header header
 
 string mode
-yumi_controller/YumiTrajectoryPoint[] trajectory
+yumi_controller/YumiPosture[] trajectory

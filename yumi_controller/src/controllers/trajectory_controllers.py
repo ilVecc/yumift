@@ -13,7 +13,7 @@ import threading
 from collections import deque
 
 from std_msgs.msg import Int64
-from yumi_controller.msg import YumiTrajectory as YumiTrajectoryMsg, YumiTrajectoryPoint
+from yumi_controller.msg import YumiTrajectory as YumiTrajectoryMsg, YumiPosture
 from nav_msgs.msg import Path
 
 from core.controller_base import YumiDualController
@@ -146,7 +146,7 @@ class YumiTrajectoryController(YumiDualController):
         
         # append trajectory points from msg
         for point in data.trajectory:
-            point: YumiTrajectoryPoint
+            point: YumiPosture
             # either right or absolute
             pos_1 = self._sanitize_pos(point.positionRight if is_individual else point.positionAbsolute)
             rot_1 = self._sanitize_rot(point.orientationRight if is_individual else point.orientationAbsolute)

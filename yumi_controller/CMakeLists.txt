@@ -60,9 +60,8 @@ find_package(
 add_message_files(
   FILES
   YumiKinematics.msg
-  YumiTrajectoryPoint.msg
+  YumiPosture.msg
   YumiTrajectory.msg
-  YumiVelocity.msg
   Jacobian.msg
   RobotState.msg
 )

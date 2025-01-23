@@ -4,7 +4,7 @@ import numpy as np
 import rospy
 import tf.transformations as trans
 
-from yumi_controller.msg import YumiTrajectoryPoint, YumiTrajectory
+from yumi_controller.msg import YumiPosture, YumiTrajectory
 
 
 def main():
@@ -19,7 +19,7 @@ def main():
     msg.mode = "individual"
     msg.header.stamp = rospy.Time.now()
     msg.trajectory = [
-        YumiTrajectoryPoint(
+        YumiPosture(
             positionRight = [-0.2, 0.0, -0.2],
             orientationRight = np.roll(trans.quaternion_about_axis(np.radians(-45), [0, 1, 0]), 1),
             positionLeft  = [-0.2, 0.0, -0.2],

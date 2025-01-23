@@ -18,7 +18,6 @@ from .robot_state import YumiCoordinatedRobotState
 from .parameters import Parameters
 from .msg_utils import RobotState_to_YumiCoordinatedRobotState
 
-from dynamics.quat_utils import quat_diff
 import dynamics.utils as utils_dyn
 from trajectory.polynomial import CubicTrajectory
 
@@ -164,9 +163,7 @@ class JointStateRoutine(Routine):
     def finish(self, robot_state_final: utils_dyn.RobotState) -> None:
         pass
 
-###############################################################################
-#                              CUSTOM ROUTINES                                #
-###############################################################################
+# CUSTOM ROUTINES
 
 class ResetPoseRoutine(JointStateRoutine):
     def __init__(self) -> None:
@@ -237,9 +234,7 @@ class IKSolver(object):
     def __call__(self, action: dict, state: YumiCoordinatedRobotState):
         return self.solve(action, state)
         
-###############################################################################
-#                             CUSTOM ALGORITHMS                               #
-###############################################################################
+# CUSTOM ALGORITHMS
 
 class HQPIKAlgorithm(IKAlgorithm):
     
@@ -623,10 +618,7 @@ class YumiDualController(object, metaclass=ABCMeta):
         if action.get("gripper_right") is not None or action.get("gripper_left") is not None:
             self._pub_grip.send_position_cmd(action.get("gripper_right"), action.get("gripper_left"))
     
-
-###############################################################################
-#                                   UTILS                                     #
-###############################################################################
+# UTILS
 
 class YumiVelocityCommand(object):
     """ Used for storing the velocity command for yumi

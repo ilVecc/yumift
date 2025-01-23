@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import rospy
 
-from yumi_controller.msg import YumiTrajectoryPoint, YumiTrajectory
+from yumi_controller.msg import YumiPosture, YumiTrajectory
 
 
 def main():
@@ -16,7 +16,7 @@ def main():
     msg.header.stamp = rospy.Time.now()
     msg.mode = "individual"
     msg.trajectory = [
-        YumiTrajectoryPoint(
+        YumiPosture(
             positionRight = [0.4, -0.3, 0.6],
             orientationRight = [1, 0, 0, 0],
             positionLeft  = [0.4,  0.3, 0.6],

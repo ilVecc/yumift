@@ -4,7 +4,7 @@ import numpy as np
 import rospy
 import tf.transformations as trans
 
-from yumi_controller.msg import YumiTrajectoryPoint, YumiTrajectory
+from yumi_controller.msg import YumiPosture, YumiTrajectory
 
 
 def main():
@@ -19,37 +19,37 @@ def main():
     msg.header.stamp = rospy.Time.now()
     msg.mode = "coordinated"
     msg.trajectory = [
-        # YumiTrajectoryPoint(
+        # YumiPosture(
         #     positionAbsolute = [0.55, 0.0, 0.2],
         #     positionRelative = [0, 0.30, 0],
         #     orientationAbsolute = [0, 1, 0, 0],
         #     orientationRelative = [1, 0, 0, 0],
         #     pointTime = 4.0),
-        # YumiTrajectoryPoint(
+        # YumiPosture(
         #     positionAbsolute = [0.55, 0.0, 0.2],
         #     positionRelative = [0, 0.50, 0],
         #     orientationAbsolute = [0, 1, 0, 0],
         #     orientationRelative = [1, 0, 0, 0],
         #     pointTime = 4.0),
-        YumiTrajectoryPoint(
+        YumiPosture(
             positionAbsolute = [0.55, 0.0, 0.2],
             positionRelative = [0, 0.30, 0],
             orientationAbsolute = [0, 1, 0, 0],
             orientationRelative = [1, 0, 0, 0],
             pointTime = 8.0),
-        YumiTrajectoryPoint(
+        YumiPosture(
             positionAbsolute = [0.55, 0.0, 0.2],
             positionRelative = [0, 0.50, 0],
             orientationAbsolute = [0, 1, 0, 0],
             orientationRelative = np.roll(trans.quaternion_about_axis(np.radians(60), [0, 1, 0]), 1),
             pointTime = 8.0),
-        YumiTrajectoryPoint(
+        YumiPosture(
             positionAbsolute = [0.55, 0.0, 0.2],
             positionRelative = [0, 0.50, 0],
             orientationAbsolute = [0, 1, 0, 0],
             orientationRelative = np.roll(trans.quaternion_about_axis(np.radians(45), [1, 0, 0]), 1),
             pointTime = 8.0),
-        YumiTrajectoryPoint(
+        YumiPosture(
             positionAbsolute = [0.55, 0.0, 0.2],
             positionRelative = [0, 0.30, 0],
             orientationAbsolute = [0, 1, 0, 0],

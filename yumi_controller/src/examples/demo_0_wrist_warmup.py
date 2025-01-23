@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import rospy
 
-from yumi_controller.msg import YumiTrajectoryPoint, YumiTrajectory
+from yumi_controller.msg import YumiPosture, YumiTrajectory
 
 
 def main():
@@ -16,7 +16,7 @@ def main():
     msg.header.stamp = rospy.Time.now()
     msg.mode = "individual"  # control mode
     msg.trajectory = [
-        YumiTrajectoryPoint(
+        YumiPosture(
             positionRight = [0.45, -0.3, 0.3],
             positionLeft = [0.45, 0.3, 0.3],
             orientationRight = [0, 1, 0, 0],
@@ -35,7 +35,7 @@ def main():
     msg.header.stamp = rospy.Time.now()
     msg.mode = "individual"  # control mode
     msg.trajectory = [
-        YumiTrajectoryPoint(
+        YumiPosture(
             positionRight = [0.60, -0.3, 0.4],
             positionLeft = [0.60, 0.3, 0.4],
             orientationRight = [0.5, -0.5, 0.5, -0.5],
@@ -54,7 +54,7 @@ def main():
     msg.header.stamp = rospy.Time.now()
     msg.mode = "individual"  # control mode
     msg.trajectory = [
-        YumiTrajectoryPoint(
+        YumiPosture(
             positionRight = [0.60, -0.3, 0.4],
             positionLeft = [0.60, 0.3, 0.4],
             orientationRight = [0.0, 0.707, 0.0, 0.707],
@@ -73,7 +73,7 @@ def main():
     msg.header.stamp = rospy.Time.now()
     msg.mode = "individual"  # control mode
     msg.trajectory = [
-        YumiTrajectoryPoint(
+        YumiPosture(
             positionRight = [0.60, -0.3, 0.4],
             positionLeft = [0.60, 0.3, 0.4],
             orientationRight = [0.5, 0.5, 0.5, 0.5],
@@ -92,7 +92,7 @@ def main():
     msg.header.stamp = rospy.Time.now()
     msg.mode = "individual"  # control mode
     msg.trajectory = [
-        YumiTrajectoryPoint(
+        YumiPosture(
             positionRight = [0.60, -0.3, 0.4],
             positionLeft = [0.60, 0.3, 0.4],
             orientationRight = [0.707, 0.0, 0.707, 0.0],
@@ -111,13 +111,13 @@ def main():
     msg.header.stamp = rospy.Time.now()
     msg.mode = "individual"  # control mode
     msg.trajectory = [
-        YumiTrajectoryPoint(
+        YumiPosture(
             positionRight = [0.60, -0.3, 0.4],
             positionLeft = [0.60, 0.3, 0.4],
             orientationRight = [0.5, 0.5, 0.5, 0.5],
             orientationLeft = [0.5, 0.5, 0.5, 0.5],
             pointTime = 2.0),
-        YumiTrajectoryPoint(
+        YumiPosture(
             positionRight = [0.45, -0.3, 0.5],
             positionLeft = [0.45, 0.3, 0.5],
             orientationRight = [0, 0, 0, -1],

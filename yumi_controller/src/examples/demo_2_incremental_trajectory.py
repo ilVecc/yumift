@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import rospy
 
-from yumi_controller.msg import YumiTrajectoryPoint, YumiTrajectory
+from yumi_controller.msg import YumiPosture, YumiTrajectory
 
 
 def main():
@@ -16,22 +16,22 @@ def main():
     msg.header.stamp = rospy.Time.now()
     msg.mode = "coordinated"
     msg.trajectory = [
-        YumiTrajectoryPoint(
+        YumiPosture(
             positionAbsolute = [0.35, 0, 0.20],
             positionRelative = [0, 0.25, 0],
             orientationAbsolute = [0, 1, 0, 0],
             orientationRelative = [1, 0, 0, 0],
             pointTime = 8.0),
-        YumiTrajectoryPoint(
+        YumiPosture(
             local = True,                                 # this point is defined w.r.t. to the previous one
             positionAbsolute = [0.10, 0, 0],              # [0.35, 0.0, 0.20] + [0.10, 0.0, 0.0] = [0.45, 0.0, 0.20]
             pointTime = 8.0),
-        YumiTrajectoryPoint(
+        YumiPosture(
             local = True,
             positionAbsolute = [0, 0.10, 0.20],           # [0.45, 0.0, 0.20] + [0, 0.10, 0.20] = [0.45, 0.10, 0.40]
             orientationAbsolute = [0, 1, 0, 0],           # [0, 1, 0, 0] * [0, 1, 0, 0] = [1, 0, 0, 0]
             pointTime = 8.0),
-        YumiTrajectoryPoint(
+        YumiPosture(
             local = True,
             positionAbsolute = [-0.10, -0.10, -0.20],
             orientationAbsolute = [0, 1, 0, 0],           # [0, 1, 0, 0] * [1, 0, 0, 0] = [0, 1, 0, 0]

@@ -24,7 +24,7 @@ class YumiIndividualTrackingController(YumiDualController):
         Postures are sent with ROS Message `YumiPosture` and tracked using the 
         `YumiIndividualCartesianVelocityControlLaw` control law.
     """
-    def __init__(self, posture_r_topic: str, posture_l_topic: str):
+    def __init__(self):
         super().__init__(iksolver=self.IKSolver.PINV, symmetry=0.)
         
         # define control law
@@ -33,10 +33,6 @@ class YumiIndividualTrackingController(YumiDualController):
         # prepare trajectory buffer
         self.desired_posture = YumiParam()
         self.reset()  # init desired posture (set current position)
-        
-        # listen for posture commands
-        rospy.Subscriber(posture_r_topic, YumiPostureMsg, self._callback_posture, "right", queue_size=1, tcp_nodelay=False)
-        rospy.Subscriber(posture_l_topic, YumiPostureMsg, self._callback_posture, "left", queue_size=1, tcp_nodelay=False)
         
     def reset(self):
         """ Initialize the controller setting the current posture as desired posture. 
@@ -60,24 +56,9 @@ class YumiIndividualTrackingController(YumiDualController):
     def _sanitize_vel(vel: Tuple[float]):
         return np.asarray(vel) if vel else np.array([0,0,0,0,0,0])
     
-    def _callback_posture(self, data: YumiPostureMsg, side: str):
-        """ Gets called when a posture is received.  
-        """
-        if side == "right":
-            self.desired_posture.pose_right.pos = self._sanitize_pos(data.positionRight)
-            self.desired_posture.pose_right.rot = self._sanitize_rot(data.orientationRight)
-            self.desired_posture.pose_right.vel = self._sanitize_vel(data.velocityRight)
-            self.desired_posture.grip_right = data.gripperRight
-        else:
-            self.desired_posture.pose_left.pos = self._sanitize_pos(data.positionLeft)
-            self.desired_posture.pose_left.rot = self._sanitize_rot(data.orientationLeft)
-            self.desired_posture.pose_left.vel = self._sanitize_vel(data.velocityLeft)
-            self.desired_posture.grip_left = data.gripperLeft
-    
     def policy(self):
         """ Calculate target velocity for the current time step.
         """
-        
         # update timing information
         now = rospy.Time.now()
         dt = (now - self.current_timestamp).to_sec()
@@ -100,22 +81,59 @@ class YumiIndividualTrackingController(YumiDualController):
         return action
 
 
-class SimpleTrackingController(YumiIndividualTrackingController):
+class SingleTrackingController(YumiIndividualTrackingController):
     def __init__(self):
-        super().__init__("/posture_r", "/posture_l")
+        super().__init__()
+        # listen for posture commands
+        rospy.Subscriber("/posture_r", YumiPostureMsg, self._callback_posture, "right", queue_size=1, tcp_nodelay=False)
+        rospy.Subscriber("/posture_l", YumiPostureMsg, self._callback_posture, "left", queue_size=1, tcp_nodelay=False)
+    
+    def _callback_posture(self, data: YumiPostureMsg, side: str):
+        """ Gets called when a posture is received.  
+        """
+        if side == "right":
+            self.desired_posture.pose_right.pos = self._sanitize_pos(data.positionRight)
+            self.desired_posture.pose_right.rot = self._sanitize_rot(data.orientationRight)
+            self.desired_posture.pose_right.vel = self._sanitize_vel(data.velocityRight)
+            self.desired_posture.grip_right = data.gripperRight
+        else:
+            self.desired_posture.pose_left.pos = self._sanitize_pos(data.positionLeft)
+            self.desired_posture.pose_left.rot = self._sanitize_rot(data.orientationLeft)
+            self.desired_posture.pose_left.vel = self._sanitize_vel(data.velocityLeft)
+            self.desired_posture.grip_left = data.gripperLeft
+
+class WholeTrackingController(YumiIndividualTrackingController):
+    def __init__(self):
+        super().__init__()
+        # listen for posture command for the overall robot
+        rospy.Subscriber("/posture", YumiPostureMsg, self._callback_posture, queue_size=1, tcp_nodelay=False)
+
+    def _callback_posture(self, data: YumiPostureMsg):
+        """ Gets called when a posture is received.  
+        """
+        self.desired_posture.pose_right.pos = self._sanitize_pos(data.positionRight)
+        self.desired_posture.pose_right.rot = self._sanitize_rot(data.orientationRight)
+        self.desired_posture.pose_right.vel = self._sanitize_vel(data.velocityRight)
+        self.desired_posture.grip_right = data.gripperRight
+        self.desired_posture.pose_left.pos = self._sanitize_pos(data.positionLeft)
+        self.desired_posture.pose_left.rot = self._sanitize_rot(data.orientationLeft)
+        self.desired_posture.pose_left.vel = self._sanitize_vel(data.velocityLeft)
+        self.desired_posture.grip_left = data.gripperLeft
 
 
 def main():
     
     parser = argparse.ArgumentParser("Various tracking controllers")
-    parser.add_argument("type", nargs="?", choices=["simple"], default="simple", type=str)
+    parser.add_argument("type", nargs="?", choices=["single", "whole"], default="single", type=str)
     args = parser.parse_args()
     
     # starting ROS node
     rospy.init_node("tracking_controllers", anonymous=False)
     
     if args.type == "simple":
-        yumi_controller = SimpleTrackingController()
+        yumi_controller = SingleTrackingController()
+    elif args.type == "whole":
+        yumi_controller = WholeTrackingController()
     else:
         raise AttributeError(f"no such option '{parser.type}'")
     

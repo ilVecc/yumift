@@ -15,7 +15,6 @@ def main():
 
     # --------------------------------------------------
 
-    # TODO this breaks everything
     msg = YumiTrajectory()
     msg.header.stamp = rospy.Time.now()
     msg.mode = "coordinated"
@@ -24,7 +23,7 @@ def main():
             positionAbsolute = [0.45, 0.0, 0.3],
             orientationAbsolute = [0, 1, 0, 0],
             positionRelative = [0, 0.22, 0],
-            orientationRelative = np.roll(trans.quaternion_about_axis(np.radians(160), [1, 0, 0]), 1),
+            orientationRelative = np.roll(trans.quaternion_about_axis(np.radians(160), [1, 0, 0]), 1),  # TODO this orientation is the issue
             pointTime = 8.0),
     ]
     pub.publish(msg)

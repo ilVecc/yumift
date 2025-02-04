@@ -1,6 +1,8 @@
 from typing import Tuple
 
 import numpy as np
+import quaternion as quat
+
 from . import quat_utils
 
 ###############################################################################
@@ -336,7 +338,6 @@ class Admittance(DiscretizedStateSpaceModel):
         Y, DY = map(list, zip(*X))
         return np.array(Y), np.array(DY)
 
-
 class AdmittanceForce(Admittance):
     def __init__(self, m, k, d, h, method="forward") -> None:
         super().__init__(m, k, d, h, 3, method)
@@ -347,7 +348,6 @@ class AdmittanceForce(Admittance):
         """
         return super().compute(f, h_new)
 
-
 class AdmittanceTorque(Admittance):
     
     def __init__(self, m, k, d, h, method="forward") -> None:
@@ -357,27 +357,25 @@ class AdmittanceTorque(Admittance):
         """ Returns rotation and angular velocity given an input torque.
             This function can run in real-time at 6kHz.
         """
-        # TODO switch to np.quaternion here
         # q = log(Q), dq is its derivative
         # Q is the rotation quaternion, W (omega, the angular velocity) is its derivative
         q, dq = super().compute(m, h_new)
-        Q = quat_utils.exp(q)
-        w = 2*quat_utils.mult((quat_utils.jac_q(q) @ dq), quat_utils.conj(Q))
-        W = w[1:]
+        Q = quat.from_vector_part(q).exp()
+        w = 2*quat.from_float_array((quat_utils.jac_q(q) @ dq)) * Q.conj()
+        W = w.vec
         return Q, W
-
 
 class AdmittanceWrench(Admittance):
     def __init__(self, m, k, d, h, method="forward") -> None:
         super().__init__(m, k, d, h, 6, method)
     
-    def compute(self, f: np.ndarray, h_new: float = None):    
-        """ Returns position and velocity given an input force.
+    def compute(self, w: np.ndarray, h_new: float = None):    
+        """ Returns position and velocity given an input wrench.
             This function can run in real-time at 6kHz.
         """
-        q, dq = super().compute(f, h_new)
+        q, dq = super().compute(w, h_new)
         p, dp = q[:3], dq[:3]
-        Q = quat_utils.exp(q[3:])
-        w = 2*quat_utils.mult((quat_utils.jac_q(q[3:]) @ dq[3:]), quat_utils.conj(Q))
-        W = w[1:]
+        Q = quat.from_vector_part(q[3:]).exp()
+        w = 2*quat.from_float_array((quat_utils.jac_q(q[3:]) @ dq[3:])) * Q.conj()
+        W = w.vec
         return (p, Q), (dp, W)

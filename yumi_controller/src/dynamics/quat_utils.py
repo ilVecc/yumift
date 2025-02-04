@@ -84,7 +84,7 @@ def jac_Q(Q):
         return np.hstack([np.zeros((3,1)), np.eye(3)])
     a = th / 2
     ca, sa = np.cos(a), np.sin(a)
-    JQ = 2 * np.hstack([ (a*ca - sa)/(sa**2) * r[:, np.newaxis], a/sa * np.eye(3) ])
+    JQ = 2 * np.hstack([ (a/sa*ca - 1)/sa * r[:, np.newaxis], a/sa * np.eye(3) ])
     return JQ
 
 def jac_q(q):
@@ -98,7 +98,8 @@ def jac_q(q):
     assert len(q) == 3 or q[0] == 0, "Can accept only 3-array or vector quaternion"
     a = np.linalg.norm(q)
     if a == 0:
-        return np.vstack([np.zeros((1,3)), np.eye(3)])
+        return np.vstack([np.zeros((1,3)), 
+                          np.eye(3)       ])
     ca, sa = np.cos(a), np.sin(a)
     r = q[-3:, np.newaxis] / a
     Jq = 0.5 * np.vstack([-sa * r.T,
@@ -137,19 +138,21 @@ def quat_avg(*Q: List[np.ndarray]):
 
 
 def quat_diff(qi: np.quaternion, qf: np.quaternion, shortest: bool = True) -> np.quaternion:
-    """ Returns the quaternion that achieves `qr * qi = qf` that using the 
-        shorthest path (by default). 
-        See more https://en.wikipedia.org/wiki/Quaternion#Geodesic_norm
+    """ Returns the quaternion that achieves `qr * qi = qf` using the shorthest 
+        path (by default). See more https://en.wikipedia.org/wiki/Quaternion#Geodesic_norm
+        
         :param qi: initial quaternion
         :param qf: final quaternion
         :param shortest: whether to force using the shorthest path on the great circle or not
     """
-    # this seemingly random equation comes directly from the geodesic distance 
-    # between two quaternions, which we want to be less than 180 deg, meaning:
+    # this seemingly random equation in the if statement comes directly from the
+    # geodesic distance between two quaternions, which we want to be less than 
+    # 180 deg, meaning:
     #    np.arccos(2 * (p @ q) ** 2 - 1) < np.pi
-    # can be simplified to 
+    # with some algebra, this can be simplified to 
     #    p @ q < 0
     # where @ is the quaternion dot product
+    #    p @ q = ps * qs + px * qx + py * qy + pz * qz
     if shortest and quat.as_float_array(qi) @ quat.as_float_array(qf) < 0:
         qf = -qf
     return qf * qi.conj()

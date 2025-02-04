@@ -11,7 +11,7 @@ setup(
     },
     author="Sebastiano Fregnan",
     author_email="sebastiano@fregnan.me",
-    description="Dynamical models and control laws.",
+    description="Dynamical models and control laws for robotic and 6D spaces.",
     license="MIT",
     keywords=[],
     url="",

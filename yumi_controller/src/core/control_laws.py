@@ -4,33 +4,28 @@ import quaternion as quat
 from .parameters import Parameters
 from .robot_state import YumiCoordinatedRobotState
 
-from dynamics.control_laws import ControlLawError, CartesianVelocityControlLaw
-from dynamics.systems import AdmittanceForce, AdmittanceTorque
+from dynamics.control_laws import ControlLawError, AbstractControlLaw, CartesianVelocityControlLaw
+from dynamics.systems import AdmittanceWrench
 from dynamics.utils import Frame
 
 
-class YumiIndividualCartesianVelocityControlLaw(object):
-    """
-    Generates velocity commands in cartesian space with the law
-            dx := dx_tgt + k * (x_tgt - x)
-    where
-        x, dx           state and speed of the YuMi (either linear or angular)
-        x_tgt, dx_tgt   target state and speed for the YuMi (either linear or angular)
-    in individual motion only.
+class YumiIndividualCartesianVelocityControlLaw(AbstractControlLaw):
+    """ Generates velocity commands in cartesian space with the law
+                dx := dx_tgt + k * (x_tgt - x)
+        where
+            x, dx           state and speed of the YuMi (either linear or angular)
+            x_tgt, dx_tgt   target state and speed for the YuMi (either linear or angular)
+        in individual motion only.
     """
     def __init__(self, gains):
+        super().__init__(initial_timestep=Parameters.dt)
         self.mode = "individual"
-        self.control_right = CartesianVelocityControlLaw(gains["individual"]["right"]["position"], gains["individual"]["right"]["rotation"], gains["individual"]["right"]["max_deviation"])
-        self.control_left  = CartesianVelocityControlLaw(gains["individual"]["left"]["position"], gains["individual"]["left"]["rotation"], gains["individual"]["left"]["max_deviation"])
-        self.grip_r = None
-        self.grip_l = None
-        self.dt = Parameters.dt
+        self.control_right = CartesianVelocityControlLaw(gains["individual"]["right"]["clik"]["position"], gains["individual"]["right"]["clik"]["rotation"], gains["individual"]["right"]["clik"]["max_deviation"])
+        self.control_left  = CartesianVelocityControlLaw(gains["individual"]["left"]["clik"]["position"], gains["individual"]["left"]["clik"]["rotation"], gains["individual"]["left"]["clik"]["max_deviation"])
         
     @property
     def current_pose(self):
-        """
-        Return current pose as a tuple of (pos_right, rot_1, pos_2, rot_2) where _1
-        is either _right or _absolute and _2 is either _left or _relative 
+        """ Return current pose as tuple (pos_right, rot_right, pos_left, rot_left)
         """
         return self.current_pose_individual
     
@@ -62,24 +57,18 @@ class YumiIndividualCartesianVelocityControlLaw(object):
         vel_l_init = np.copy(self.control_left.target_velocity)
         return vel_r_init, vel_l_init
     
-    
     def clear(self):
         self.control_right.clear()
         self.control_left.clear()
-        self.grip_r = None
-        self.grip_l = None
 
-    def update_current_dt(self, dt: float):
-        self.dt = dt
-
-    def update_current_pose(self, yumi_state: YumiCoordinatedRobotState):
+    def update_current_state(self, yumi_state: YumiCoordinatedRobotState):
         """ 
         Updates individual poses
         """
-        self.control_right.update_current_pose(yumi_state.pose_gripper_r)
-        self.control_left.update_current_pose(yumi_state.pose_gripper_l)
+        self.control_right.update_current_state(yumi_state.pose_gripper_r)
+        self.control_left.update_current_state(yumi_state.pose_gripper_l)
     
-    def update_target_pose(self, target_state: YumiCoordinatedRobotState):
+    def update_desired_state(self, target_state: YumiCoordinatedRobotState):
         """ Updates the desired velocities and target position. 
             ATTENTION: this function uses `pose_gripper_r` and `pose_gripper_l` as
             desired target for both the individual (right and left) and the coordinated 
@@ -89,18 +78,17 @@ class YumiIndividualCartesianVelocityControlLaw(object):
             This means that `target_state` will be used as individual or coordinated 
             based on the current value of `self.mode`.
         """
-        self.control_right.update_desired_pose(target_state.pose_gripper_r)
-        self.control_left.update_desired_pose(target_state.pose_gripper_l)
-        self.grip_r, self.grip_l = target_state.grip_r, target_state.grip_l
+        self.control_right.update_desired_state(target_state.pose_gripper_r)
+        self.control_left.update_desired_state(target_state.pose_gripper_l)
 
     def compute_individual_right_target_velocity(self):
         """ Calculates the target velocities for individual right arm control.
         """
         try:
-            self.control_right.compute_target_velocity()
+            self.control_right.compute_target_state()
         except ControlLawError as ex:
             # turn off deviation error if gripper collision constraint is active for individual mode
-            if not Parameters.feasibility_objectives["gripper_collision"]:
+            if not Parameters.safety_objectives["gripper_collision"]:
                 raise ex
         return self.control_right.target_velocity
 
@@ -108,35 +96,32 @@ class YumiIndividualCartesianVelocityControlLaw(object):
         """ Calculates the target velocities for individual left arm control.
         """
         try:
-            self.control_left.compute_target_velocity()
+            self.control_left.compute_target_state()
         except Exception as ex:
-            if not Parameters.feasibility_objectives["gripper_collision"]:
+            if not Parameters.safety_objectives["gripper_collision"]:
                 raise ex
         return self.control_left.target_velocity
 
-    def compute_target_velocity(self):
+    def compute_target_state(self):
         return self.compute_individual_right_target_velocity(), self.compute_individual_left_target_velocity()
 
 
 # TODO make this a CartesianVelocityControlLaw
-class YumiDualCartesianVelocityControlLaw(object):
-    """
-    Generates velocity commands in cartesian space with the law
-            dx := dx_tgt + k * (x_tgt - x)
-    where
-        x, dx           state and speed of the YuMi (either linear or angular)
-        x_tgt, dx_tgt   target state and speed for the YuMi (either linear or angular)
-    in either individual or coordinated motion.
+class YumiDualCartesianVelocityControlLaw(AbstractControlLaw):
+    """ Generates velocity commands in cartesian space with the law
+                dx := dx_tgt + k * (x_tgt - x)
+        where
+            x, dx           state and speed of the YuMi (either linear or angular)
+            x_tgt, dx_tgt   target state and speed for the YuMi (either linear or angular)
+        in either individual or coordinated motion.
     """
     def __init__(self, gains):
+        super().__init__(initial_timestep=Parameters.dt)
         self.mode = None  # can be either "individual" or "coordinated"
-        self.control_right = CartesianVelocityControlLaw(gains["individual"]["right"]["position"], gains["individual"]["right"]["rotation"], gains["individual"]["right"]["max_deviation"])
-        self.control_left  = CartesianVelocityControlLaw(gains["individual"]["left"]["position"], gains["individual"]["left"]["rotation"], gains["individual"]["left"]["max_deviation"])
-        self.control_abs = CartesianVelocityControlLaw(gains["coordinated"]["absolute"]["position"], gains["coordinated"]["absolute"]["rotation"], gains["coordinated"]["absolute"]["max_deviation"])
-        self.control_rel = CartesianVelocityControlLaw(gains["coordinated"]["relative"]["position"], gains["coordinated"]["relative"]["rotation"], gains["coordinated"]["relative"]["max_deviation"])
-        self.grip_r = None
-        self.grip_l = None
-        self.dt = Parameters.dt
+        self.control_right = CartesianVelocityControlLaw(gains["individual"]["right"]["clik"]["position"], gains["individual"]["right"]["clik"]["rotation"], gains["individual"]["right"]["clik"]["max_deviation"])
+        self.control_left  = CartesianVelocityControlLaw(gains["individual"]["left"]["clik"]["position"], gains["individual"]["left"]["clik"]["rotation"], gains["individual"]["left"]["clik"]["max_deviation"])
+        self.control_abs = CartesianVelocityControlLaw(gains["coordinated"]["absolute"]["clik"]["position"], gains["coordinated"]["absolute"]["clik"]["rotation"], gains["coordinated"]["absolute"]["clik"]["max_deviation"])
+        self.control_rel = CartesianVelocityControlLaw(gains["coordinated"]["relative"]["clik"]["position"], gains["coordinated"]["relative"]["clik"]["rotation"], gains["coordinated"]["relative"]["clik"]["max_deviation"])
         
     @property
     def current_pose(self):
@@ -206,22 +191,17 @@ class YumiDualCartesianVelocityControlLaw(object):
         self.control_left.clear()
         self.control_abs.clear()
         self.control_rel.clear()
-        self.grip_r = None
-        self.grip_l = None
 
-    def update_current_dt(self, dt: float):
-        self.dt = dt
-
-    def update_current_pose(self, yumi_state: YumiCoordinatedRobotState):
+    def update_current_state(self, yumi_state: YumiCoordinatedRobotState):
         """ 
         Updates individual and coordinated poses
         """
-        self.control_right.update_current_pose(yumi_state.pose_gripper_r)
-        self.control_left.update_current_pose(yumi_state.pose_gripper_l)
-        self.control_abs.update_current_pose(yumi_state.pose_abs)
-        self.control_rel.update_current_pose(yumi_state.pose_rel)
+        self.control_right.update_current_state(yumi_state.pose_gripper_r)
+        self.control_left.update_current_state(yumi_state.pose_gripper_l)
+        self.control_abs.update_current_state(yumi_state.pose_abs)
+        self.control_rel.update_current_state(yumi_state.pose_rel)
     
-    def update_target_pose(self, target_state: YumiCoordinatedRobotState):
+    def update_desired_state(self, desired_state: YumiCoordinatedRobotState):
         """ Updates the desired velocities and target position. 
             ATTENTION: this function uses `pose_gripper_r` and `pose_gripper_l` as
             desired target for both the individual (right and left) and the coordinated 
@@ -231,20 +211,19 @@ class YumiDualCartesianVelocityControlLaw(object):
             This means that `target_state` will be used as individual or coordinated 
             based on the current value of `self.mode`.
         """
-        self.control_right.update_desired_pose(target_state.pose_gripper_r)
-        self.control_left.update_desired_pose(target_state.pose_gripper_l)
-        self.control_abs.update_desired_pose(target_state.pose_gripper_r)
-        self.control_rel.update_desired_pose(target_state.pose_gripper_l)
-        self.grip_r, self.grip_l = target_state.grip_r, target_state.grip_l
+        self.control_right.update_desired_state(desired_state.pose_gripper_r)
+        self.control_left.update_desired_state(desired_state.pose_gripper_l)
+        self.control_abs.update_desired_state(desired_state.pose_gripper_r)
+        self.control_rel.update_desired_state(desired_state.pose_gripper_l)
 
     def compute_individual_right_target_velocity(self):
         """ Calculates the target velocities for individual right arm control.
         """
         try:
-            self.control_right.compute_target_velocity()
+            self.control_right.compute_target_state()
         except ControlLawError as ex:
             # turn off deviation error if gripper collision constraint is active for individual mode
-            if not Parameters.feasibility_objectives["gripper_collision"]:
+            if not Parameters.safety_objectives["gripper_collision"]:
                 raise ex
         return self.control_right.target_velocity
 
@@ -252,9 +231,9 @@ class YumiDualCartesianVelocityControlLaw(object):
         """ Calculates the target velocities for individual left arm control.
         """
         try:
-            self.control_left.compute_target_velocity()
+            self.control_left.compute_target_state()
         except Exception as ex:
-            if not Parameters.feasibility_objectives["gripper_collision"]:
+            if not Parameters.safety_objectives["gripper_collision"]:
                 raise ex
         return self.control_left.target_velocity
     
@@ -262,15 +241,15 @@ class YumiDualCartesianVelocityControlLaw(object):
         """ Calculates the target velocities for absolute motion i.e. controlling
             the average of the grippers.
         """
-        return self.control_abs.compute_target_velocity()
+        return self.control_abs.compute_target_state()
 
     def compute_coordinated_relative_target_velocity(self):
         """ Calculates the target velocities for relative motion i.e. controlling
             the grippers relative to each other in absolute frame.
         """
-        return self.control_rel.compute_target_velocity()
+        return self.control_rel.compute_target_state()
 
-    def compute_target_velocity(self):
+    def compute_target_state(self):
         if self.mode == "individual":
             return self.compute_individual_right_target_velocity(), self.compute_individual_left_target_velocity()
         else:
@@ -289,17 +268,17 @@ class YumiDualWrenchFeedbackControlLaw(YumiDualCartesianVelocityControlLaw):
     """
     def __init__(self, gains):
         super().__init__(gains)
-        self._gains_right = np.array([gains["individual"]["right"]["force"]]*3 + [gains["individual"]["right"]["torque"]]*3)
-        self._gains_left = np.array([gains["individual"]["left"]["force"]]*3 + [gains["individual"]["left"]["torque"]]*3)
-        self._gains_abs = np.array([gains["coordinated"]["absolute"]["force"]]*3 + [gains["coordinated"]["absolute"]["torque"]]*3)
-        self._gains_rel = np.array([gains["coordinated"]["relative"]["force"]]*3 + [gains["coordinated"]["relative"]["torque"]]*3)
+        self._gains_right = np.array([gains["individual"]["right"]["direct_force"]["force"]]*3 + [gains["individual"]["right"]["direct_force"]["torque"]]*3)
+        self._gains_left = np.array([gains["individual"]["left"]["direct_force"]["force"]]*3 + [gains["individual"]["left"]["direct_force"]["torque"]]*3)
+        self._gains_abs = np.array([gains["coordinated"]["absolute"]["direct_force"]["force"]]*3 + [gains["coordinated"]["absolute"]["direct_force"]["torque"]]*3)
+        self._gains_rel = np.array([gains["coordinated"]["relative"]["direct_force"]["force"]]*3 + [gains["coordinated"]["relative"]["direct_force"]["torque"]]*3)
         self.wrench_right = np.zeros((6,))
         self.wrench_left = np.zeros((6,))
         self.wrench_abs = np.zeros((6,))
         self.wrench_rel = np.zeros((6,))
     
-    def update_current_pose(self, yumi_state: YumiCoordinatedRobotState):
-        super().update_current_pose(yumi_state)
+    def update_current_state(self, yumi_state: YumiCoordinatedRobotState):
+        super().update_current_state(yumi_state)
         self.wrench_right = yumi_state.pose_wrench_r
         self.wrench_left = yumi_state.pose_wrench_l
         self.wrench_abs = yumi_state.pose_wrench_abs
@@ -336,22 +315,29 @@ class YumiDualAdmittanceControlLaw(YumiDualCartesianVelocityControlLaw):
     """
     def __init__(self, gains, discretization="forward"):
         super().__init__(gains)
-        adm_f_r = gains["individual"]["right"]["admittance"]["force"]
-        adm_t_r = gains["individual"]["right"]["admittance"]["torque"]
-        adm_f_l = gains["individual"]["left"]["admittance"]["force"]
-        adm_t_l = gains["individual"]["left"]["admittance"]["torque"]
-        adm_f_abs = gains["coordinated"]["absolute"]["admittance"]["force"]
-        adm_t_abs = gains["coordinated"]["absolute"]["admittance"]["torque"]
-        adm_f_rel = gains["coordinated"]["relative"]["admittance"]["force"]
-        adm_t_rel = gains["coordinated"]["relative"]["admittance"]["torque"]
-        self.admittance_force_r = AdmittanceForce(adm_f_r["m"], adm_f_r["k"], adm_f_r["d"], Parameters.dt, discretization)
-        self.admittance_torque_r = AdmittanceTorque(adm_t_r["m"], adm_t_r["k"], adm_t_r["d"], Parameters.dt, discretization)
-        self.admittance_force_l = AdmittanceForce(adm_f_l["m"], adm_f_l["k"], adm_f_l["d"], Parameters.dt, discretization)
-        self.admittance_torque_l = AdmittanceTorque(adm_t_l["m"], adm_t_l["k"], adm_t_l["d"], Parameters.dt, discretization)
-        self.admittance_force_abs = AdmittanceForce(adm_f_abs["m"], adm_f_abs["k"], adm_f_abs["d"], Parameters.dt, discretization)
-        self.admittance_torque_abs = AdmittanceTorque(adm_t_abs["m"], adm_t_abs["k"], adm_t_abs["d"], Parameters.dt, discretization)
-        self.admittance_force_rel = AdmittanceForce(adm_f_rel["m"], adm_f_rel["k"], adm_f_rel["d"], Parameters.dt, discretization)
-        self.admittance_torque_rel = AdmittanceTorque(adm_t_rel["m"], adm_t_rel["k"], adm_t_rel["d"], Parameters.dt, discretization)
+        def weights(side: str, what: str):
+            if side == "right":
+                adm_f = gains["individual"]["right"]
+                adm_t = gains["individual"]["right"]
+            elif side == "left":
+                adm_f = gains["individual"]["left"]
+                adm_t = gains["individual"]["left"]
+            elif side == "abs":
+                adm_f = gains["coordinated"]["absolute"]
+                adm_t = gains["coordinated"]["absolute"]
+            else:
+                adm_f = gains["coordinated"]["relative"]
+                adm_t = gains["coordinated"]["relative"]
+            weight_f = adm_f["admittance"]["force"][what]
+            weight_t = adm_t["admittance"]["torque"][what]
+            if weight_f is None or weight_t is None:
+                return None
+            return np.diag(weight_f).tolist() + np.diag(weight_t).tolist()
+        
+        self.admittance_right = AdmittanceWrench(weights("right", "m"), weights("right", "k"), weights("right", "d"), Parameters.dt, discretization)
+        self.admittance_left = AdmittanceWrench(weights("left", "m"), weights("left", "k"), weights("left", "d"), Parameters.dt, discretization)
+        self.admittance_abs = AdmittanceWrench(weights("abs", "m"), weights("abs", "k"), weights("abs", "d"), Parameters.dt, discretization)
+        self.admittance_rel = AdmittanceWrench(weights("rel", "m"), weights("rel", "k"), weights("rel", "d"), Parameters.dt, discretization)
         self.wrench_right = np.zeros((6,))
         self.wrench_left = np.zeros((6,))
         self.wrench_abs = np.zeros((6,))
@@ -359,23 +345,19 @@ class YumiDualAdmittanceControlLaw(YumiDualCartesianVelocityControlLaw):
     
     def clear(self):
         super().clear()
-        self.admittance_force_r.clear()
-        self.admittance_torque_r.clear()
-        self.admittance_force_l.clear()
-        self.admittance_torque_l.clear()
-        self.admittance_force_abs.clear()
-        self.admittance_torque_abs.clear()
-        self.admittance_force_rel.clear()
-        self.admittance_torque_rel.clear()
+        self.admittance_right.clear()
+        self.admittance_left.clear()
+        self.admittance_abs.clear()
+        self.admittance_left.clear()
     
-    def update_current_pose(self, yumi_state: YumiCoordinatedRobotState):
-        super().update_current_pose(yumi_state)
+    def update_current_state(self, yumi_state: YumiCoordinatedRobotState):
+        super().update_current_state(yumi_state)
         self.wrench_right = yumi_state.pose_wrench_r
         self.wrench_left = yumi_state.pose_wrench_l
         self.wrench_abs = yumi_state.pose_wrench_abs
         self.wrench_rel = yumi_state.pose_wrench_rel
     
-    def update_target_pose(self, target_state: YumiCoordinatedRobotState):
+    def update_desired_state(self, target_state: YumiCoordinatedRobotState):
         # here we inject the wrenches into the trajectory
         # "target" is renamed to "desired", so that "target" can now be repurposed 
         # include both the "desired" trajectory and the effect of external forces 
@@ -383,8 +365,6 @@ class YumiDualAdmittanceControlLaw(YumiDualCartesianVelocityControlLaw):
         des_pos = np.concatenate([target_state.pose_gripper_r.pos, target_state.pose_gripper_l.pos])
         des_rot = np.stack([target_state.pose_gripper_r.rot, target_state.pose_gripper_l.rot])
         des_vel = np.concatenate([target_state.pose_gripper_r.vel, target_state.pose_gripper_l.vel])
-        des_grip_r = target_state.grip_r
-        des_grip_l = target_state.grip_l
         # des_pos = [pR, pL] or [pA, pR]
         # des_rot = [oR, oL] or [oA, oR]
         # des_vel = [vR, wR, vL, wL] or [vA, wA, vR, wR]
@@ -394,25 +374,19 @@ class YumiDualAdmittanceControlLaw(YumiDualCartesianVelocityControlLaw):
         target_vel = des_vel.copy()
         
         # compensate for external wrenches
+        (error_pos_r, error_rot_r), (error_vel_r, error_wel_r) = self.admittance_right.compute(self.wrench_right, self.dt)
+        (error_pos_l, error_rot_l), (error_vel_l, error_wel_l) = self.admittance_left.compute(self.wrench_left, self.dt)
+        (error_pos_abs, error_rot_abs), (error_vel_abs, error_wel_abs) = self.admittance_abs.compute(self.wrench_abs, self.dt)
+        (error_pos_rel, error_rot_rel), (error_vel_rel, error_wel_rel) = self.admittance_rel.compute(self.wrench_rel, self.dt)
+        
         if self.mode == "individual":
-            forces_1, forces_2 = self.wrench_right[0:3], self.wrench_left[0:3]
-            torques_1, torques_2 = self.wrench_right[3:6], self.wrench_left[3:6]
-            adm_force_1 = self.admittance_force_r
-            adm_force_2 = self.admittance_force_l
-            adm_torque_1 = self.admittance_torque_r
-            adm_torque_2 = self.admittance_torque_l
+            error_pos_1, error_rot_1, error_vel_1, error_wel_1 = error_pos_r, error_rot_r, error_vel_r, error_wel_r
+            error_pos_2, error_rot_2, error_vel_2, error_wel_2 = error_pos_l, error_rot_l, error_vel_l, error_wel_l
         else:
-            forces_1, forces_2 = self.wrench_abs[0:3], self.wrench_rel[0:3]
-            torques_1, torques_2 = self.wrench_abs[3:6], self.wrench_rel[3:6]
-            adm_force_1 = self.admittance_force_abs
-            adm_force_2 = self.admittance_force_rel
-            adm_torque_1 = self.admittance_torque_abs
-            adm_torque_2 = self.admittance_torque_rel
+            error_pos_1, error_rot_1, error_vel_1, error_wel_1 = error_pos_abs, error_rot_abs, error_vel_abs, error_wel_abs
+            error_pos_2, error_rot_2, error_vel_2, error_wel_2 = error_pos_rel, error_rot_rel, error_vel_rel, error_wel_rel
         
         #### FORCES ####
-        error_pos_1, error_vel_1 = adm_force_1.compute(forces_1, self.dt)
-        error_pos_2, error_vel_2 = adm_force_2.compute(forces_2, self.dt)
-        
         error_pos = np.concatenate([error_pos_1, error_pos_2])
         target_pos = des_pos + error_pos
         
@@ -420,20 +394,14 @@ class YumiDualAdmittanceControlLaw(YumiDualCartesianVelocityControlLaw):
         target_vel[[0,1,2,6,7,8]] = des_vel[[0,1,2,6,7,8]] + error_vel
         
         #### TORQUES ####
-        error_rot_1, error_wel_1 = adm_torque_1.compute(torques_1, self.dt)
-        error_rot_2, error_wel_2 = adm_torque_2.compute(torques_2, self.dt)
-        
-        target_rot_r = quat.from_float_array(error_rot_1) * des_rot[0]
-        target_rot_l = quat.from_float_array(error_rot_2) * des_rot[1]
-        target_rot = np.stack([target_rot_r, target_rot_l])
+        target_rot_1 = error_rot_1 * des_rot[0]
+        target_rot_2 = error_rot_2 * des_rot[1]
+        target_rot = np.stack([target_rot_1, target_rot_2])
         
         error_wel = np.concatenate([error_wel_1, error_wel_2])
         target_vel[[3,4,5,9,10,11]] = des_vel[[3,4,5,9,10,11]] + error_wel
         
-        # recompose target
-        target_state = YumiCoordinatedRobotState(
-            grip_r=des_grip_r,
-            grip_l=des_grip_l)
+        # recompose target (fill old object with new data)
         target_state.pose_gripper_r = Frame(target_pos[0:3], target_rot[0], target_vel[0:6])
         target_state.pose_gripper_l = Frame(target_pos[3:6], target_rot[1], target_vel[6:12])
-        return super().update_target_pose(target_state)
+        return super().update_desired_state(target_state)

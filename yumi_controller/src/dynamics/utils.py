@@ -7,8 +7,7 @@ from .quat_utils import quat_avg
 
 
 class Frame(object):
-    """
-    Reference frame or transformation
+    """ Reference frame or transformation
     """
     def __init__(self, position: np.ndarray = np.zeros(3), quaternion: np.quaternion = quat.one, velocity: np.ndarray = np.zeros(6)):
         """ Initialize a frame with position, rotation, and velocity
@@ -20,9 +19,9 @@ class Frame(object):
         self._vel = velocity
     
     def __add__(self, other: "Frame") -> "Frame":
-        """
-        Component-wise addition of this frame to the other.
-        ATTENTION: order matters (rotations are non-commutative).
+        """ Component-wise addition of this frame to the other.
+        
+            ATTENTION: order matters (rotations are non-commutative).
         """
         return Frame(
             self._pos + other._pos, 
@@ -30,9 +29,9 @@ class Frame(object):
             self._vel + other._vel)
 
     def __sub__(self, other: "Frame") -> "Frame":
-        """
-        Component-wise subtraction from this frame by the other.
-        ATTENTION: order matters (rotations are non-commutative).
+        """ Component-wise subtraction from this frame by the other.
+        
+            ATTENTION: order matters (rotations are non-commutative).
         """
         return Frame(
             self._pos - other._pos, 
@@ -62,7 +61,7 @@ class Frame(object):
             # q := ~q
             quaternion=self.rot.conjugate(),
             # v := -v
-            velocity=-self.vel)  # TODO is this correct?
+            velocity=-self.vel)
 
     def __invert__(self) -> "Frame":
         return self.inv()
@@ -87,7 +86,7 @@ class Frame(object):
         return self._pos
 
     @pos.setter
-    def pos(self, position):
+    def pos(self, position: np.ndarray):
         """ Updates the position
             :param position: np.array([x,y,z]) [m]
         """
@@ -100,7 +99,7 @@ class Frame(object):
         return self._quat
     
     @rot.setter
-    def rot(self, quaternion):
+    def rot(self, quaternion: np.quaternion):
         """ Updates the orientation
             :param quaternion: np.quaternion([w,x,y,z]) orientation [unit quaternion]
         """
@@ -111,27 +110,34 @@ class Frame(object):
         return self._vel
     
     @vel.setter
-    def vel(self, velocity):
+    def vel(self, velocity: np.ndarray):
         self._vel = velocity
     
     @staticmethod
-    def from_matrix(matrix) -> "Frame":
+    def from_matrix(matrix: np.ndarray) -> "Frame":
+        """ Create a Frame object from a homogenerous matrix
+            :param matrix: the homogeneous matrix
+        """
+        assert matrix.shape == (4, 4) and matrix[3,:] == np.array([0, 0, 0, 1]) , "Matrix must be homogeneous"
         return Frame(matrix[:3, 3], quat.from_rotation_matrix(matrix[:3,:3]))
     
     def to_matrix(self):
+        """ Convert this Frame object to a homogeneous matrix representation
+        """
         mat = np.eye(4)
         mat[:3,:3] = quat.as_rotation_matrix(self._quat)
         mat[:3, 3] = self._pos
         return mat
     
     def __repr__(self) -> str:
-        return f"pos: {np.array_str(self.pos, precision=2, suppress_small=True)}  " \
-             + f"rot: {np.array_str(quat.as_float_array(self.rot), precision=2, suppress_small=True)}"
+        return f"pos: {np.array_str(self.pos, precision=2, suppress_small=True)}" \
+             + f"rot: {np.array_str(quat.as_float_array(self.rot), precision=2, suppress_small=True)}" \
+             + f"vel: {np.array_str(self.vel, precision=2, suppress_small=True)}"
 
 
+# TODO is this the wrong place for me?
 class RobotState(object):
-    """
-    Class for storing the joint state
+    """ Class for storing the joint state
     """
     def __init__(
         self, 
@@ -139,52 +145,52 @@ class RobotState(object):
         joint_pos: np.ndarray = None, 
         joint_vel: np.ndarray = None, 
         joint_acc: np.ndarray = None,
-        joint_torque: np.ndarray = None,
-        pose_pos: np.ndarray = np.zeros(3),
-        pose_rot: np.quaternion = quat.one,
-        pose_vel: np.ndarray = np.zeros(6),
-        pose_acc: np.ndarray = np.zeros(6),
-        pose_wrench: np.ndarray = np.zeros(6),
+        joint_tau: np.ndarray = None,
+        effector_pos: np.ndarray = np.zeros(3),
+        effector_rot: np.quaternion = quat.one,
+        effector_vel: np.ndarray = np.zeros(6),
+        effector_acc: np.ndarray = np.zeros(6),
+        effector_wrench: np.ndarray = np.zeros(6),
         jacobian: np.ndarray = None,
-        jacobian_derivative: np.ndarray = None
+        jacobian_dt: np.ndarray = None
     ):
-        """
-        Store state of a robot.
-        All the variables are logically related as:
-            - [p,Q] = K(q)       with K(.) being the direct kinematics function
-            - v = J*dq 
-            - a = dJ*dq + J*ddq
-            - τ = JT*γ           with  JT  being J transposed
-        ATTENTION: when updating variables, beware that related variables are not updated,
-                   so all related variables must be updated manually.
-        :param dofs: degrees of freedom of the robot ( joint space size: n )
-        :param joint_pos: joint positions ( in configuration space: q ∈ R^n )
-        :param joint_vel: joint velocities ( in configuration space: dq ∈ R^n )
-        :param joint_acc: joint accelerations ( in configuration space: ddq ∈ R^n )
-        :param joint_torque: exogenous joint torques ( in configuration space: τ ∈ R^n )
-        :param pose_pos: effector position ( in operational space: p ∈ R^3 )
-        :param pose_rot: effector rotation ( in operational space: Q ∈ H )
-        :param pose_vel: effector velocities ( in operational space: v=[dp, ω] ∈ R^3 x R^3 )
-        :param pose_acc: effector accelerations ( in operational space: a=[ddp, dω] ∈ R^3 x R^3 )
-        :param pose_wrench: exogenous effector force and moment ( in operational space: γ=[f,μ] ∈ R^3 x R^3 )
-        :param jacobian: base to effector Jacobian ( J ∈ R^6xn )
-        :param jacobian_derivative: base to effector Jacobian time-derivative ( dJ ∈ R^6xn )
+        """ Store state of a robot.
+            All the variables are logically related as:
+                - [p,Q] = K(q)       with K(.) being the direct kinematics function
+                - v = J*dq 
+                - a = dJ*dq + J*ddq
+                - τ = JT*γ           with  JT  being J transposed
+            ATTENTION: when reading or updating variables, beware that related 
+                variables are not automatically updated, so all related variables 
+                must be updated manually.
+            :param dofs: degrees of freedom of the robot ( joint space size: n )
+            :param joint_pos: joint positions ( in configuration space: q ∈ R^n )
+            :param joint_vel: joint velocities ( in configuration space: dq ∈ R^n )
+            :param joint_acc: joint accelerations ( in configuration space: ddq ∈ R^n )
+            :param joint_tau: exogenous joint torques ( in configuration space: τ ∈ R^n )
+            :param effector_pos: effector position ( in operational space: p ∈ R^3 )
+            :param effector_rot: effector rotation ( in operational space: Q ∈ H )
+            :param effector_vel: effector velocities ( in operational space: v=[dp, ω] ∈ R^3 x R^3 )
+            :param effector_acc: effector accelerations ( in operational space: a=[ddp, dω] ∈ R^3 x R^3 )
+            :param effector_wrench: exogenous effector wrench ( in operational space: γ=[f,μ] ∈ R^3 x R^3 )
+            :param jacobian: base to effector Jacobian ( J ∈ R^6xn )
+            :param jacobian_dt: base to effector Jacobian time-derivative ( dJ ∈ R^6xn )
         """
         self._dofs = dofs
         # joint space
         self._joint_pos = self._check_shape(joint_pos, (self._dofs,))
         self._joint_vel = self._check_shape(joint_vel, (self._dofs,))
         self._joint_acc = self._check_shape(joint_acc, (self._dofs,))
-        self._joint_torque = self._check_shape(joint_torque, (self._dofs,))
+        self._joint_tau = self._check_shape(joint_tau, (self._dofs,))
         # cartesian space
-        self._pose_pos = self._check_shape(pose_pos, (3,))
-        self._pose_rot = pose_rot
-        self._pose_vel = self._check_shape(pose_vel, (6,))
-        self._pose_acc = self._check_shape(pose_acc, (6,))
-        self._pose_wrench = self._check_shape(pose_wrench, (6,))
+        self._effector_pos = self._check_shape(effector_pos, (3,))
+        self._effector_rot = effector_rot
+        self._effector_vel = self._check_shape(effector_vel, (6,))
+        self._effector_acc = self._check_shape(effector_acc, (6,))
+        self._effector_wrc = self._check_shape(effector_wrench, (6,))
         # jacobians
-        self._jacobian = self._check_shape(jacobian, (6, self._dofs))
-        self._jacobian_derivative = self._check_shape(jacobian_derivative, (6, self._dofs))
+        self._jac = self._check_shape(jacobian, (6, self._dofs))
+        self._jac_dt = self._check_shape(jacobian_dt, (6, self._dofs))
     
     @staticmethod
     def _check_shape(array: np.ndarray, shape: Tuple):
@@ -213,64 +219,68 @@ class RobotState(object):
         return self._joint_acc
     
     @property
-    def joint_torque(self):
-        return self._joint_torque
+    def joint_tau(self):
+        return self._joint_tau
 
     @property
-    def pose_pos(self):
-        return self._pose_pos
+    def effector_pos(self):
+        return self._effector_pos
 
     @property
-    def pose_rot(self):
-        return self._pose_rot
+    def effector_rot(self):
+        return self._effector_rot
     
     @property
-    def pose_vel(self):
-        return self._pose_vel
+    def effector_vel(self):
+        return self._effector_vel
     
     @property
-    def pose_vel_lin(self):
-        """ Returns the pose linear velocity """
-        return self.pose_vel[:3]
+    def effector_vel_lin(self):
+        """ Returns the pose linear velocity 
+        """
+        return self.effector_vel[:3]
 
     @property
-    def pose_vel_ang(self):
-        """ Returns the pose angular velocity """
-        return self.pose_vel[3:]
+    def effector_vel_ang(self):
+        """ Returns the pose angular velocity 
+        """
+        return self.effector_vel[3:]
     
     @property
-    def pose_acc(self):
-        return self._pose_acc
+    def effector_acc(self):
+        return self._effector_acc
     
     @property
-    def pose_acc_lin(self):
-        """ Returns the pose linear acceleration """
-        return self._pose_acc[:3]
+    def effector_acc_lin(self):
+        """ Returns the pose linear acceleration 
+        """
+        return self._effector_acc[:3]
 
     @property
-    def pose_acc_ang(self):
-        """ Returns the pose angular acceleration """
-        return self._pose_acc[3:]
+    def effector_acc_ang(self):
+        """ Returns the pose angular acceleration 
+        """
+        return self._effector_acc[3:]
     
     @property
-    def pose_wrench(self):
-        return self._pose_wrench
+    def effector_wrench(self):
+        return self._effector_wrc
     
     @property
-    def pose_force(self):
-        return self._pose_wrench[:3]
+    def effector_force(self):
+        return self._effector_wrc[:3]
     
     @property
-    def pose_torque(self):
-        return self._pose_wrench[3:]
+    def effector_moment(self):
+        return self._effector_wrc[3:]
     
     @property
     def jacobian(self):
-        return self._jacobian
+        return self._jac
     
     @property
-    def jacobian_derivative(self):
-        return self._jacobian_derivative
+    def jacobian_dt(self):
+        return self._jac_dt
 
 
 def jacobian_change_end_frame(dist_vec: np.ndarray, jacobian: np.ndarray = None) -> np.ndarray:

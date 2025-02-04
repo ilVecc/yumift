@@ -49,7 +49,7 @@ sudo apt-get install libeigen3-dev libcppunit-dev
 * Python3 packages, can be installed with
 ``` 
 sudo apt install python3-pip
-python3 -m pip install numpy numpy-quaterion scipy quadprog
+python3 -m pip install numpy numpy-quaternion scipy quadprog
 python3 -m pip uninstall em
 python3 -m pip install empy==3.3.4
 ```
@@ -188,20 +188,20 @@ rosrun yumi_controller trajectory_controllers.py wrenched
 rosrun yumi_controller trajectory_controllers.py compliant
 ```
 
+### Running the `dummy_controller.py`:
+Only run this file in simulation as it only serves as a tutorial on how to build controllers.
+``` 
+roslaunch yumi_controller use_sim_individual.launch 
+``` 
+then start the controller
+``` 
+rosrun yumi_controller dummy_controller.py
+```
 
-<!-- ### Running the customControllerTutorial.py:
-Only run this file in simulation as it only serves as a demonstration purposes i.e. build your own custom controller for your use case. Start by launching the simulation as above. The launch the base.launch, this launches the visualization and some background nodes. 
-``` 
-roslaunch controller base.launch 
-``` 
-then to start the controller run
-``` 
-rosrun controller customControllerTutorial.py
-```  -->
+It will simply reach a pre-defined pose, but its scope is to be a simple example of how to write your own controller
 
 
 ## Notes
-
 This package comes as is. Use it at your own risk.
 
 **Maintainer**: Sebastiano Fregnan

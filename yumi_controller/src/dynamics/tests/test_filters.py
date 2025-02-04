@@ -119,11 +119,10 @@ def test_admittance_torque():
     
     # plot the result
     fig, ax = plt.subplots(2, 1)
-    ax[0].plot(t, torque, label=r"$u$")
-    ax[0].legend()
-    ax[1].plot(t, Q, linestyle="-", label=r"$y$")
-    #ax[1].plot(t, W, linestyle="--", label=r"$\dot{y}$")
-    ax[1].legend()
+    ax[0].plot(t, torque)
+    ax[0].legend(["$\\tau_x$", "$\\tau_y$", "$\\tau_z$"])
+    ax[1].plot(t, quat.as_float_array(Q), linestyle="-")
+    ax[1].legend(["$q_s$", "$q_x$", "$q_y$", "$q_z$"])
     plt.show()
 
 def test_admittance_torque_anim():

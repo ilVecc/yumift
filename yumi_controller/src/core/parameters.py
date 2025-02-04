@@ -29,7 +29,7 @@ class Parameters():
 
     ######################     HQP INVERSE KINEMATICS     #####################
     # extra objectives that should be included in HQP, if not already required
-    feasibility_objectives = {
+    safety_objectives = {
         "joint_position_bound": True,  # UNSAFE if False
         "joint_velocity_bound": True,  # UNSAFE/CLIPPING if False
         "elbow_collision": True,       # UNSAFE if False

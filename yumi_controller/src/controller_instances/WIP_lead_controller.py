@@ -17,7 +17,7 @@ class YumiLeadController(YumiDualController):
     """
     def __init__(self):
         super().__init__()
-        self.yumi_state.alpha = 0.5
+        self.current_state.alpha = 0.5
         self.debug = True
         
         # define control law
@@ -40,14 +40,14 @@ class YumiLeadController(YumiDualController):
         
         # update timing information
         now = rospy.Time.now()
-        dt = (now - self.yumi_state.timestamp).to_sec()
+        dt = (now - self.current_state.timestamp).to_sec()
         self.control_law.update_current_dt(dt)
         
         # update pose and wrench for the control law class
-        self.control_law.update_current_pose(self.yumi_state)
+        self.control_law.update_current_state(self.current_state)
         
         # calculate new target velocities and positions for this time step
-        self.control_law.update_target_pose(self.yumi_state)
+        self.control_law.update_desired_state(self.current_state)
         
         # CALCULATE VELOCITIES
         action = dict()
@@ -56,7 +56,7 @@ class YumiLeadController(YumiDualController):
             # get space based on control mode ...
             action["control_space"] = self.control_law.mode
             action["timestep"] = dt
-            vel_1, vel_2 = self.control_law.compute_target_velocity()
+            vel_1, vel_2 = self.control_law.compute_target_state()
             # ... but use the effective mode to set the velocities
             if self.effective_mode == "individual":
                 action["right_velocity"], action["left_velocity"] = vel_1, vel_2

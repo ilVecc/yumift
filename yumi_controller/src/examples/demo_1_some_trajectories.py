@@ -7,6 +7,9 @@ import tf.transformations as trans
 from yumi_controller.msg import YumiPosture, YumiTrajectory
 
 
+def eul_to_quat(ai, aj, ak, axes):
+    return np.roll(trans.quaternion_from_euler(np.radians(ai), np.radians(aj), np.radians(ak), axes), 1)
+
 def main():
     # starting ROS node and subscribers
     rospy.init_node("trajectory_test", anonymous=True)
@@ -86,7 +89,7 @@ def main():
     ]
 
     pub.publish(msg)
-    print("sent msg 2, coordinated ")
+    print("sent msg 2, coordinated")
     rospy.sleep(25)
 
     # --------------------------------------------
@@ -98,83 +101,91 @@ def main():
         YumiPosture(
             positionAbsolute = [0.4, 0.0, 0.2],
             positionRelative = [0, 0.25, 0],
-            orientationAbsolute = np.roll(trans.quaternion_from_euler(0, 0, np.radians(210), "rzyx"), 1),
+            orientationAbsolute = eul_to_quat(0, 0, 210, "rzyx"),
             orientationRelative = [1, 0, 0, 0],
             pointTime = 8.0),
         YumiPosture(
             positionAbsolute = [0.4, 0.0, 0.2],
             positionRelative = [0, 0.25, 0],
-            orientationAbsolute = np.roll(trans.quaternion_from_euler(0, 0, np.radians(150), "rzyx"), 1),
+            orientationAbsolute = eul_to_quat(0, 0, 150, "rzyx"),
             orientationRelative = [1, 0, 0, 0],
             pointTime = 8.0),
         YumiPosture(
             positionAbsolute = [0.4, 0.0, 0.2],
             positionRelative = [0, 0.25, 0],
-            orientationAbsolute = np.roll(trans.quaternion_from_euler(0, 0, np.radians(180), "rzyx"), 1),
+            orientationAbsolute = eul_to_quat(0, 0, 180, "rzyx"),
             orientationRelative = [1, 0, 0, 0],
             pointTime = 8.0),
         YumiPosture(
             positionAbsolute = [0.4, 0.0, 0.2],
             positionRelative = [0, 0.25, 0],
-            orientationAbsolute = np.roll(trans.quaternion_from_euler(np.radians(40), 0, np.radians(180), "rzyx"), 1),
+            orientationAbsolute = eul_to_quat(40, 0, 180, "rzyx"),
             orientationRelative = [1, 0, 0, 0],
             pointTime = 8.0),
         YumiPosture(
             positionAbsolute = [0.4, 0.0, 0.2],
             positionRelative = [0, 0.25, 0],
-            orientationAbsolute = np.roll(trans.quaternion_from_euler(np.radians(-40), 0, np.radians(180), "rzyx"), 1),
+            orientationAbsolute = eul_to_quat(-40, 0, 180, "rzyx"),
             orientationRelative = [1, 0, 0, 0],
             pointTime = 8.0),
         YumiPosture(
             positionAbsolute = [0.4, 0.0, 0.2],
             positionRelative = [0, 0.25, 0],
-            orientationAbsolute = np.roll(trans.quaternion_from_euler(0, 0, np.radians(180), "rzyx"), 1),
+            orientationAbsolute = eul_to_quat(0, 0, 180, "rzyx"),
             orientationRelative = [1, 0, 0, 0],
             pointTime = 8.0),
         YumiPosture(
             positionAbsolute = [0.4, 0.0, 0.2],
             positionRelative = [0, 0.25, 0],
-            orientationAbsolute = np.roll(trans.quaternion_from_euler(0, np.radians(40), np.radians(180), "rzyx"), 1),
+            orientationAbsolute = eul_to_quat(0, 40, 180, "rzyx"),
             orientationRelative = [1, 0, 0, 0],
             pointTime = 8.0),
         YumiPosture(
             positionAbsolute = [0.4, 0.0, 0.2],
             positionRelative = [0, 0.25, 0],
-            orientationAbsolute = np.roll(trans.quaternion_from_euler(0, np.radians(-40), np.radians(180), "rzyx"), 1),
+            orientationAbsolute = eul_to_quat(0, -40, 180, "rzyx"),
             orientationRelative = [1, 0, 0, 0],
             pointTime = 16.0),
         YumiPosture(
             positionAbsolute = [0.4, 0.0, 0.2],
             positionRelative = [0, 0.25, 0],
-            orientationAbsolute = np.roll(trans.quaternion_from_euler(0, 0, np.radians(180), "rzyx"), 1),
+            orientationAbsolute = eul_to_quat(0, 0, 180, "rzyx"),
             orientationRelative = [1, 0, 0, 0],
             pointTime = 8.0),
         YumiPosture(
             positionAbsolute = [0.4, 0.0, 0.2],
             positionRelative = [0, 0.25, 0],
-            orientationAbsolute = np.roll(trans.quaternion_from_euler(0, 0, np.radians(180), "rzyx"), 1),
-            orientationRelative = np.roll(trans.quaternion_from_euler(0, 0, np.radians(60), "rzyx"), 1),
+            orientationAbsolute = eul_to_quat(0, 0, 180, "rzyx"),
+            orientationRelative = eul_to_quat(0, 0, 60, "rzyx"),
             pointTime = 8.0),
         YumiPosture(
             positionAbsolute = [0.4, 0.0, 0.2],
             positionRelative = [0, 0.25, 0],
-            orientationAbsolute = np.roll(trans.quaternion_from_euler(0, 0, np.radians(180), "rzyx"), 1),
+            orientationAbsolute = eul_to_quat(0, 0, 180, "rzyx"),
             orientationRelative = [1, 0, 0, 0],
-            pointTime = 8.0)
+            gripperRight = 20,
+            gripperLeft  = 20,
+            pointTime = 8.0),
+        YumiPosture(
+            positionAbsolute = [0.4, 0.0, 0.2],
+            positionRelative = [0, 0.25, 0],
+            orientationAbsolute = eul_to_quat(0, 0, 180, "rzyx"),
+            orientationRelative = [1, 0, 0, 0],
+            pointTime = 1.0)
     ]
 
     pub.publish(msg)
-    print("sent msg 3, coordinated ")
+    print("sent msg 3, coordinated")
     rospy.sleep(96)
     
     # --------------------------------------------
 
     msg = YumiTrajectory()
     msg.header.stamp = rospy.Time.now()
-    msg.mode = "routine_reset_pose"
+    msg.mode = "routine_ready_pose"
     
     pub.publish(msg)
-    print("resetPose")
+    print("sent \"ready_pose\" routine")
 
 
 if __name__ == "__main__":

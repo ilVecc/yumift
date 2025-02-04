@@ -1,7 +1,7 @@
 import numpy as np
 
-from .hqp import Task
-from dynamics import utils
+from dynamics.utils import Frame, normalize
+from dynamics.hqp import Task
 
 
 #
@@ -208,7 +208,7 @@ class ElbowProximity(TimestepTask):
         self.constr_type = Task.ConstraintType.UPPER
         self.min_dist = min_dist
 
-    def compute(self, jacobian_elbows: np.ndarray, pose_elbow_r: utils.Frame, pose_elbow_l: utils.Frame, timestep: float = None):
+    def compute(self, jacobian_elbows: np.ndarray, pose_elbow_r: Frame, pose_elbow_l: Frame, timestep: float = None):
         """ Sets up the constraint for elbow proximity
             :param jacobian_elbows: combined jacobian of the grippers
             :param pose_elbow_r: pose of the right elbow
@@ -223,7 +223,7 @@ class ElbowProximity(TimestepTask):
 
         pos_r_y = pose_elbow_r.pos[1]  # select y-axis
         pos_l_y = pose_elbow_l.pos[1]
-        diff_dir, diff_norm = utils.normalize(pos_r_y - pos_l_y, return_norm=True)
+        diff_dir, diff_norm = normalize(pos_r_y - pos_l_y, return_norm=True)
 
         jacobian_proximity = -self.timestep * 10 * diff_dir * link_mat @ jacobian
         
@@ -241,7 +241,7 @@ class EndEffectorProximity(TimestepTask):
         self.constr_type = Task.ConstraintType.UPPER
         self.min_dist = min_dist
 
-    def compute(self, jacobian_grippers: np.ndarray, pose_gripper_r: utils.Frame, pose_gripper_l: utils.Frame, timestep: float = None):
+    def compute(self, jacobian_grippers: np.ndarray, pose_gripper_r: Frame, pose_gripper_l: Frame, timestep: float = None):
         """ Sets up the constraints collision avoidance, i.e. the grippers will deviate 
             from control command in order to not collide.
             :param jacobian_grippers: shape(12,14) combined jacobian of the grippers
@@ -257,7 +257,7 @@ class EndEffectorProximity(TimestepTask):
 
         pos_r_xy = pose_gripper_r.pos[0:2]  # select xy-plane
         pos_l_xy = pose_gripper_l.pos[0:2]
-        diff_dir, diff_norm = utils.normalize(pos_r_xy - pos_l_xy, return_norm=True)
+        diff_dir, diff_norm = normalize(pos_r_xy - pos_l_xy, return_norm=True)
 
         jacobian_proximity = -self.timestep * 10 * diff_dir @ link_mat @ jacobian
         

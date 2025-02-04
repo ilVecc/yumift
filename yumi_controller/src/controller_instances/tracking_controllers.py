@@ -25,24 +25,32 @@ class YumiIndividualTrackingController(YumiDualController):
         `YumiIndividualCartesianVelocityControlLaw` control law.
     """
     def __init__(self):
-        super().__init__(iksolver=self.IKSolver.PINV, symmetry=0.)
+        super().__init__(iksolver="pinv")
         
         # define control law
         self.control_law = YumiIndividualCartesianVelocityControlLaw(GAINS)
         
         # prepare trajectory buffer
         self.desired_posture = YumiParam()
-        self.reset()  # init desired posture (set current position)
         
     def reset(self):
-        """ Initialize the controller setting the current posture as desired posture. 
+        """ Reinitialize the controller setting the current posture as desired posture. 
+            This happens after EGM (re)connects
         """
         self.control_law.mode = "individual"
         self.effective_mode = self.control_law.mode
-        self.desired_posture = YumiParam(
-            self.yumi_state.pose_gripper_r.pos, self.yumi_state.pose_gripper_r.rot, np.zeros(6), 0, 
-            self.yumi_state.pose_gripper_l.pos, self.yumi_state.pose_gripper_l.rot, np.zeros(6), 0)
-        print("Controller reset (previous posture has been discarded)")
+        # read current state of Yumi
+        while True:
+            self.fetch_device_status()
+            if self.is_device_ready():
+                self.desired_posture = YumiParam(
+                    self.yumi_state.pose_gripper_r.pos, self.yumi_state.pose_gripper_r.rot, np.zeros(6), 0, 
+                    self.yumi_state.pose_gripper_l.pos, self.yumi_state.pose_gripper_l.rot, np.zeros(6), 0)
+                print("Controller reset (previous posture has been discarded)")
+                break
+            else:
+                print("Controller cannot be reset (Yumi is not ready, retrying in 5 seconds)")
+                rospy.sleep(5)
     
     @staticmethod
     def _sanitize_pos(pos: Tuple[float]):
@@ -59,24 +67,16 @@ class YumiIndividualTrackingController(YumiDualController):
     def policy(self):
         """ Calculate target velocity for the current time step.
         """
-        # update timing information
-        now = rospy.Time.now()
-        dt = (now - self.current_timestamp).to_sec()
-        self.control_law.update_current_dt(dt)
+        # update the current and desired robot state in the control law class, 
+        # then compute the required command
+        dt = (rospy.Time.now() - self.yumi_time).to_sec()
+        yumi_desired_state = msg_utils.YumiParam_to_YumiCoordinatedRobotState(self.desired_posture)
+        vel_r, vel_l = self.control_law.update_and_compute(self.yumi_state, yumi_desired_state, dt)
         
-        # update the robot state in the control law class
-        self.control_law.update_current_pose(self.yumi_state)
-        
-        # calculate new target velocities and positions for this time step
-        yumi_target_state = msg_utils.YumiParam_to_YumiCoordinatedRobotState(self.desired_posture)
-        
-        self.control_law.update_target_pose(yumi_target_state)
-        
-        # CALCULATE VELOCITIES
+        # calculate new target velocities for this time step
         action = dict()
-        # set velocities
         action["control_space"] = self.control_law.mode
-        action["right_velocity"], action["left_velocity"] = self.control_law.compute_target_velocity()
+        action["right_velocity"], action["left_velocity"] = vel_r, vel_l
                 
         return action
 
@@ -138,12 +138,12 @@ def main():
         raise AttributeError(f"no such option '{parser.type}'")
     
     def shutdown_callback():
-        yumi_controller.pause()
         print("Controller shutting down")
+        yumi_controller.stop()
     
     rospy.on_shutdown(shutdown_callback)
     
-    
+    yumi_controller.ready()
     yumi_controller.start()  # locking
 
 

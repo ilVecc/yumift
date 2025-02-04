@@ -46,10 +46,10 @@ def main():
 
     msg = YumiTrajectory()
     msg.header.stamp = rospy.Time.now()
-    msg.mode = "routine_reset_pose"
+    msg.mode = "routine_ready_pose"
 
     pub.publish(msg)
-    print("Sent reset_pose command")
+    print("Sent ready_pose routine")
 
 
 if __name__ == "__main__":

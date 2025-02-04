@@ -29,7 +29,6 @@ ARM_LEFT     = 0b10000000
 ARMS         = ARM_RIGHT | ARM_LEFT
 EVERYTHING   = INDIVIDUAL | COORDINATED | ELBOWS | ARMS
 
-# TODO add flags to update only certain fields based on need
 class YumiStateUpdater(object):
 
     def __init__(
@@ -57,7 +56,6 @@ class YumiStateUpdater(object):
         rospy.Subscriber(ftsensor_right_topic, WrenchStamped, self._callback_ext_force, callback_args="right", queue_size=1, tcp_nodelay=False)
         rospy.Subscriber(ftsensor_left_topic, WrenchStamped, self._callback_ext_force, callback_args="left", queue_size=1, tcp_nodelay=False)
         
-        # TODO need a mutex here for data access?
         rospy.Subscriber(jacobians_topic, YumiKinematics, self._callback_yumi, queue_size=1, tcp_nodelay=False)
         rospy.wait_for_message(jacobians_topic, YumiKinematics)
         
@@ -110,8 +108,8 @@ class YumiStateUpdater(object):
         state.pose_elbow_l.vel =  pose_elbow_vel[6:]
          
         # force
-        state.pose_wrench = self._wrenches
-        state.joint_torque = state.jacobian_grippers.T @ state.pose_wrench
+        state.effector_wrench = self._wrenches
+        state.joint_tau = state.jacobian_grippers.T @ state.effector_wrench
     
     def _update_coordinated(self):
         state = self.yumi_state
@@ -165,7 +163,7 @@ class YumiStateUpdater(object):
         
         # update wrenches
         # (using the kineto-statics duality, i.e. pose_wrench = link_mat.T @ wrench_coordinated )
-        wrench_coordinated = np.linalg.inv(link_mat.T) @ state.pose_wrench
+        wrench_coordinated = np.linalg.inv(link_mat.T) @ state.effector_wrench
         state.pose_wrench_abs = wrench_coordinated[:6]
         state.pose_wrench_rel = wrench_coordinated[6:]
 

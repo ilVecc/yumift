@@ -284,10 +284,9 @@ class RobotState(object):
 
 
 def jacobian_change_end_frame(dist_vec: np.ndarray, jacobian: np.ndarray = None) -> np.ndarray:
-    """
-    Extends the Jacobian with a new frame (changes end-effector)
-    :param jacobian: the initial jacobian matrix
-    :param dist_vec: relative vector from initial frame to desired frame wrt initial frame
+    """ Extends the Jacobian with a new frame (changes end-effector)
+        :param dist_vec: relative vector from initial frame to desired frame wrt initial frame
+        :param jacobian: the initial jacobian matrix
     """
     #
     # J_BD = [[ I  -S(d_B_ED) ]  * J_BE
@@ -295,13 +294,12 @@ def jacobian_change_end_frame(dist_vec: np.ndarray, jacobian: np.ndarray = None)
     # where
     #   J_BE    jacobian from  base B frame     to  effector E frame  expressed in  base B frame
     #   J_BD    jacobian from  base B frame     to  desired D frame   expressed in  base B frame
-    #   d_B_DE  vector   from  effector E frame to  desired D frame   expressed in  base B frame
+    #   d_B_ED  vector   from  effector E frame to  desired D frame   expressed in  base B frame
     #   S(.)    cross-product matrix
     #
     
-    i3, z3, skew = np.eye(3), np.zeros((3,3)), skew_matrix(dist_vec)
-    link_mat = np.block([[ i3, -skew ], 
-                         [ z3,    i3 ]])
+    link_mat = np.eye(6)
+    link_mat[0:3,3:6] = -skew_matrix(dist_vec)
     
     if jacobian is not None:
         return link_mat @ jacobian
@@ -309,10 +307,9 @@ def jacobian_change_end_frame(dist_vec: np.ndarray, jacobian: np.ndarray = None)
         return link_mat
 
 def jacobian_change_base_frame(rot_quat: np.quaternion, jacobian: np.ndarray = None) -> np.ndarray:
-    """
-    Expresses the Jacobian from a new frame (changes base)
-    :param jacobian: the initial jacobian matrix
-    :param rot_quat: rotation quaternion from initial frame to desired frame wrt initial frame
+    """ Expresses the Jacobian from a new frame (changes base)
+        :param rot_quat: rotation quaternion from desired frame to initial frame
+        :param jacobian: the initial jacobian matrix
     """
     #
     # J_FE = [[ R_FB     0 ]  * J_BE
@@ -320,12 +317,13 @@ def jacobian_change_base_frame(rot_quat: np.quaternion, jacobian: np.ndarray = N
     # where
     #   J_BE    jacobian from  base B frame     to  effector E frame  expressed in  base B frame
     #   J_FE    jacobian from  generic F frame  to  effector E frame  expressed in  generic F frame  
-    #   R_FB    rotation from  Base frame       to  generic F frame   expressed in  base B frame
+    #   R_FB    rotation from  generic F frame  to  Base frame
     #
     
-    z3, rot = np.zeros((3,3)), quat.as_rotation_matrix(rot_quat)
-    link_mat = np.block([[ rot,  z3 ], 
-                         [  z3, rot ]])
+    rot = quat.as_rotation_matrix(rot_quat)
+    link_mat = np.zeros((6,6))
+    link_mat[0:3,0:3] = rot
+    link_mat[3:6,3:6] = rot
     
     if jacobian is not None:
         return link_mat @ jacobian
@@ -333,11 +331,10 @@ def jacobian_change_base_frame(rot_quat: np.quaternion, jacobian: np.ndarray = N
         return link_mat
 
 def jacobian_change_frames(ee_dist_vec: np.ndarray, base_rot_quat: np.quaternion, jacobian: np.ndarray = None) -> np.ndarray:
-    """
-    Change simultaneously effector frame and base frame.
-    :param ee_dist_vec: relative vector from initial effector frame to desired effector frame wrt initial effector frame
-    :param base_rot_quat: rotation quaternion from initial base frame to desired base frame wrt initial base frame
-    :param jacobian: the initial jacobian matrix
+    """ Change simultaneously effector frame and base frame.
+        :param ee_dist_vec: relative vector from initial effector frame to desired effector frame wrt initial base frame
+        :param base_rot_quat: rotation quaternion from desired base frame to initial base frame
+        :param jacobian: the initial jacobian matrix
     """
     link_mat = jacobian_change_base_frame(base_rot_quat) @ jacobian_change_end_frame(ee_dist_vec)
     if jacobian is not None:
@@ -346,9 +343,27 @@ def jacobian_change_frames(ee_dist_vec: np.ndarray, base_rot_quat: np.quaternion
         return link_mat
 
 def jacobian_combine(*jacobians: np.ndarray) -> np.ndarray:
+    """ Combine jacobians in a block-diagonal matrix.
     """
-    Combine jacobians in a block-diagonal matrix.
-    """
+    # optimize for the 2-jacobians case
+    if len(jacobians) == 2:
+        r1, c1 = jacobians[0].shape[0], jacobians[0].shape[1]
+        r2, c2 = jacobians[1].shape[0], jacobians[1].shape[1]
+        jac = np.zeros((r1 + r2, c1 + c2))
+        jac[0:r1, 0:c1] = jacobians[0]
+        jac[r1:r1+r2, c1:c1+c2] = jacobians[1]
+        return jac
+    # optimize for the 3-jacobians case
+    if len(jacobians) == 3:
+        r1, c1 = jacobians[0].shape[0], jacobians[0].shape[1]
+        r2, c2 = jacobians[1].shape[0], jacobians[1].shape[1]
+        r3, c3 = jacobians[2].shape[0], jacobians[2].shape[1]
+        jac = np.zeros((r1 + r2 + r3, c1 + c2 + c3))
+        jac[0:r1, 0:c1] = jacobians[0]
+        jac[r1:r1+r2, c1:c1+c2] = jacobians[1]
+        jac[r1+r2:r1+r2+r3, c1+c2:c1+c2+c3] = jacobians[2]
+        return jac
+    # deal with the general n-jacobians case
     shapes = [(0, 0)] + [jac.shape for jac in jacobians]
     blocks = np.cumsum(shapes, axis=0)
     out = np.zeros(shape=blocks[-1,:])

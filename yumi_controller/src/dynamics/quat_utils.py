@@ -13,11 +13,11 @@ import quaternion as quat
 
 def to_axis_angle(Q):
     Q = unit(Q)
-    th = 2*np.arccos(Q[0])
-    if th == 0:
+    if abs(Q[0]) == 1:
         return 0., np.array([0., 0., 0.])
-    r = Q[1:] / np.sin(th/2)
-    return th, r
+    a = np.arctan2(np.linalg.norm(Q[1:]), Q[0])
+    r = Q[1:] / np.sin(a)
+    return 2*a, r
 
 def to_rotation_vector(Q):
     a, k = to_axis_angle(Q)
@@ -35,7 +35,7 @@ def from_rotation_vector(v):
 
 def unit(Q):
     return Q / (np.linalg.norm(Q) or 1)
-    
+
 def conj(Q):
     return np.concatenate([[Q[0]], -Q[1:]])
 
@@ -81,10 +81,12 @@ def jac_Q(Q):
     """
     th, r = to_axis_angle(Q)
     if th == 0:
-        return np.hstack([np.zeros((3,1)), np.eye(3)])
+        return np.eye(3,4,1)  # [0 I3]
     a = th / 2
-    ca, sa = np.cos(a), np.sin(a)
-    JQ = 2 * np.hstack([ (a/sa*ca - 1)/sa * r[:, np.newaxis], a/sa * np.eye(3) ])
+    JQ = np.eye(3,4,1)
+    JQ[:,0] = (a/np.tan(a) - 1) * r
+    JQ[:,1:] *= a
+    JQ *= 2 / np.sin(a)
     return JQ
 
 def jac_q(q):
@@ -98,12 +100,12 @@ def jac_q(q):
     assert len(q) == 3 or q[0] == 0, "Can accept only 3-array or vector quaternion"
     a = np.linalg.norm(q)
     if a == 0:
-        return np.vstack([np.zeros((1,3)), 
-                          np.eye(3)       ])
-    ca, sa = np.cos(a), np.sin(a)
+        return np.eye(4,3,-1)  # [0'; I3]
     r = q[-3:, np.newaxis] / a
-    Jq = 0.5 * np.vstack([-sa * r.T,
-                          sa/a * np.eye(3) + (ca - sa/a) * (r*r.T)])
+    Jq = np.eye(4,3,-1)
+    Jq[0,:] = -a*r.T
+    Jq[1:,:] += (a/np.tan(a) - 1) * r*r.T
+    Jq *= 0.5 * np.sin(a)/a
     return Jq
 
 

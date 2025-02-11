@@ -11,7 +11,7 @@ import quaternion as quat
 
 from yumi_controller.msg import YumiPosture as YumiPostureMsg
 
-from core.controller_base import YumiDualController
+from core.controller_base import YumiDualController, YumiDevice, YumiDeviceState
 from core.control_laws import YumiIndividualCartesianVelocityControlLaw
 from core.trajectory import YumiParam
 import core.msg_utils as msg_utils
@@ -25,7 +25,7 @@ class YumiIndividualTrackingController(YumiDualController):
         `YumiIndividualCartesianVelocityControlLaw` control law.
     """
     def __init__(self):
-        super().__init__(iksolver="pinv")
+        super().__init__(robot_handle=YumiDevice(), iksolver="pinv")
         
         # define control law
         self.control_law = YumiIndividualCartesianVelocityControlLaw(GAINS)
@@ -41,8 +41,8 @@ class YumiIndividualTrackingController(YumiDualController):
         self.effective_mode = self.control_law.mode
         # read current state of Yumi
         while True:
-            self.fetch_device_status()
-            if self.is_device_ready():
+            self._device_read()
+            if self._device_is_ready():
                 self.desired_posture = YumiParam(
                     self.yumi_state.pose_gripper_r.pos, self.yumi_state.pose_gripper_r.rot, np.zeros(6), 0, 
                     self.yumi_state.pose_gripper_l.pos, self.yumi_state.pose_gripper_l.rot, np.zeros(6), 0)
@@ -64,7 +64,7 @@ class YumiIndividualTrackingController(YumiDualController):
     def _sanitize_vel(vel: Tuple[float]):
         return np.asarray(vel) if vel else np.array([0,0,0,0,0,0])
     
-    def policy(self):
+    def policy(self, state: YumiDeviceState):
         """ Calculate target velocity for the current time step.
         """
         # update the current and desired robot state in the control law class, 

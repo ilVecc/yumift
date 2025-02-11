@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Any, Tuple
 from abc import ABCMeta, abstractmethod
 
 import rospy
@@ -15,45 +15,34 @@ from .robot_state import YumiCoordinatedRobotState
 from .parameters import Parameters
 from .msg_utils import RobotStateMsg_to_YumiCoordinatedRobotState
 
-from dynamics.controllers import AbstractController
-
+from dynamics.controllers import AbstractController, AbstractDevice, AbstractDeviceState
 
 
 from .ik_solver import IKSolver
 from .ik_algorithms import HQPIKAlgorithm, PINVIKAlgorithm
 
-# TODO why dual?
-class YumiDualController(AbstractController, metaclass=ABCMeta):
-    """ Class for controlling YuMi, inherit this class and create your own 
-        `.policy()` and `.clear()` functions. The `.policy()` function outputs 
-        an action `dict`, which is then passed to the `._set_action()` function.
-        This abstract class reads YuMi state from `/yumi/robot_state_coordinated`
-        and sends velocity commands to `/yumi/egm/joint_group_velocity_controller/command`
-        and gripper commands via service `/yumi/rws/sm_addin/set_sg_command`.
-    """
-    
-    def __init__(self, iksolver: str = "pinv"):
+
+# TODO maybe make YumiCoordinatedRobotState an AbstractDeviceState instead of this
+class YumiDeviceState(YumiCoordinatedRobotState, AbstractDeviceState):
+    def __init__(self) -> None:
         super().__init__()
-        
-        # TODO extract me from here
-        # setup the IK solvers
-        self._iksolver = IKSolver()
-        self._iksolver.register(PINVIKAlgorithm())
-        self._iksolver.register(HQPIKAlgorithm())
-        # select the IK solver
-        self._iksolver.switch(iksolver)
-        
-        # command publishers
-        self._pub_yumi = YumiVelocityCommand()
-        self._pub_grip = YumiGrippersCommand()
-        
+
+class YumiDevice(AbstractDevice[YumiDeviceState]):
+    
+    def __init__(self):
+        super().__init__()
         # yumi state subscriber
-        self._cache_yumi_state: YumiCoordinatedRobotState
-        self._cache_yumi_time: rospy.Time
+        self._cache_state: YumiDeviceState
+        self._device_ready = False
+        self._device_ready_changed = False
         rospy.Subscriber("/yumi/robot_state_coordinated", RobotStateMsg, self._callback_yumi_state, queue_size=1, tcp_nodelay=False)
         # ensure to start the controller with a real robot state 
         # (no wait means default state (all zeros), very bad)
         rospy.wait_for_message("/yumi/robot_state_coordinated", RobotStateMsg)
+        
+        # command publishers
+        self._pub_yumi = YumiVelocityCommand()
+        self._pub_grip = YumiGrippersCommand()
         
         # EGM error handler and status updater (updates `self._device_ready`)
         self._start_rapid = rospy.ServiceProxy("/yumi/rws/start_rapid", TriggerWithResultCodeSrv)
@@ -65,16 +54,65 @@ class YumiDualController(AbstractController, metaclass=ABCMeta):
         self._cache_rws_auto_mode = data.auto_mode
 
     def _callback_yumi_state(self, data: RobotStateMsg):
-        self._cache_yumi_state = RobotStateMsg_to_YumiCoordinatedRobotState(data)
-        self._cache_yumi_time = rospy.Time.now()
+        self._cache_state = RobotStateMsg_to_YumiCoordinatedRobotState(data)
+        self._cache_state.time = rospy.Time.now()
     
+    def did_ready_change(self):
+        return self._device_ready_changed
+    
+    def is_ready(self) -> bool:
+        return self._device_ready
+    
+    def read(self) -> YumiDeviceState:
+        """ Stores the constantly updating state of Yumi inside the variables 
+            actually used by the controller, effectively updating the state 
+            in the controller. The data coming from Yumi might be old (because 
+            of a disconnection), thus the RWS status is used as Yumi status.
+        """
+        # update status and set "status changed" flag
+        status = self._cache_rws_auto_mode
+        self._device_ready_changed = status != self.is_ready()
+        self._device_ready = status
+        return self._cache_state
+    
+    def send(self, command: Tuple[np.ndarray, float, float]):
+        dq_target, grip_r, grip_l = command
+        # yumi control command and gripper control command (if any)
+        # avoid sendind commands all the time to optimize bandwidth
+        self._pub_yumi.send_velocity_cmd(dq_target)
+        if grip_r is not None or grip_l is not None:
+            self._pub_grip.send_position_cmd(grip_r, grip_l)
+
+
+# TODO why dual?
+class YumiDualController(AbstractController[YumiDeviceState], metaclass=ABCMeta):
+    """ Class for controlling YuMi, inherit this class and create your own 
+        `.policy()` and `.clear()` functions. The `.policy()` function outputs 
+        an action `dict`, which is then passed to the `._set_action()` function.
+        This abstract class reads YuMi state from `/yumi/robot_state_coordinated`
+        and sends velocity commands to `/yumi/egm/joint_group_velocity_controller/command`
+        and gripper commands via service `/yumi/rws/sm_addin/set_sg_command`.
+    """
+    
+    def __init__(self, robot_handle: YumiDevice, iksolver: str = "pinv"):
+        self._device : YumiDevice
+        super().__init__(robot_handle)
+        
+        # TODO extract me from here
+        # setup the IK solvers
+        self._iksolver = IKSolver()
+        self._iksolver.register(PINVIKAlgorithm())
+        self._iksolver.register(HQPIKAlgorithm())
+        # select the IK solver
+        self._iksolver.switch(iksolver)
+        
     @property
     def yumi_state(self) -> YumiCoordinatedRobotState:
-        return self._device_state
+        return self._device_last_state
     
     @property
     def yumi_time(self) -> rospy.Time:
-        return self._device_time
+        return self._device_last_state.time
     
     def start(self):
         super().start(Parameters.update_rate)
@@ -90,31 +128,9 @@ class YumiDualController(AbstractController, metaclass=ABCMeta):
         stop_commands = 3
         for i in range(stop_commands):
             command = (np.zeros(Parameters.dof), None, None)
-            self._send_command(command)
+            self._device.send(command)
             print(f"Sent stop command ({i+1}/{stop_commands})")
-    
-    def fetch_device_status(self):
-        """ Stores the constantly updating state of Yumi inside the variables 
-            actually used by the controller, effectively updating the state 
-            in the controller. The data coming from Yumi might be old (because 
-            of a disconnection), thus the RWS status is used as Yumi status.
-        """
-        self._device_state = self._cache_yumi_state
-        self._device_time = self._cache_yumi_time
-        # update the state of Yumi
-        status_ready = self._cache_rws_auto_mode
-        prev_status_ready = self.is_device_ready()
-        # update status
-        self._set_device_ready(status_ready)
-        # if auto_mode was off and now it's on (eg. after acknoledgment of EGM error)
-        if not prev_status_ready and status_ready:
-            print("Regained control (auto_mode=true)")
-            self._on_device_regained()
-        # if auto_mode was on and now it's off (eg. after "joint contraint violation" error)
-        if prev_status_ready and not status_ready:
-            print("Lost control (auto_mode=false)")
-            self._on_device_lost()
-        
+            
     def _on_device_lost(self):
         """ Decides what happens when control mode goes from "auto" to "manual".
         """
@@ -125,8 +141,24 @@ class YumiDualController(AbstractController, metaclass=ABCMeta):
         """
         self.reset()
         print("Controller ran \"reset()\" after \"device_regained\" event")
-        self._start_rapid.call()
+        self._device._start_rapid.call()
         print("Restared RAPID")
+    
+    def _device_is_ready(self) -> bool:
+        """ Calls the default `self._device.is_ready()` but then runs status 
+            change logic before returning it.
+        """
+        ret = self._device.is_ready()
+        if self._device.did_ready_change():
+            if self._device.is_ready():
+                # if auto_mode was off and now it's on (eg. after acknoledgment of EGM error)
+                print("Regained control (auto_mode=true)")
+                self._on_device_regained()
+            else:
+                # if auto_mode was on and now it's off (eg. after "joint contraint violation" error)
+                print("Lost control (auto_mode=false)")
+                self._on_device_lost()
+        return ret
     
     @abstractmethod
     def reset(self):
@@ -134,14 +166,14 @@ class YumiDualController(AbstractController, metaclass=ABCMeta):
         """
         raise NotImplementedError()
     
-    def default_policy(self) -> dict:
+    def default_policy(self, state: YumiDeviceState) -> dict:
         action = {
             "control_space": "joint_space",
             "joint_velocities": np.zeros(Parameters.dof)}
         return action
     
     @abstractmethod
-    def policy(self) -> dict:
+    def policy(self, state: YumiDeviceState) -> dict:
         """ This function should generate velocity commands for the controller.
             There are three control modes: 
             1. joint space control
@@ -188,14 +220,6 @@ class YumiDualController(AbstractController, metaclass=ABCMeta):
         
         command = (dq_target, action.get("gripper_right"), action.get("gripper_left"))
         return command
-    
-    def _send_command(self, command: Tuple[np.ndarray, float, float]):
-        dq_target, grip_r, grip_l = command
-        # yumi control command and gripper control command (if any)
-        # avoid sendind commands all the time to optimize bandwidth
-        self._pub_yumi.send_velocity_cmd(dq_target)
-        if grip_r is not None or grip_l is not None:
-            self._pub_grip.send_position_cmd(grip_r, grip_l)
 
 
 from .routine_sm import RoutineStateMachine
@@ -203,13 +227,14 @@ from .routines import ReadyPoseRoutine, CalibPoseRoutine
 
 class RoutinableYumiController(YumiDualController):
 
-    def __init__(self, iksolver: str = "pinv"):
-        super().__init__(iksolver)
+    def __init__(self, robot_handle: YumiDevice, iksolver: str = "pinv"):
+        super().__init__(robot_handle, iksolver)
         
         # routine variables
         self._lock_routine_request = Lock()
         self._routine_request = None
         self._routine_machine = RoutineStateMachine()
+        # TODO load these from constructor or method, not here
         self._routine_machine.register(ReadyPoseRoutine())
         self._routine_machine.register(CalibPoseRoutine())
     
@@ -226,7 +251,7 @@ class RoutinableYumiController(YumiDualController):
         with self._lock_routine_request:
             self._routine_request = name
     
-    def _inner_policy(self) -> dict:
+    def _inner_policy(self, state: YumiDeviceState) -> dict:
         """ New internal policy for the controller. Now, before computing the 
             policy, run the requested rountine, if any is requested or already
             running. Otherwise, run the policy.
@@ -244,10 +269,10 @@ class RoutinableYumiController(YumiDualController):
             # action from routine exists, return it
             return action
         
-        return self.policy()
+        return self.policy(state)
     
     @abstractmethod
-    def policy(self) -> dict: 
+    def policy(self, state: YumiDeviceState) -> dict: 
         raise NotImplementedError()
 
 

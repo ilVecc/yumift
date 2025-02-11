@@ -16,7 +16,7 @@ from std_msgs.msg import Int64 as Int64Msg
 from yumi_controller.msg import YumiTrajectory as YumiTrajectoryMsg, YumiPosture as YumiPostureMsg
 from nav_msgs.msg import Path as PathMsg
 
-from core.controller_base import RoutinableYumiController
+from core.controller_base import RoutinableYumiController, YumiDevice, YumiDeviceState
 from core.control_laws import (
     YumiIndividualCartesianVelocityControlLaw, 
     YumiDualCartesianVelocityControlLaw, 
@@ -37,7 +37,7 @@ class YumiTrajectoryController(RoutinableYumiController):
         `YumiDualCartesianVelocityControlLaw`.
     """
     def __init__(self, trajectory_topic: str, control_law: YumiDualCartesianVelocityControlLaw):
-        super().__init__(iksolver="pinv")
+        super().__init__(robot_handle=YumiDevice(), iksolver="pinv")
         
         # TODO , symmetry=0.
         
@@ -80,8 +80,8 @@ class YumiTrajectoryController(RoutinableYumiController):
         """
         # read current state of Yumi
         while True:
-            self.fetch_device_status()
-            if self.is_device_ready():
+            self._device_read()
+            if self._device_is_ready():
                 current_pose = YumiParam(
                     self.yumi_state.pose_gripper_r.pos, self.yumi_state.pose_gripper_r.rot, np.zeros(6), 0, 
                     self.yumi_state.pose_gripper_l.pos, self.yumi_state.pose_gripper_l.rot, np.zeros(6), 0)
@@ -177,7 +177,7 @@ class YumiTrajectoryController(RoutinableYumiController):
         def _wxyz_to_xyzw(q: np.quaternion):
             return np.roll(quat.as_float_array(q), -1)
         
-    def policy(self):
+    def policy(self, state: YumiDeviceState):
         """ Calculate target velocity for the current time step.
         """
         
@@ -197,9 +197,6 @@ class YumiTrajectoryController(RoutinableYumiController):
         yumi_desired_param: YumiParam = self.trajectory.compute((now - self.trajectory_initial_time).to_sec())
         yumi_desired_state = msg_utils.YumiParam_to_YumiCoordinatedRobotState(yumi_desired_param)
         
-        with np.printoptions(precision=2, suppress=True):
-            print(yumi_desired_param.pose_right.vel)
-                
         # TODO this is super slow in compliance mode
         self.control_law.update_desired_state(yumi_desired_state)
         

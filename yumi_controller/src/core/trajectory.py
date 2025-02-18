@@ -23,10 +23,12 @@ class YumiParam(Param):
             vel_l: np.ndarray = None, 
             grip_l: float = 0
         ) -> None:
-        if vel_r is None or vel_l is None:
-            vel = None
-        else:
-            vel = np.concatenate([vel_r, vel_l])
+        vel = None
+        # TODO this is expensive
+        # if vel_r is None or vel_l is None:
+        #     vel = None
+        # else:
+        #     vel = np.concatenate([vel_r, vel_l])
         super().__init__([pos_r, rot_r, pos_l, rot_l], vel)
         self.pose_right = PoseParam(pos_r, rot_r, vel_r)
         self.pose_left = PoseParam(pos_l, rot_l, vel_l)
@@ -104,10 +106,13 @@ class YumiTrajectory(MultiTrajectory[YumiParam]):
         vel = np.zeros(3)
         q12 = quat_diff(q1, q2)
         q23 = quat_diff(q2, q3)
-        vm1 = quat.as_rotation_vector(q12)/t2  # avg velocity for previous segment
-        vm2 = quat.as_rotation_vector(q23)/t3  # avg velocity for next segment
+        # `quat.as_rotation_vector()` === `2*np.log().vec` but batched (so slower)
+        vm1 = 2*np.log(q12).vec/t2  # avg velocity for previous segment
+        vm2 = 2*np.log(q23).vec/t3  # avg velocity for next segment
         # if velocities are close to zero or change direction then the transitional velocity 
-        # is set to zero otherwise, it is the average of the velocities of two segments
+        # is set to zero otherwise, it is the average of the velocities of two segments.
+        # we use `*` here instead of `and` because all there are vectors, and 
+        # `and` only works on scalars
         vel = ( 0.5 * (vm1 + vm2) ) * ( (np.abs(vm1) >= eps) * (np.abs(vm2) >= eps) * (np.sign(vm1) == np.sign(vm2)) )
         return vel
     

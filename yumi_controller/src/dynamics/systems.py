@@ -190,31 +190,66 @@ class DiscretizedStateSpaceModel(object):
             :param C: state-output matrix (can be None)
             :param D: input-output matrix (can be None)
             :param h: step size
+            :param x0: initial state of the system (assumed zeros if None)
             :param method: approximation method {exact, forward, backward, tustin}
         """
         ALLOWED_METHODS = ["exact", "forward", "backward", "tustin"]
         
-        assert C is None == D is None, "Both C and D must be None"
-        
-        assert A.ndim == 2 and B.ndim == 2, "All matrices must be 2-dimensional"
-        assert A.shape[0] == A.shape[1], "A must be a square matrix"
-        assert A.shape[0] == B.shape[0], "B matrix must have same rows as A"
-        if C is not None:  # and D is not None
-            assert C.ndim == 2 and D.ndim == 2, "All matrices must be 2-dimensional"
-            assert A.shape[0] == C.shape[1], "C matrix must have columns as A matrix rows"
-            assert C.shape[0] == D.shape[0], "D matrix must have same rows as C"
-            assert B.shape[1] == D.shape[1], "D matrix must have same columns as B"
+        # check method
         assert method in ALLOWED_METHODS, f"method must be one of {{ {', '.join(ALLOWED_METHODS)} }}"
-        
-        self.A, self.B, self.C, self.D = A, B, C, D
-        self.n, self.m, self.p = A.shape[0], B.shape[1], C.shape[0] if C is not None else 0
         self.method = method
-        self._setup_coeffs(h)
         
-        # previous state
-        self.x0 = x0 if x0 is not None else np.zeros((self.n,1))
-        self.x: np.ndarray
-        self.clear()
+        # check A dimensions
+        assert A.ndim == 2, "A must be 2d"
+        assert A.shape[0] == A.shape[1], "A must be a square matrix"
+        # check B dimensions
+        assert 0 <= B.ndim and B.ndim <= 2, "B must be either 1d or 2d"
+        if B.ndim == 1:
+            B = B[:, np.newaxis]
+        assert A.shape[0] == B.shape[0], "A and B must have same number of rows (check B)"
+        # check C and D dimensions
+        assert (C is None) == (D is None), "Both C and D must be either set or None"
+        if C is not None:  # and D is not None
+            # check C dimenions
+            assert C.ndim == 2, "C must be 2d"
+            assert A.shape[1] == C.shape[1], "A and C must have same number of columns (check C)"
+            # check D dimenions
+            D = np.array(D)
+            assert 0 <= D.ndim and D.ndim <= 2, "D must be either 1d or 2d"
+            if D.ndim == 0:
+                D = D[np.newaxis, np.newaxis]
+            if D.ndim == 1:
+                D = D[:, np.newaxis]
+            assert D.shape[0] == C.shape[0], "C and D must have same number of rows (check D)"
+            assert D.shape[1] == B.shape[1], "B and D must have same number of columns (check D)"
+        
+        # initial state
+        if x0 is not None:
+            assert 1 <= x0.ndim and x0.ndim <= 2, "Initial state must be 1d (for single evaluation) or 2d (for multiple evaluation)"
+            assert x0.shape[0] == A.shape[0], "Initial state must have same size as A"
+        else:
+            x0 = np.zeros((A.shape[0],))
+        
+        # state, input, and output dimensions, and number of systems evaluated simultaneously
+        self.n, self.m, self.p = A.shape[0], B.shape[1], C.shape[0] if C is not None else 0
+        # system matrices and vectors
+        self.A, self.B, self.C, self.D, self.x0 = A, B, C, D, x0
+                
+        # cache to speed up evolution calculation
+        self._cache_G = np.zeros((self.n + self.p, self.n + self.m))
+        if C is not None:
+            self._cache_G[self.n:, :self.n] = C
+            self._cache_G[self.n:, :self.n] = D
+        self._cache_X = np.zeros((self.n + self.m,))  # [x, u_new]
+        self._cache_Y = np.zeros((self.n + self.p,))  # [x_new, y_new]
+        self._eye_n = np.eye(self.n)
+        # finally, populate cache
+        self._setup_coeffs(h)
+        self.reset()
+        
+        # alias for internal state
+        self.x = self._cache_Y[:self.n]
+        self.y = self._cache_Y[self.n:]
         
     def _setup_coeffs(self, h: float) -> None:
         self.h = h
@@ -223,89 +258,90 @@ class DiscretizedStateSpaceModel(object):
             # TODO here we suppose `A` is diagonalizable, add jordanization
             L, V = np.linalg.eig(self.A)  # A = V @ diag(L)*h @ inv(V)
             eAh = V @ np.exp(np.diag(L*h)) @ np.linalg.inv(V)
-            F = eAh
-            G = np.linalg.inv(self.A) @ (eAh - np.eye(self.n)) @ self.B
+            G = np.linalg.inv(self.A) @ (eAh - self._eye_n) @ self.B
             # FIXME wtf happened here?
             raise RuntimeError("exact method is currently broken")
         elif self.method == "forward":
-            eAh = np.eye(self.n) + self.A * h
-            F = eAh
+            eAh = self._eye_n + self.A * h
             G = self.B * h
         elif self.method == "backward":
-            eAh = np.linalg.inv(np.eye(self.n) - self.A * h)
-            F = eAh
+            eAh = np.linalg.inv(self._eye_n - self.A * h)
             G = eAh @ self.B * h
         elif self.method == "tustin":
-            eAh = (np.eye(self.n) + 0.5 * self.A * h) @ np.linalg.inv(np.eye(self.n) - 0.5 * self.A * h)
-            F = eAh
-            G = np.linalg.inv(self.A) @ (eAh - np.eye(self.n)) @ self.B
+            eAh = (self._eye_n + 0.5 * self.A * h) @ np.linalg.inv(self._eye_n - 0.5 * self.A * h)
+            G = np.linalg.inv(self.A) @ (eAh - self._eye_n) @ self.B
         else:
             raise RuntimeError("no such method found")
         
-        self.F = F
-        self.G = G
+        self._cache_G[:self.n, :self.n] = eAh
+        self._cache_G[:self.n, self.n:] = G
     
-    def clear(self):
-        self.x = self.x0
+    def reset(self):
+        self._cache_Y[:self.n] = self.x0  # set last output state as first input state
     
-    def __call__(self, u: np.ndarray, h_new: float = None, return_output: bool = True):
+    def __call__(self, u: np.ndarray, h_new: float = None):
+        """ Returns the state of the system for a given input.
+            Override this method if output from `__call__` must be manipulated.
+            :param u: input for the system with `shape(self.m)` or `shape(self.m,self.s)`
+            :param h_new: timestep for the new input
+        """
+        return self.compute(u, h_new, False)
+    
+    def compute(self, u: np.ndarray, h_new: float = None, return_output: bool = False):
         """ Returns the state (and the output) of the system for a given input.
+            :param u: `np.ndarray` with `shape(self.m)`
+            :param h_new: timestep for the new input
+            :param return_output: wether to return also the `y` output or just the `x` state of the system
         """
         if h_new is not None:
             self._setup_coeffs(h_new)
-        if u.ndim == 1:
-            u = np.expand_dims(u, axis=-1)
         # compute the new state
-        self.x = self.F @ self.x + self.G @ u
+        self._cache_X[:self.n] = self._cache_Y[:self.n]  # use last output state as new input state
+        self._cache_X[self.n:] = u
+        self._cache_Y[:] = self._cache_G @ self._cache_X
         # compute the new output
-        if return_output and self.C is not None:
-            y = self.C @ self.x + self.D @ u
-            return np.squeeze(self.x, axis=-1), y
+        if return_output:
+            return self.x, self.y
         else:
-            return np.squeeze(self.x, axis=-1)
-    
-    def compute(self, u: np.ndarray, h_new: float = None):
-        """ Returns the state of the system for a given input.
-            Override this method if output from __call__ must be manipulated.
-        """
-        return self(u, h_new, False)
+            return self.x
 
     def compute_signal(self, U: np.ndarray):
         """ Compute the system over the provided time-series
-            :param U: time-series with shape(?,self.m)
+            :param U: time-series with `shape(?,self.m)`
         """
-        X = []
-        for t in range(U.shape[0]):
-            X.append(self.compute(U[t, ...]))
+        T = U.shape[0]
+        X = np.zeros((T, self.n))
+        for t in range(T):
+            X[t, ...] = self.compute(U[t, ...])
         return X
 
 
 class Admittance(DiscretizedStateSpaceModel):
     
-    def __init__(self, m, k, d, h, n=None, method="forward") -> None:
+    def __init__(self, M, K, D, h, n=None, method="forward") -> None:
         """ Create a n-dof dimensional admittance
             :param m: mass of the admittance (float, 1-d, or 2-d ndarray)
             :param k: spring of the admittance (float, 1-d, or 2-d ndarray)
-            :param n: size of the input (int or None)
             :param d: damping of the admittance (float, 1-d, 2-d ndarray, or None for critically damped system)
             :param h: step size (float or 1-d ndarray)
+            :param n: size of the input (int or None)
             :param method: approximation method {exact, forward, backward, tustin}
         """
-        def reshape(x, n):
-            x: np.ndarray = np.asarray(x)
-            if x.ndim == 0:
-                x = x * np.eye(n)
-            elif x.ndim == 1 and x.shape == (n,):
-                x = np.diag(x)
-            elif x.ndim == 2 and x.shape == (n,n):
+        def reshape(v, n):
+            v: np.ndarray = np.asarray(v)
+            if v.ndim == 0:
+                v = v * np.eye(n)
+            elif v.ndim == 1 and v.shape == (n,):
+                v = np.diag(v)
+            elif v.ndim == 2 and v.shape == (n,n):
                 pass
             else:
-                raise ValueError(f"shape {x.shape} is not consistent with size n={n}")
-            return x
+                raise ValueError(f"shape {v.shape} is not consistent with size n={n}")
+            return v
 
-        def matrix_sqrt(x):
+        def matrix_sqrt(V):
             # Computing diagonalization
-            E, V = np.linalg.eig(x)
+            E, V = np.linalg.eig(V)  # TODO this assumes V is diagonalizable
             # Ensuring square root matrix exists
             assert np.all(E >= 0)
             sqrt_matrix = V * np.sqrt(E) @ np.linalg.inv(V)
@@ -313,69 +349,94 @@ class Admittance(DiscretizedStateSpaceModel):
         
         if n is None:
             # the first tuple is to ensure at least one dimension
-            n = np.max(np.concatenate([(1,), np.shape(m), np.shape(k), () if d is None else np.shape(d)])).astype(int)
+            n = np.max(np.concatenate([(1,), np.shape(M), np.shape(K), np.shape(D) if D is not None else ()])).astype(int)
         
-        self.m = reshape(m, n)
-        self.k = reshape(k, n)
-        self.d = 2*matrix_sqrt((self.m @ self.k)) if d is None else reshape(d, n)
-        self.ndim = n
+        # store admittance parameters
+        self.M = reshape(M, n)
+        self.K = reshape(K, n)
+        self.D = reshape(D, n) if D is not None else 2*matrix_sqrt((self.M @ self.K))
+        self.dims = n
         
-        invM = np.linalg.inv(self.m)
-        A = np.block([[np.zeros((n,n)), np.eye(n)], [-invM @ self.k, -invM @ self.d]])
-        B = np.block([[np.zeros((n,n))], [invM]])
+        # prepare blocks for linear system
+        invM = np.linalg.inv(self.M)
+        A = np.block([[np.zeros((n,n)),      np.eye(n)], 
+                      [ -invM @ self.K, -invM @ self.D]])
+        B = np.block([[np.zeros((n,n))], 
+                      [invM]])
         
         super().__init__(A, B, None, None, h, None, method)
     
     def compute(self, u: np.ndarray, h_new: float = None):  
-        """ Returns "position" and "velocity" given an input.
+        """ Returns "position" and "velocity" for given input.
         """
         x = super().compute(u, h_new)
-        y, dy = x[:self.ndim,...], x[self.ndim:,...]
+        y, dy = x[:self.dims], x[self.dims:]
         return y, dy
     
     def compute_signal(self, U: np.ndarray):
-        X = super().compute_signal(U)
-        Y, DY = map(list, zip(*X))
-        return np.array(Y), np.array(DY)
+        T = U.shape[0]
+        X = np.zeros((T, self.dims))
+        dX = np.zeros((T, self.dims))
+        for t in range(T):
+            X[t, ...], dX[t, ...] = self.compute(U[t, ...])
+        return X, dX
 
 class AdmittanceForce(Admittance):
-    def __init__(self, m, k, d, h, method="forward") -> None:
-        super().__init__(m, k, d, h, 3, method)
+    def __init__(self, M, K, D, h, method="forward") -> None:
+        super().__init__(M, K, D, h, 3, method)
     
     def compute(self, f: np.ndarray, h_new: float = None):    
         """ Returns position and velocity given an input force.
-            This function can run in real-time at 6kHz.
+            This function can run at minimum 14kHz in "forward" mode on a decent laptop.
         """
         return super().compute(f, h_new)
 
 class AdmittanceTorque(Admittance):
     
-    def __init__(self, m, k, d, h, method="forward") -> None:
-        super().__init__(m, k, d, h, 3, method)
+    def __init__(self, M, K, D, h, method="forward") -> None:
+        super().__init__(M, K, D, h, 3, method)
     
     def compute(self, m: np.ndarray, h_new: float = None):    
         """ Returns rotation and angular velocity given an input torque.
-            This function can run in real-time at 6kHz.
+            This function can run at minimum 13kHz in "forward" mode on a decent laptop.
         """
         # q = log(Q), dq is its derivative
         # Q is the rotation quaternion, W (omega, the angular velocity) is its derivative
         q, dq = super().compute(m, h_new)
-        Q = quat.from_vector_part(q).exp()
-        w = 2*quat.from_float_array((quat_utils.jac_q(q) @ dq)) * Q.conj()
+        Q = np.exp(quat.quaternion(0, *q) / 2)  # `quat.from_rotation_vector` is slow, do it manually
+        w = 2*quat.quaternion(*(quat_utils.jac_q(q) @ dq)) * Q.conj()
         W = w.vec
         return Q, W
 
+    def compute_signal(self, U: np.ndarray):
+        T = U.shape[0]
+        X = np.zeros((T,), dtype=np.quaternion)
+        dX = np.zeros((T, self.dims))
+        for t in range(T):
+            X[t, ...], dX[t, ...] = self.compute(U[t, ...])
+        return X, dX
+    
 class AdmittanceWrench(Admittance):
-    def __init__(self, m, k, d, h, method="forward") -> None:
-        super().__init__(m, k, d, h, 6, method)
+    def __init__(self, M, K, D, h, method="forward") -> None:
+        super().__init__(M, K, D, h, 6, method)
     
     def compute(self, w: np.ndarray, h_new: float = None):    
         """ Returns position and velocity given an input wrench.
-            This function can run in real-time at 6kHz.
+            This function can run at minimum 6kHz in "forward" mode on a decent laptop.
         """
-        q, dq = super().compute(w, h_new)
-        p, dp = q[:3], dq[:3]
-        Q = quat.from_vector_part(q[3:]).exp()
-        w = 2*quat.from_float_array((quat_utils.jac_q(q[3:]) @ dq[3:])) * Q.conj()
+        x, dx = super().compute(w, h_new)
+        p, dp, q, dq = x[:3], dx[:3], x[3:], dx[3:]
+        Q = np.exp(quat.quaternion(0, *q) / 2)  # `quat.from_rotation_vector` is slow, do it manually
+        w = 2*quat.quaternion(*(quat_utils.jac_q(q) @ dq)) * Q.conj()
         W = w.vec
         return (p, Q), (dp, W)
+
+    def compute_signal(self, U: np.ndarray):
+        T = U.shape[0]
+        P = np.zeros((T, self.dims))
+        dP = np.zeros((T, self.dims))
+        Q = np.zeros((T,), dtype=np.quaternion)
+        W = np.zeros((T, self.dims))
+        for t in range(T):
+            (P[t, ...], Q[t, ...]), (dP[t, ...], W[t, ...]) = self.compute(U[t, ...])
+        return (P, Q), (dP, W)

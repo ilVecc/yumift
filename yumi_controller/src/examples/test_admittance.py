@@ -9,7 +9,7 @@ import rospy
 from geometry_msgs.msg import WrenchStamped, Vector3
 
 from dynamics.systems import AdmittanceForce, AdmittanceTorque
-from dynamics.utils import normalize
+from dynamics.utils import normalize3
 
 
 def main() -> None:
@@ -46,7 +46,7 @@ def main() -> None:
         pub_ep.publish(Vector3(*ep))
         pub_ev.publish(Vector3(*dep))
         
-        k, a = normalize(quat_utils.log(er), return_norm=True)
+        k, a = normalize3(quat_utils.log(er), return_norm=True)
         pub_m.publish(Vector3(*(m)))
         pub_er.publish(Vector3(*(a*k)))
         pub_ew.publish(Vector3(*der))

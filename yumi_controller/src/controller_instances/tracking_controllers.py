@@ -58,7 +58,7 @@ class YumiIndividualTrackingController(YumiDualController):
     
     @staticmethod
     def _sanitize_rot(rot: Tuple[float]):
-        return quat.from_float_array(np.asarray(rot)) if rot else quat.one
+        return quat.quaternion(*rot) if rot else quat.one
     
     @staticmethod
     def _sanitize_vel(vel: Tuple[float]):

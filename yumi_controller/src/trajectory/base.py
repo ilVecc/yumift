@@ -12,7 +12,7 @@ import numpy as np
 
 class Param(object):
     def __init__(self, *fields: Any) -> None:
-        self._fields = list(fields)
+        self._fields = list(fields)  # TODO is list necessary? is't a param immutable?
     
     @property
     def value(self):
@@ -27,9 +27,7 @@ class Param(object):
         return self.deriv(2)
     
     def deriv(self, order: int):
-        if order < len(self._fields):
-            return self._fields[order]
-        return None
+        return self._fields[order]
 
 # TODO fix time between 0 and 1 and add a time-scaling/-shifting utility
 TParam = TypeVar("TParam", bound=Type[Param])
@@ -93,15 +91,13 @@ class MultiTrajectory(Trajectory[TParam]):
         self._path_params: List[MultiParam[TParam]] = []
         self._timemarks: np.ndarray
         self._segment_new: bool
-        self._segment_idx_prev: int
         self._segment_idx_curr: int
-        super().__init__()
+        super().__init__()  # this calls `self.clear()` down the line
     
     def clear(self) -> None:
         self._path_params = []
         self._timemarks = np.array([])
         self._segment_new = True
-        self._segment_idx_prev = -1
         self._segment_idx_curr = -1
         super().clear()
     
@@ -112,22 +108,25 @@ class MultiTrajectory(Trajectory[TParam]):
         self._path_params = path_parameters
         self._timemarks = timemarks
         self._segment_new = True
-        self._segment_idx_prev = -1
         self._segment_idx_curr = -1
     
-    # TODO this is slow sometimes
     def _update_segment(self, t) -> int:
         """ Updates the current target trajectory parameters or which is the 
             current segment on the trajectory.
         """
-        self._segment_idx_curr: int = np.searchsorted(self._timemarks[:-1], t, side="right")
-        self._segment_new = self._segment_idx_curr != self._segment_idx_prev
+        # check: 1. until last segment is reached
+        #        2. if time is beyond end time of current segment
+        self._segment_new = self._segment_idx_curr != len(self._timemarks) - 2 \
+                        and t >= self._timemarks[self._segment_idx_curr + 1]
         if self._segment_new:
-            param_init = self._path_params[self._segment_idx_curr-1]
-            param_final = self._path_params[self._segment_idx_curr]
+            # change segment
+            self._segment_idx_curr += 1
+            # update trajectory with start and end points of current segment
+            param_init = self._path_params[self._segment_idx_curr]
+            param_final = self._path_params[self._segment_idx_curr + 1]
             self._traj_type.update(param_init.param, param_final.param, param_final.duration)
-            self._segment_idx_prev = self._segment_idx_curr
-        return t - self._timemarks[self._segment_idx_curr-1]  # time in segment period
+        
+        return t - self._timemarks[self._segment_idx_curr]  # time in segment period
 
     def is_new_segment(self) -> bool:
         """ Returns True if a new segment has been entered, only shows true
@@ -144,8 +143,8 @@ class MultiTrajectory(Trajectory[TParam]):
         """ Calculates the next target using the current segment. 
         """
         t = max(0, t)
-        t = self._update_segment(t)
-        return self._traj_type.compute(t)
+        t_rel = self._update_segment(t)
+        return self._traj_type.compute(t_rel)
 
 ### MISC
 

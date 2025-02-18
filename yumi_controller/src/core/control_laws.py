@@ -345,10 +345,10 @@ class YumiDualAdmittanceControlLaw(YumiDualCartesianVelocityControlLaw):
     
     def clear(self):
         super().clear()
-        self.admittance_right.clear()
-        self.admittance_left.clear()
-        self.admittance_abs.clear()
-        self.admittance_left.clear()
+        self.admittance_right.reset()
+        self.admittance_left.reset()
+        self.admittance_abs.reset()
+        self.admittance_left.reset()
     
     def update_current_state(self, yumi_state: YumiCoordinatedRobotState):
         super().update_current_state(yumi_state)
@@ -362,16 +362,11 @@ class YumiDualAdmittanceControlLaw(YumiDualCartesianVelocityControlLaw):
         # "target" is renamed to "desired", so that "target" can now be repurposed 
         # include both the "desired" trajectory and the effect of external forces 
         # at the individual/coordinated frames (obtained by admittances)
-        des_pos = np.concatenate([target_state.pose_gripper_r.pos, target_state.pose_gripper_l.pos])
-        des_rot = np.stack([target_state.pose_gripper_r.rot, target_state.pose_gripper_l.rot])
-        des_vel = np.concatenate([target_state.pose_gripper_r.vel, target_state.pose_gripper_l.vel])
+        target_vel = np.zeros(12)
         # des_pos = [pR, pL] or [pA, pR]
         # des_rot = [oR, oL] or [oA, oR]
         # des_vel = [vR, wR, vL, wL] or [vA, wA, vR, wR]
         # wrenches = [fR, mR, fL, mL] or [fA, mA, fR, mR]
-        target_pos = des_pos.copy()
-        target_rot = des_rot.copy()
-        target_vel = des_vel.copy()
         
         # compensate for external wrenches
         (error_pos_r, error_rot_r), (error_vel_r, error_wel_r) = self.admittance_right.compute(self.wrench_right, self.dt)
@@ -387,21 +382,28 @@ class YumiDualAdmittanceControlLaw(YumiDualCartesianVelocityControlLaw):
             error_pos_2, error_rot_2, error_vel_2, error_wel_2 = error_pos_rel, error_rot_rel, error_vel_rel, error_wel_rel
         
         #### FORCES ####
-        error_pos = np.concatenate([error_pos_1, error_pos_2])
-        target_pos = des_pos + error_pos
+        target_pos_1 = target_state.pose_gripper_r.pos + error_pos_1
+        target_pos_2 = target_state.pose_gripper_l.pos + error_pos_2
         
-        error_vel = np.concatenate([error_vel_1, error_vel_2])
-        target_vel[[0,1,2,6,7,8]] = des_vel[[0,1,2,6,7,8]] + error_vel
+        target_vel[0] = target_state.pose_gripper_r.vel[0] + error_vel_1[0]
+        target_vel[1] = target_state.pose_gripper_r.vel[1] + error_vel_1[1]
+        target_vel[2] = target_state.pose_gripper_r.vel[2] + error_vel_1[2]
+        target_vel[6] = target_state.pose_gripper_l.vel[0] + error_vel_2[0]
+        target_vel[7] = target_state.pose_gripper_l.vel[1] + error_vel_2[1]
+        target_vel[8] = target_state.pose_gripper_l.vel[2] + error_vel_2[2]
         
         #### TORQUES ####
-        target_rot_1 = error_rot_1 * des_rot[0]
-        target_rot_2 = error_rot_2 * des_rot[1]
-        target_rot = np.stack([target_rot_1, target_rot_2])
+        target_rot_1 = error_rot_1 * target_state.pose_gripper_r.rot
+        target_rot_2 = error_rot_2 * target_state.pose_gripper_l.rot
         
-        error_wel = np.concatenate([error_wel_1, error_wel_2])
-        target_vel[[3,4,5,9,10,11]] = des_vel[[3,4,5,9,10,11]] + error_wel
+        target_vel[3] = target_state.pose_gripper_r.vel[3] + error_wel_1[0]
+        target_vel[4] = target_state.pose_gripper_r.vel[4] + error_wel_1[1]
+        target_vel[5] = target_state.pose_gripper_r.vel[5] + error_wel_1[2]
+        target_vel[9] = target_state.pose_gripper_l.vel[3] + error_wel_2[0]
+        target_vel[10] = target_state.pose_gripper_l.vel[4] + error_wel_2[1]
+        target_vel[11] = target_state.pose_gripper_l.vel[5] + error_wel_2[2]
         
         # recompose target (fill old object with new data)
-        target_state.pose_gripper_r = Frame(target_pos[0:3], target_rot[0], target_vel[0:6])
-        target_state.pose_gripper_l = Frame(target_pos[3:6], target_rot[1], target_vel[6:12])
+        target_state.pose_gripper_r = Frame(target_pos_1, target_rot_1, target_vel[0:6])
+        target_state.pose_gripper_l = Frame(target_pos_2, target_rot_2, target_vel[6:12])
         return super().update_desired_state(target_state)

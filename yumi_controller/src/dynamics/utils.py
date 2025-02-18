@@ -46,7 +46,7 @@ class Frame(object):
         """
         return Frame(
             # t := q1 * t2 * ~q1 + t1
-            position=quat.as_vector_part(self.rot * quat.from_vector_part(frame.pos) * self.rot.conjugate()) + self.pos,
+            position=(self.rot * quat.quaternion(0, *(frame.pos)) * self.rot.conjugate()).vec + self.pos,
             # q := q1 * q2
             quaternion=self.rot * frame.rot,
             # v := v1 + J*v2
@@ -57,7 +57,7 @@ class Frame(object):
         """
         return Frame(
             # t := - (~q) * t * ~(~q)
-            position=-quat.as_vector_part(self.rot.conjugate() * quat.from_vector_part(self.pos) * self.rot),
+            position=-(self.rot.conjugate() * quat.quaternion(0, *(self.pos)) * self.rot).vec,
             # q := ~q
             quaternion=self.rot.conjugate(),
             # v := -v
@@ -379,13 +379,25 @@ def skew_matrix(vector) -> np.ndarray:
                      [vector[2], 0, -vector[0]],
                      [-vector[1], vector[0], 0]])
 
-def normalize(v, return_norm=False) -> np.ndarray:
+def norm3(v: np.ndarray):
+    """ Fast 3-vectory norm. Twice as fast as `np.linalg.norm()`
+        :param v: the vector for the norm operation
+    """
+    return np.sqrt(v[0]**2 + v[1]**2 + v[2]**2)
+
+def norm4(v: np.ndarray):
+    """ Fast 4-vectory norm. Twice as fast as `np.linalg.norm()`
+        :param v: the vector for the norm operation
+    """
+    return np.sqrt(v[0]**2 + v[1]**2 + v[2]**2 + v[3]**2)
+
+def normalize3(v: np.ndarray, return_norm=False) -> np.ndarray:
     """ Calculates the normalized vector
         :param v: the vector to normalize
         :param return_norm: whether to return the vector norm or not 
     """
-    norm = np.linalg.norm(v)
-    w = (v / norm) if norm != 0 else v
+    norm = norm3(v)
+    w = v / (norm or 1)
     if return_norm:
         return w, norm
     return w

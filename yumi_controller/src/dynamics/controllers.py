@@ -73,7 +73,7 @@ class AbstractController(Generic[TState], metaclass=ABCMeta):
             time.sleep(max(0, dt - (time.time() - init)))
             init = time.time()
 
-    # TODO @final
+    # TODO @final  maybe not
     def cycle(self):
         """ Compute and send commands to the device. In order, this function:
             1. fetches and updates current device status
@@ -156,7 +156,7 @@ class AbstractController(Generic[TState], metaclass=ABCMeta):
         with self._lock_controller_ready:
             return self._controller_ready
 
-    # wrappers
+    # wrappers for pre- and post- conditions
     
     def _device_is_ready(self) -> bool:
         """ Logic for checking if the device is ready for I/O operations.

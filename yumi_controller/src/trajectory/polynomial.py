@@ -7,17 +7,8 @@ from .base import TParam, Trajectory, MultiTrajectory
 from .base_impl import PositionParam, PoseParam, QuaternionParam
 
 from dynamics.quat_utils import quat_diff
+from dynamics.utils import norm3, normalize3
 
-
-def normalize(v: np.ndarray, return_norm=False):
-    """ Calculates the normalized vector
-        :param v: the array to normalize
-    """
-    norm = np.linalg.norm(v)
-    w = v / (norm + (norm == 0))
-    if return_norm:
-        return w, norm 
-    return w
 
 ################################################################################
 ##                                 TRAJECTORY                                 ##
@@ -109,6 +100,10 @@ class CubicPosTrajectory(CubicTrajectory[PositionParam]):
         x, dx, ddx = CubicTrajectory.calculate_trajectory(self._a0, self._a1, self._a2, self._a3, t)
         return PositionParam(x, dx, ddx)
 
+
+
+
+
 class CubicQuatTrajectory_OLD(CubicTrajectory[QuaternionParam]):
     
     def __init__(self) -> None:
@@ -133,20 +128,23 @@ class CubicQuatTrajectory_OLD(CubicTrajectory[QuaternionParam]):
         # use minimum distance
         self._qi = qi
         qr = quat_diff(self._qi, qf)
-        self._r, vf = normalize(quat.as_rotation_vector(qr), return_norm=True)
+        self._r, vf = normalize3(2*np.log(qr).vec, return_norm=True)  # `quat.as_rotation_vector()` === `2*np.log().vec`
         # TODO add velocity handling (use quaternion trajectory planning)
         self._a0, self._a1, self._a2, self._a3 = CubicTrajectory.calculate_coefficients(0, 0, vf, 0, tf)
     
     def compute(self, t: float) -> QuaternionParam:
-        t = np.clip(t, 0, self._duration)
+        t = max(0, min(t, self._duration))  # np.clip is 3 times slower o.o
         v, dv, ddv = CubicTrajectory.calculate_trajectory(self._a0, self._a1, self._a2, self._a3, t)
-        qr = quat.from_rotation_vector(v * self._r)
+        
+        qr = np.exp(quat.quaternion(0, *(v * self._r)) / 2)  # `quat.from_rotation_vector` is slow, do it manually
         qe = qr * self._qi
-        w = quat.from_vector_part(dv * self._r)
+        w = quat.quaternion(0, *(dv * self._r))  # `quat.from_vector_part` is ultra slow, do it manually
         we = (self._qi * w * self._qi.conj()).vec
-        dw = quat.from_vector_part(ddv * self._r)
+        dw = quat.quaternion(0, *(ddv * self._r))
         dwe = (self._qi * dw * self._qi.conj()).vec
+        
         return QuaternionParam(qe, we, dwe)
+
 
 import dynamics.quat_utils as quat_utils
 class CubicQuatTrajectory(CubicTrajectory[QuaternionParam]):
@@ -164,28 +162,29 @@ class CubicQuatTrajectory(CubicTrajectory[QuaternionParam]):
         self._a0, self._a1, self._a2, self._a3 = CubicTrajectory.calculate_coefficients(quat_init.quat.log().vec, quat_init.vel, quat_final.quat.log().vec, quat_final.vel, tf)
     
     def compute(self, t: float) -> QuaternionParam:
-        
         t = max(0, min(t, self._duration))  # np.clip is 3 times slower o.o
-        
         q, dq, ddq = CubicTrajectory.calculate_trajectory(self._a0, self._a1, self._a2, self._a3, t)
         
-        # from . import timeit
-        # with timeit():
-        Q = quat.from_vector_part(q).exp()
+        Q = np.exp(quat.quaternion(0, *q) / 2)  # `quat.from_rotation_vector` is slow, do it manually
         Jq = quat_utils.jac_q(q)
-        Jq_dq = quat.from_float_array(Jq @ dq)
-        W = 2*Jq_dq*Q.conj()
-        Jq_ddq = quat.from_float_array(Jq @ ddq)
-        dW = W + 2*Jq_ddq*Q.conj() - 0.5 * np.linalg.norm(W.vec)**2 * quat.one
-        # print(dW.w)
-        # dW = quat.one
-        
+        Jq_dq = quat.quaternion(*(Jq @ dq))
+        W = 2 * Jq_dq * Q.conj()
+        Jq_ddq = quat.quaternion(*(Jq @ ddq))
+        dW = W + 2 * Jq_ddq * Q.conj() - 0.5 * norm3(W.vec)**2 * quat.one
+
         return QuaternionParam(Q, W.vec, dW.vec)
+
+
+
+
 
 class CubicPoseTrajectory(CubicTrajectory[PoseParam]):
     def __init__(self) -> None:
         self._traj_pos = CubicPosTrajectory()
         self._traj_rot = CubicQuatTrajectory_OLD()
+        # creating the param every time requires concatenation of velocities and
+        # accelerations, which is very expensive, so simply fill the values here
+        self._out_param = PoseParam(np.zeros(3), quat.one, np.zeros(6))
         super().__init__()
     
     def clear(self) -> None:
@@ -199,16 +198,25 @@ class CubicPoseTrajectory(CubicTrajectory[PoseParam]):
         self._traj_rot.update(pose_init.as_quat_param(), pose_final.as_quat_param(), tf)
     
     def compute(self, t) -> PoseParam:
-        
         pos_param = self._traj_pos.compute(t)  # ca 10kHz
-        
-        # from . import timeit
-        # with timeit():
         quat_param = self._traj_rot.compute(t)  # ca 900Hz
         
-        vel = np.concatenate([pos_param.vel, quat_param.vel])
-        acc = np.concatenate([pos_param.acc, quat_param.acc])
-        return PoseParam(pos_param.pos, quat_param.quat, vel, acc)
+        # TODO slicing arrays is apparently slow...
+        self._out_param.pos = pos_param.pos
+        self._out_param.rot = quat_param.quat
+        self._out_param._fields[1][0] = pos_param._fields[1][0]
+        self._out_param._fields[1][1] = pos_param._fields[1][1]
+        self._out_param._fields[1][2] = pos_param._fields[1][2]
+        self._out_param._fields[1][3] = quat_param._fields[1][0]
+        self._out_param._fields[1][4] = quat_param._fields[1][1]
+        self._out_param._fields[1][5] = quat_param._fields[1][2]
+        self._out_param._fields[2][0] = pos_param._fields[2][0]
+        self._out_param._fields[2][1] = pos_param._fields[2][1]
+        self._out_param._fields[2][2] = pos_param._fields[2][2]
+        self._out_param._fields[2][3] = quat_param._fields[2][0]
+        self._out_param._fields[2][4] = quat_param._fields[2][1]
+        self._out_param._fields[2][5] = quat_param._fields[2][2]
+        return self._out_param
 
 
 ################################################################################

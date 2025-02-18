@@ -199,9 +199,14 @@ class PINVIKAlgorithm(IKAlgorithm):
             print(f"Unknown control mode ({action['control_space']}), stopping")
             return np.zeros(Parameters.dof)
 
+        # TODO `state.joint_pos` is a `np.concat`, veeeeery slow
+        joint_pos = np.zeros(14)
+        for i in range(7):
+            joint_pos[i] = state.joint_pos_r[i]
+            joint_pos[i+7] = state.joint_pos_l[i]
         jacobian_pinv = np.linalg.pinv(jacobian)
         vel = jacobian_pinv @ xdot \
-            + (np.eye(Parameters.dof) - jacobian_pinv @ jacobian) @ Parameters.secondary_neutral(state.joint_pos, state.joint_vel)
+            + (np.eye(Parameters.dof) - jacobian_pinv @ jacobian) @ Parameters.secondary_neutral(joint_pos, None)  # `state.joint_vel` not needed
 
         return vel
 

@@ -107,7 +107,7 @@ class YumiTrajectoryController(RoutinableYumiController):
     
     @staticmethod
     def _sanitize_rot(rot: Tuple[float]):
-        return quat.from_float_array(np.asarray(rot)) if rot else quat.one
+        return quat.quaternion(*rot) if rot else quat.one
     
     def _callback_trajectory(self, data: YumiTrajectoryMsg):
         """ Gets called when a new set of trajectory parameters is received. 

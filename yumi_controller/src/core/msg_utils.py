@@ -134,14 +134,16 @@ def YumiParam_to_YumiCoordinatedRobotState(yumi_param: YumiParam, yumi_state = Y
     yumi_state.grip_l=yumi_param.grip_left
         
     # Since the `pose_*` arguments of `YumiCoordinatedRobotState` are the ones 
-    # for the robot's flanges, a small workaround is needed. This is totally 
-    # fine though because this transformation will only be used by the control 
-    # law, which doesn't require the state to be sound nor complete
-    yumi_state.pose_gripper_r.pos = yumi_param.position[:3]
-    yumi_state.pose_gripper_r.rot = yumi_param.rotation[0]
-    yumi_state.pose_gripper_r.vel = yumi_param.velocity[:6]
-    yumi_state.pose_gripper_l.pos = yumi_param.position[3:]
-    yumi_state.pose_gripper_l.rot = yumi_param.rotation[1]
-    yumi_state.pose_gripper_l.vel = yumi_param.velocity[6:]
+    # for the robot's flanges, a small workaround is needed, namely setting the 
+    # explicit poses of the grippers. This is totally fine though because this 
+    # transformation will only be used by the control law, which doesn't require 
+    # the state to be sound nor complete (i.e. we use this object as a container
+    # of values, no need to be consistant with every field in it)
+    yumi_state.pose_gripper_r.pos = yumi_param.pose_right.pos
+    yumi_state.pose_gripper_r.rot = yumi_param.pose_right.rot
+    yumi_state.pose_gripper_r.vel = yumi_param.pose_right.vel
+    yumi_state.pose_gripper_l.pos = yumi_param.pose_left.pos
+    yumi_state.pose_gripper_l.rot = yumi_param.pose_left.rot
+    yumi_state.pose_gripper_l.vel = yumi_param.pose_left.vel
     
     return yumi_state

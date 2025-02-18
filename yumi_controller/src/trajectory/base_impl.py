@@ -8,18 +8,10 @@ class JointParam(Param):
     def __init__(self, q: np.ndarray, dq: np.ndarray, ddq: np.ndarray) -> None:
         assert q.shape == dq.shape == ddq.shape == (q.size,), "All parameters must be vectors of same shape"
         super().__init__(q, dq, ddq)
-
-    @property
-    def q(self) -> np.ndarray:
-        return self.value
-
-    @property
-    def dq(self) -> np.ndarray:
-        return self.speed
-
-    @property
-    def ddq(self) -> np.ndarray:
-        return self.curve
+        # aliases
+        self.q : np.ndarray = self.value
+        self.dq : np.ndarray = self.speed
+        self.ddq : np.ndarray = self.curve
 
 class PositionParam(Param):
     def __init__(self, position: np.ndarray, velocity: np.ndarray, acceleration: np.ndarray = np.zeros(3)) -> None:
@@ -27,36 +19,20 @@ class PositionParam(Param):
         assert velocity.shape == (3,)
         assert acceleration.shape == (3,)
         super().__init__(position, velocity, acceleration)
-
-    @property
-    def pos(self) -> np.ndarray:
-        return self.value
-
-    @property
-    def vel(self) -> np.ndarray:
-        return self.speed
-
-    @property
-    def acc(self) -> np.ndarray:
-        return self.curve
+        # aliases
+        self.pos : np.ndarray = self.value
+        self.vel : np.ndarray = self.speed
+        self.acc : np.ndarray = self.curve
 
 class QuaternionParam(Param):
     def __init__(self, quaternion: np.quaternion, angular_velocity: np.ndarray, angular_acceleration: np.ndarray = np.zeros(3)) -> None:
         assert angular_velocity.shape == (3,)
         assert angular_acceleration.shape == (3,)
         super().__init__(quaternion, angular_velocity, angular_acceleration)
-
-    @property
-    def quat(self) -> np.quaternion:
-        return self.value
-
-    @property
-    def vel(self) -> np.ndarray:
-        return self.speed
-    
-    @property
-    def acc(self) -> np.ndarray:
-        return self.curve
+        # aliases
+        self.quat : np.quaternion = self.value
+        self.vel : np.ndarray = self.speed
+        self.acc : np.ndarray = self.curve
 
 class PoseParam(Param):
     def __init__(self, position: np.ndarray, rotation: np.quaternion, velocity: np.ndarray, acceleration: np.ndarray = np.zeros(6)) -> None:
@@ -93,18 +69,42 @@ class PoseParam(Param):
     def vel_lin(self) -> np.ndarray:
         return self.vel[0:3]
 
+    @vel_lin.setter
+    def vel_lin(self, velocity) -> np.ndarray:
+        self._fields[1][0:3] = velocity
+
     @property
     def vel_ang(self) -> np.ndarray:
         return self.vel[3:6]
 
+    @vel_ang.setter
+    def vel_ang(self, velocity) -> np.ndarray:
+        self._fields[1][3:6] = velocity
+    
+    @property
+    def acc(self) -> np.ndarray:
+        return self.curve
+
+    @acc.setter
+    def acc(self, acceleration) -> None:
+        self._fields[2] = acceleration
+
     @property
     def acc_lin(self) -> np.ndarray:
-        return self.curve[0:3]
+        return self.acc[0:3]
 
+    @acc_lin.setter
+    def acc_lin(self, acceleration) -> None:
+        self._fields[2][0:3] = acceleration
+    
     @property
     def acc_ang(self) -> np.ndarray:
-        return self.curve[3:6]
+        return self.acc[3:6]
 
+    @acc_ang.setter
+    def acc_ang(self, acceleration) -> None:
+        self._fields[2][3:6] = acceleration
+    
     def as_pos_param(self) -> PositionParam:
         return PositionParam(self.pos, self.vel_lin, self.acc_lin)
 

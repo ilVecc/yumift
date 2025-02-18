@@ -72,6 +72,38 @@ def test_lpfilter():
     ax2.plot(t, y, linestyle="dashed")
     plt.show()
 
+def test_system():
+    """ Test for a generic system with Tustin discretization of the state 
+        space representation. 
+    """
+    
+    A = np.array([[0,  1],
+                  [1, -1]])
+    B = np.array([[0], 
+                  [2]])
+    C = np.array([[1, 0]])
+    D = 0
+    x0 = np.array([0, 1])
+    h = 1/1000
+    sys = DiscretizedStateSpaceModel(A, B, C, D, h, x0, method="tustin")
+    
+    # input is a cosine wave for both the systems
+    f = 3
+    t = np.linspace(0,10,int(1/h),endpoint=True)
+    u = np.cos(2*np.pi*f*t)
+    
+    # calculate the output signal
+    y = sys.compute_signal(u)
+    
+    # plot the result
+    fig, ax = plt.subplots(2, 1)
+    ax[0].plot(t, u, label=r"$u$")
+    ax[0].legend()
+    ax[1].plot(t, y[:,0], linestyle="-")
+    ax[1].plot(t, y[:,1], linestyle="-")
+    ax[1].legend([r"$y_1$", r"$y_2$"])
+    plt.show()
+
 def test_admittance_force():
     """ Test for a 3D force admittance with Tustin discretization of the state 
         space representation. 
@@ -105,7 +137,7 @@ def test_admittance_torque():
     """
     
     h = 1/1000  # sampling step [s]
-    adm = AdmittanceTorque(m=0.001, d=None, k=0.2, h=h, method="forward")
+    adm = AdmittanceTorque(M=0.001, D=None, K=0.2, h=h, method="forward")
     
     # three noisy signals sampled with step h
     # each will pass through a different admittance
@@ -134,7 +166,7 @@ def test_admittance_torque_anim():
     from trajectory.MOVEME_plotter import animate_quaternion
     
     h = 1/1000  # sampling step [s]
-    adm = AdmittanceTorque(m=0.001, d=0.02, k=0.0, h=h, method="forward")
+    adm = AdmittanceTorque(M=0.001, D=0.02, K=0.0, h=h, method="forward")
     
     # three noisy box signals sampled with step h
     # each will pass through a different admittance
@@ -164,9 +196,9 @@ def test_admittance_timing():
     import time
     
     h = 1/1000  # sampling step [s]
-    adm_f = AdmittanceForce(m=1, d=None, k=100, h=h, method="tustin")
-    adm_t = AdmittanceTorque(m=0.001, d=None, k=0.2, h=h, method="tustin")
-    adm_w = AdmittanceWrench(m=np.diag(3*[1] + 3*[0.001]), d=None, k=np.diag(3*[100] + 3*[0.2]), h=h, method="tustin")
+    adm_f = AdmittanceForce(M=1, D=None, K=100, h=h, method="tustin")
+    adm_t = AdmittanceTorque(M=0.001, D=None, K=0.2, h=h, method="tustin")
+    adm_w = AdmittanceWrench(M=np.diag(3*[1] + 3*[0.001]), D=None, K=np.diag(3*[100] + 3*[0.2]), h=h, method="tustin")
     
     # three noisy box signals
     t, force = make_noisy_step({0.5: [20, 0, 0], 1.5: 0}, h=h)
@@ -174,7 +206,7 @@ def test_admittance_timing():
     wrench = np.hstack([force, torque])
     
     # calculate the timing
-    adm_f.clear()
+    adm_f.reset()
     timing = []
     for fi in force:
         init = time.time()
@@ -184,7 +216,7 @@ def test_admittance_timing():
     mean = np.mean(timing)
     print(f"AdmittanceForce  avg compute time:                         {mean:.10f} s  (runs at {1/mean:6.4f} Hz)")
     
-    adm_f.clear()
+    adm_f.reset()
     timing = []
     for fi in force:
         init = time.time()
@@ -194,7 +226,7 @@ def test_admittance_timing():
     mean = np.mean(timing)
     print(f"AdmittanceForce  avg compute time (with h recomputation):  {mean:.10f} s  (runs at {1/mean:6.4f} Hz)")
     
-    adm_t.clear()
+    adm_t.reset()
     timing = []
     for ti in torque:
         init = time.time()
@@ -204,7 +236,7 @@ def test_admittance_timing():
     mean = np.mean(timing)
     print(f"AdmittanceTorque avg compute time:                         {mean:.10f} s  (runs at {1/mean:6.4f} Hz)")
     
-    adm_t.clear()
+    adm_t.reset()
     timing = []
     for ti in torque:
         init = time.time()
@@ -214,7 +246,7 @@ def test_admittance_timing():
     mean = np.mean(timing)
     print(f"AdmittanceTorque avg compute time (with h recomputation):  {mean:.10f} s  (runs at {1/mean:6.4f} Hz)")
     
-    adm_w.clear()
+    adm_w.reset()
     timing = []
     for wi in wrench:
         init = time.time()
@@ -233,8 +265,8 @@ def test_admittance_timing():
     mean = np.mean(timing)
     print(f"AdmittanceWrench avg compute time (with h recomputation):  {mean:.10f} s  (runs at {1/mean:6.4f} Hz)")
     
-    adm_f.clear()
-    adm_t.clear()
+    adm_f.reset()
+    adm_t.reset()
     timing = []
     for (fi, ti) in zip(force, torque):
         init = time.time()
@@ -245,8 +277,8 @@ def test_admittance_timing():
     mean = np.mean(timing)
     print(f"Admittance(F+T)  avg compute time:                         {mean:.10f} s  (runs at {1/mean:6.4f} Hz)")
     
-    adm_f.clear()
-    adm_t.clear()
+    adm_f.reset()
+    adm_t.reset()
     timing = []
     for (fi, ti) in zip(force, torque):
         init = time.time()
@@ -259,4 +291,10 @@ def test_admittance_timing():
 
 
 if __name__ == "__main__":
+    # https://stackoverflow.com/questions/39528736/
+    # test_admittance_tustin()
+    # test_lpfilter()
+    # test_system()
+    # test_admittance_force()
+    # test_admittance_torque()
     test_admittance_timing()

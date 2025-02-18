@@ -191,7 +191,7 @@ class YumiDualController(AbstractController[YumiDeviceState], metaclass=ABCMeta)
     def _solve_action(self, action: dict) -> Tuple[np.ndarray, float, float]:
         """ Sets an action and controls the robot.
             :param action: the action to solve; has to contain certain allowed keys.
-            :key `action["routine_*"]`: specific commands (eg. `"routine_ready_pose"`)
+            :key `action["routine_*"]`: specific commands (eg. `"routine_ready_pose"`)  # TODO remove this
             :key `action["control_space"]`: determines which control mode {`"joint_space"`, `"individual"`, `"coordinated"`}
             :key `action["joint_velocities"]`: [right, left] shape(14) with joint velocities (rad/s) (needed for mode `"joint_space"`)
             :key `action["right_velocity"]`: shape(6) with cartesian velocities (m/s, rad/s) (needed for mode `"individual"`)
@@ -207,7 +207,7 @@ class YumiDualController(AbstractController[YumiDeviceState], metaclass=ABCMeta)
         if action["control_space"] == "joint_space":
             dq_target = action["joint_velocities"]
         else:
-            dq_target = self._iksolver(action, self.yumi_state)
+            dq_target = self._iksolver.solve(action, self.yumi_state)
             
         # log joints with clipping velocities
         vel_clip_r = np.abs(dq_target[0:7]) > Parameters.joint_velocity_bound

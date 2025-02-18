@@ -4,33 +4,46 @@ from abc import ABCMeta, abstractmethod
 import numpy as np
 import quaternion as quat
 
-from .utils import Frame, normalize
+from .utils import Frame, normalize3, norm3
 from .quat_utils import quat_diff
 
 
-def position_error_clipped(current_pos: np.ndarray, target_pos: np.ndarray, max_error: float = np.inf):
+def position_error_clipped(current_pos: np.ndarray, target_pos: np.ndarray, max_error: float = np.inf, return_decomposed: bool = False):
     """ Calculates a clipped position error
+    
         :param current_pos: np.array shape(3) [m]
         :param target_pos: np.array shape(3) [m]
         :param max_error: max error [m]
+        :param return_decomposed: if true, return unitary direction and magnitude separately
     """
     position_error = (target_pos - current_pos)
-    position_error_dir, position_error_dist = normalize(position_error, return_norm=True)
-    return position_error_dir * min([max_error, position_error_dist])
+    position_error_dir, position_error_dist = normalize3(position_error, return_norm=True)
+    position_error_dist = min(max_error, position_error_dist)
+    if return_decomposed:
+        return position_error_dir, position_error_dist
+    return position_error_dir * position_error_dist
 
-def rotation_error_clipped(current_rot: np.quaternion, target_rot: np.quaternion, max_error: float = np.inf):
+def rotation_error_clipped(current_rot: np.quaternion, target_rot: np.quaternion, max_error: float = np.inf, return_decomposed: bool = False):
     """ Calculates a clipped angular error
+    
         :param current_rot: quaternion np.array() shape(4)
         :param target_rot: quaternion np.array() shape(4)
         :param max_error: max error [rad]
+        :param return_decomposed: if true, return unitary direction and magnitude separately
     """
     # In Siciliano, the rotation error is `eo = (qf * inv(qi)).vec` since bringing 
     # it to [0 0 0] means obtaining the relative quaternion `qf * inv(qi) = {1,[0 0 0]}`.
     # Dealing with the scalar part is thus redundant and can be omitted. 
     # Here, since we allow to set a maximum error, we have to explicitly deal with it.
     rotation_error = quat_diff(current_rot, target_rot)
-    rotation_error_dir, rotation_error_angle = normalize(quat.as_rotation_vector(rotation_error), return_norm=True)
-    return rotation_error_dir * min([max_error, rotation_error_angle])
+    # here `quat.as_rotation_vector(rotation_error)` could be used, but it's 
+    # meant for collections of quaternions, thus expensive, so we use the 
+    # underlying operations directly, assuming `rotation_error` is normalized
+    rotation_error_dir, rotation_error_angle = normalize3(2*np.log(rotation_error).vec, return_norm=True)
+    rotation_error_angle = min(max_error, rotation_error_angle)
+    if return_decomposed:
+        return rotation_error_dir, rotation_error_angle
+    return rotation_error_dir * rotation_error_angle
 
 
 class ControlLawError(Exception):
@@ -97,6 +110,8 @@ class AbstractControlLaw(object, metaclass=ABCMeta):
         return self.compute_target_state()
 
 
+
+# TODO kick me out
 ###############################################################################
 ###  IMPLEMENTATIONS
 ###############################################################################
@@ -137,6 +152,7 @@ class CartesianVelocityControlLaw(AbstractControlLaw):
         self.target_velocity : np.ndarray  # shape(6)
         self.clear()
 
+    # TODO second look here
     def clear(self):
         self.target_velocity = np.zeros(6)
 
@@ -173,29 +189,36 @@ class CartesianVelocityControlLaw(AbstractControlLaw):
         """ Returns true if any of the deviation limits for target following has been violated.
             :param max_deviation: np.array([max_position_deviation, max_rotation_deviation]), shape(2)
         """
-        error_position = np.linalg.norm(error[0:3])
-        error_rotation = np.linalg.norm(error[3:6])
-        errors = np.array([error_position, error_rotation])
-        violated = np.any(errors > self.max_deviation)
+        error_position = norm3(error[0:3])
+        error_rotation = norm3(error[3:6])
+        violated = error_position > self.max_deviation[0] or error_rotation > self.max_deviation[1]
         return violated
 
     def compute_target_state(self, raise_deviation: bool = True):
         """ Calculates the target velocities.
             :param raise_deviation: raise exception if max deviation is exceeded.
         """
-        error = np.concatenate([
-            position_error_clipped(self.current_position, self.desired_position, 0.1),
-            rotation_error_clipped(self.current_rotation, self.desired_rotation, 0.2)
-        ])
+        error_pos_dir, error_pos_mag = position_error_clipped(self.current_position, self.desired_position, 0.1, True)
+        error_rot_dir, error_rot_mag = rotation_error_clipped(self.current_rotation, self.desired_rotation, 0.2, True)
 
         # update position and rotation (nothing to do here)
         self.target_position = self.desired_position
         self.target_rotation = self.desired_rotation
         # calculate velocity regardless of deviation
-        self.target_velocity = self.desired_velocity + self.K * error
+        # TODO slicing arrays is apparently slow...
+        self.target_velocity[0] = self.desired_velocity[0] + self.K[0] * error_pos_dir[0] * error_pos_mag
+        self.target_velocity[1] = self.desired_velocity[1] + self.K[1] * error_pos_dir[1] * error_pos_mag
+        self.target_velocity[2] = self.desired_velocity[2] + self.K[2] * error_pos_dir[2] * error_pos_mag
+        self.target_velocity[3] = self.desired_velocity[3] + self.K[3] * error_rot_dir[0] * error_rot_mag
+        self.target_velocity[4] = self.desired_velocity[4] + self.K[4] * error_rot_dir[1] * error_rot_mag
+        self.target_velocity[5] = self.desired_velocity[5] + self.K[5] * error_rot_dir[2] * error_rot_mag
 
         # check that the deviation from the trajectory is not too big
-        if raise_deviation and self.max_deviation is not None and self._check_deviation(error):
+        # here we could also call `self._check_deviation()`, but re-computing 
+        # the norm is not necessary since `*_error_clipped()` methods can return
+        # direction and magnitudes separately
+        if raise_deviation and self.max_deviation is not None \
+        and (error_pos_mag > self.max_deviation[0] or error_rot_mag > self.max_deviation[1]):
             raise ControlLawError("Deviation from current target too high")
 
         return self.target_velocity

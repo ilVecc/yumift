@@ -10,6 +10,7 @@ from geometry_msgs.msg import WrenchStamped, PoseStamped, Pose, Point, Vector3, 
 from nav_msgs.msg import Path
 from visualization_msgs.msg import Marker
 
+from dynamics.utils import norm3
 
 DEBUG = False
 
@@ -100,15 +101,15 @@ def main():
         # x = x1 + x2    y = y1 - y2    z = z1 - z2
         f1, f2 = _wrenches[0:3], np.array([1, -1, -1]) * _wrenches[6:9]
 
-        if np.linalg.norm(f1 + f2) > 3.1:
+        if norm3(f1 + f2) > 3.1:
             f1, f2 = f1[0], f2[0]
             t1, t2 = _wrenches[3:6], np.array([1, -1, -1]) * _wrenches[9:12]
             t1, t2 = t1[2], t2[2]
 
             fa = f1 + f2
-            r1 = 1 - np.linalg.norm(f1) / np.linalg.norm(fa)
-            r2 = 1 - np.linalg.norm(f2) / np.linalg.norm(fa)
-            ra = t1 / np.linalg.norm(fa)
+            r1 = 1 - norm3(f1) / norm3(fa)
+            r2 = 1 - norm3(f2) / norm3(fa)
+            ra = t1 / norm3(fa)
 
             # store the value
             if not new_stroke:
@@ -123,7 +124,7 @@ def main():
             timer.tic()
             x = ra*2.5
             y = (r1-0.2)*board_width
-            l = np.linalg.norm([x-lp_filter_x[-1], y-lp_filter_y[-1]])
+            l = norm3([x-lp_filter_x[-1], y-lp_filter_y[-1]])
             if l > 0.01:
                 lp_filter_x.clear()
                 lp_filter_y.clear()

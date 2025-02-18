@@ -111,6 +111,7 @@ class YumiStateUpdater(object):
         state.effector_wrench = self._wrenches
         state.joint_tau = state.jacobian_grippers.T @ state.effector_wrench
     
+    # TODO maybe quat.from_rotation_vector can be optimized
     def _update_coordinated(self):
         state = self.yumi_state
         # absolute pose, avg of the grippers
@@ -118,7 +119,11 @@ class YumiStateUpdater(object):
         # WARNING this produces a kind of "quaternion difference discontinuity" 
         #         when the poses are 180deg from each other around a shared a common axis
         rot_diff = quat_diff(state.pose_gripper_l.rot, state.pose_gripper_r.rot)
-        rot_diff_asym = quat.from_rotation_vector((1-state.alpha) * quat.as_rotation_vector(rot_diff))
+        # `quat.as_rotation_vector()` === `2*np.log().vec` and since `rot_diff` is 
+        # normalized, the `.vec` is not necessary because the scalar part will be 0. 
+        # then, since `quat.from_rotation_vector(...)` === `np.exp([0, .../2])`, we 
+        # can simplify the 2s and avoid pre-pending the 0
+        rot_diff_asym = np.exp((1-state.alpha) * np.log(rot_diff))
         rot_abs = rot_diff_asym * state.pose_gripper_l.rot
         # if np.isclose(quat_diff(rot_abs, state.pose_abs.rot).w, 0):
         #     rot_abs = -rot_abs
@@ -136,8 +141,8 @@ class YumiStateUpdater(object):
         pose_r_wrt_abs = pose_abs_inv @ state.pose_gripper_r
         pose_l_wrt_abs = pose_abs_inv @ state.pose_gripper_l
         pos_rel = coeff_r * pose_r_wrt_abs.pos - coeff_l * pose_l_wrt_abs.pos
-        rot_r_rel = quat.from_rotation_vector(coeff_r * quat.as_rotation_vector(pose_r_wrt_abs.rot))
-        rot_l_rel = quat.from_rotation_vector(coeff_l * quat.as_rotation_vector(pose_l_wrt_abs.rot))
+        rot_r_rel = np.exp(coeff_r * np.log(pose_r_wrt_abs.rot))  # see above the explanation
+        rot_l_rel = np.exp(coeff_l * np.log(pose_l_wrt_abs.rot))
         rot_rel = quat_diff(rot_l_rel, rot_r_rel)
         state.pose_rel = utils_dyn.Frame(pos_rel, rot_rel)
         

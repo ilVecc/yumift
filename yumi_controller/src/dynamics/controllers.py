@@ -7,16 +7,28 @@ from threading import Lock
 
 
 class AbstractDeviceState(object):
-    
+    def __init__(self):
+        self.time : Any
+
+class AbstractDeviceAction(object):
+    def __init__(self):
+        self.time : Any
+
+class AbstractDeviceCommand(object):
     def __init__(self):
         self.time : Any
 
 TState = TypeVar("TState", bound=Type[AbstractDeviceState])
-class AbstractDevice(Generic[TState], metaclass=ABCMeta):
+TAction = TypeVar("TAction", bound=Type[AbstractDeviceAction])
+TCommand = TypeVar("TCommand", bound=Type[AbstractDeviceCommand])
+
+class AbstractDevice(Generic[TState, TCommand], metaclass=ABCMeta):
     
     @abstractmethod
     def is_ready(self) -> bool:
         """ Returns the current readiness of the device.
+        
+            :returns: a flag that describes the "ready" state of the device
         """
         raise NotImplementedError()
 
@@ -25,29 +37,32 @@ class AbstractDevice(Generic[TState], metaclass=ABCMeta):
         """ Read the current state of the device.
             This function must create a device state with updated time in a 
             thread-safe way.
+            
+            :returns: a representation of the state that fits the requirements
+                      of the hardware interface
         """
         raise NotImplementedError()
 
     @abstractmethod
-    def send(self, command: Any):
+    def send(self, command: TCommand):
         """ Send command to the device via the required hardware interface 
             (e.g. CANBUS, TCP socket). A good example might be preparing and 
             sending a velocity command message over ROS.
             
-            :param command: a representation of the command the fits the 
+            :param command: a representation of the command that fits the 
                             requirements of the hardware interface
         """
         raise NotImplementedError()
 
 
-class AbstractController(Generic[TState], metaclass=ABCMeta):
+class AbstractController(Generic[TState, TAction, TCommand], metaclass=ABCMeta):
     """ Class for controlling a generic device, inherit this class and concretize
         every abstract function. `self.policy()` and `self.default_policy()` 
         output an action, which is then passed to `self._solve_action()`, which 
         finally produces a command sent by the device.
     """
 
-    def __init__(self, device: AbstractDevice[TState]):
+    def __init__(self, device: AbstractDevice[TState, TCommand]):
         # signal "controller is stopped"
         self._lock_controller_stop = Lock()
         self._controller_stop = False
@@ -93,7 +108,7 @@ class AbstractController(Generic[TState], metaclass=ABCMeta):
                 print("Controller not ready yet (sending default policy)")
                 action = self.default_policy(state)
             # solve the action and send it
-            command = self._solve_action(action)
+            command = self._solve_action(state, action)
             self._device_send(command)
         else:
             print("Device not ready yet (sending nothing)")
@@ -161,36 +176,39 @@ class AbstractController(Generic[TState], metaclass=ABCMeta):
     def _device_is_ready(self) -> bool:
         """ Logic for checking if the device is ready for I/O operations.
             This comprehends pre- and post- `self._device.is_ready()` logic.
-            By default, simply call `self._device.is_ready()`.
+            By default, this simply calls `self._device.is_ready()`.
         """
         return self._device.is_ready()
     
     def _device_read(self) -> TState:
-        """ Read device state logic. This comprehends pre- and post- 
-            `self._device.read()` logic. By default, simply call `self._device.read()`. 
+        """ Logic for reading device state.
+            This comprehends pre- and post- `self._device.read()` logic. 
+            By default, this simply calls `self._device.read()`. 
             When overwriting this function, always return a state. 
         """
         self._device_last_state = self._device.read()
         return self._device_last_state
 
-    def _device_send(self, command: Any):
-        """ Send command to device logic. This comprehends pre- and post- 
-            `self._device.send()` logic. By default, simply call `self._device.send()`. 
+    def _device_send(self, command: TCommand):
+        """ Logic for sending command to the device. 
+            This comprehends pre- and post- `self._device.send()` logic. 
+            By default, this simply calls `self._device.send()`. 
             When overwriting this function, return nothing. 
         """
         return self._device.send(command)
 
-    def _inner_policy(self, state: TState) -> Any:
-        """ Inner controller logic. This comprehends pre- and post- `self.policy()`
-            logic. By default, simply call `self.policy()`. When overwriting this
-            function, always return an action.
+    def _inner_policy(self, state: TState) -> TAction:
+        """ Inner controller logic. 
+            This comprehends pre- and post- `self.policy()` logic. 
+            By default, this simply calls `self.policy()`. 
+            When overwriting this function, always return an action.
         """
         return self.policy(state)
     
     # controller-specific functions
     
     @abstractmethod
-    def reset(self):
+    def reset(self, state: TState):
         """ Reset the interal logic of the controller.
             A good example might be setting the initial target to the current 
             state of the device, so the reading the device's status can be 
@@ -200,22 +218,26 @@ class AbstractController(Generic[TState], metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def default_policy(self, state: TState) -> Any:
+    def default_policy(self, state: TState) -> TAction:
         """ Default policy to compute when the controller is not ready yet.
             A good example might be a simple all-zeros command.
         """
         raise NotImplementedError()
 
     @abstractmethod
-    def policy(self, state: TState) -> Any:
+    def policy(self, state: TState) -> TAction:
         """ Policy to compute when the controller is ready.
         """
         raise NotImplementedError()
 
     @abstractmethod
-    def _solve_action(self, action: Any) -> Any:
+    def _solve_action(self, state: TState, action: TAction) -> TCommand:
         """ Solve the internal representation of the action to a more concrete 
-            command. A good example might be a robot cartesian action to be solved
-            via inverse kinematics to a joint velocity command.
+            command. A good example might be a robot cartesian action to be 
+            solved via inverse kinematics to a joint velocity command with a 
+            particular solver.
+            
+            :param action: the action to be solved
+            :returns: the command obtained from the action
         """
         raise NotImplementedError()

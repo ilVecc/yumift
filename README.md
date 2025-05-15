@@ -1,21 +1,19 @@
 # Wrenched YuMi control
-ROS implementation for advanced YuMi control. 
-This package contains a modular interface to create controllers for the ABB Dual-Arm YuMi robot.
-
+Modular controllers for the ABB Dual-Arm YuMi robot over ROS Melodic. 
 
 ## Table of Contents
-* [General](#general)
+* [General Architecture](#general-architecture)
 * [Dependencies](#dependencies)
 * [Installation](#installation)
 * [Usage](#usage)
 
 
-## General
-<!-- For more in-depth information and comprehensive installation guide, look in the [wiki page](https://github.com/CRIS-Chalmers/yumi/wiki).  -->
+## General Architecture
 This package contains interfaces and control algorithms for the ABB Dual-Armed YuMi. 
-The core functionality includes inverse kinematics for YuMi in both individual and coordinated manipulation frames of the arms. 
+The core functionality includes Inverse Kinematics (IK) for YuMi in both individual and coordinated manipulation frames of the arms. 
 
-The idea is that you create a controller class that inherits the `YumiDualController` class and that you can then build functionally on top of it, see `yumi_controller/src/examples/controller_tutorial.py`. There is also a trajectory following controller implemented using the same structure, see `yumi_controller/src/controllers/trajectory_controllers.py`. This controller is mainly made to operate with slow motions as no dynamical effects have been included in the control loop. The inverse kinematics problem is solved with Hierarchical Quadratic Programing (HQP) implemented using the `quadprog` solver. The control objectives are solved together with feasibility objectives (wiki page for more info). The robot is visualized in `rviz` in real time and a very simple kinematics simulator is included. 
+Controllers create joint velocity commands, which are then sent to a `ros_control` velocity controller talking with the `hardware_interface` of YuMi. 
+The idea is that you create a controller class that inherits the `YumiDualController` class and that you can then build functionally on top of it, see `yumi_controller/src/examples/dummy_controller.py`. There are also a trajectory following controllers implemented using the same structure, see `yumi_controller/src/controllers/trajectory_controllers.py`. This controller is mainly made to operate with slow motions as no dynamical effects have been included in the control loop. The IK problem is solved with Hierarchical Quadratic Programing (HQP) implemented using the `quadprog` solver. The control objectives are solved together with feasibility objectives (see documentation). The robot is visualized in `rviz` in real time and a very simple kinematic simulator is included when working with real hardware is not possible. 
 
 
 ## Dependencies
@@ -27,7 +25,6 @@ networkingMode=mirrored
 firewall=false
 ```
 in the `.wslconfig` file found in your user folder and to disable Windows Firewall (even better if you set specific rules without disabling it). Then run `wsl --shutdown` in a PowerShell terminal.
-
 
 * for ROS Melodic Desktop, simply follow the [official installation guide](https://wiki.ros.org/melodic/Installation/Ubuntu)
 
@@ -120,15 +117,41 @@ sudo chmod +x ~/yumift_ws/src/yumift/yumi_controller/src/<FILENAME>
 
 
 ## Usage
-The controllers can be launched with roslaunch. Checkout `yumi_controller/src/core/parameters.py` for some accessible parameters that can be set. To tune the controllers found in `trajectory_controllers.py` shipped with the package, checkout `gains.py`.
+The controllers can be launched with roslaunch. Checkout `yumi_controller/src/core/parameters.py` for some accessible parameters that can be set for IK solvers and routines. To tune the controllers found in `trajectory_controllers.py` shipped with the package, checkout `gains.py`.
 
-### Using simulation
+### Working with simulation
 For testing in a simulation, first start the simulator, this can be replaced by a more realistic simulator as long as it has the same ROS interface as the ABB ros driver. 
 ```
 roslaunch yumi_controller use_sim.launch
 ```
 
-### Using hardware
+Another option is to have a Windows machine running RobotStudio with a Virtual Controller. 
+
+### Using the trajectory controllers
+To start the trajectory controller use
+```
+rosrun yumi_controller trajectory_controllers.py simple
+```
+and send some example trajectories to the controller with
+```
+rosrun yumi_controller demo_1_some_trajectories.py
+```
+One could also send commands through the command line:
+``` 
+rostopic pub /trajectory yumi_controller/YumiTrajectory "
+trajectory:
+- positionLeft:  [0.4,  0.3, 0.6]
+  positionRight: [0.4, -0.3, 0.6]
+  orientationLeft:  [0, 0, 0, 1]
+  orientationRight: [0, 0, 0, 1]
+  gripperLeft: 20
+  gripperRight: 20
+  pointTime: 4.0
+mode: 'individual'"
+--once
+``` 
+
+### Working with hardware
 First of all, you will need to setup the F/T sensors and set the following settings:
 
 |               | IP                | Config                 | Filter | Software Bias Vector (might be wrong) |
@@ -143,7 +166,7 @@ You can find more information on the hardware here
 
 When you're done, connect the YuMi via the service port (`XP23` label). 
 This will set YuMi as the DHCP server of the network, with IP `192.168.125.1`. 
-If you instead want to use YuMi with the WAN port, you must change its IP when launching `yumi_controller/launch/use_real.launch` using the parameter `ip:=X.X.X.X`.
+If you instead want to use YuMi with the WAN port, you must change its IP when launching `yumi_controller/launch/use_real.launch` using the parameter `ip:=X.X.X.X`, and don't forget to change the IPs of the F/T sensors.
 
 Finally, use `start_egm.py` to open a connection with YuMi.  
 Also, don't forget to change velocity limits in the EGM config to suit your need; 
@@ -151,35 +174,14 @@ this is done by changing the EGM configuration file `yumi_controller/launch/brin
 
 To conclude, to run the overall system on hardware, run the following commands in two separate terminals
 ```
-roslaunch yumi_controller use_real.launch
+roslaunch yumi_controller use_real.launch ip:=192.168.125.1
 rosrun yumi_controller start_egm.py
 ```
 
-### Using the trajectory controllers
-To start the trajectory controller use
-```
-rosrun yumi_controller trajectory_controllers.py simple
-```
-and send some example trajectories to the controller with
-```
-rosrun yumi_controller demo_1_some_trajectories.py
-```
-One could also send commands through the command line:
-``` 
-rostopic pub /trajectory yumi_controller/Trajectory_msg "
-trajectory:
-- positionLeft:  [0.4,  0.3, 0.6]
-  positionRight: [0.4, -0.3, 0.6]
-  orientationLeft:  [0, 0, 0, 1]
-  orientationRight: [0, 0, 0, 1]
-  pointTime: 4.0
-mode: 'individual'"
---once
-``` 
-
+### Using force sensors
 To use force-based trajectory controllers, first connect to the NetBoxes using
 ```
-roslaunch yumi_controller sensors.launch
+roslaunch yumi_controller sensors.launch sensor_ip_right:=192.168.125.167 sensor_ip_left:=192.168.125.166
 ```
 which includes gravity compensation for the ABB SmartGrippers.
 Then, start a force-based trajectory controller
@@ -198,7 +200,7 @@ then start the controller
 rosrun yumi_controller dummy_controller.py
 ```
 
-It will simply reach a pre-defined pose, but its scope is to be a simple example of how to write your own controller
+It will simply reach a pre-defined pose, but its scope is to be a simple example of how to write your own controller.
 
 
 ## Notes

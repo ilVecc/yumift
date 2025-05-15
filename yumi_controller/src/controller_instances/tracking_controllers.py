@@ -11,7 +11,7 @@ import quaternion as quat
 
 from yumi_controller.msg import YumiPosture as YumiPostureMsg
 
-from core.controller_base import YumiDualController, YumiDevice, YumiDeviceState
+from core.controller_base import YumiDualController, YumiDevice, YumiDualDeviceState
 from core.control_laws import YumiIndividualCartesianVelocityControlLaw
 from core.trajectory import YumiParam
 import core.msg_utils as msg_utils
@@ -33,7 +33,7 @@ class YumiIndividualTrackingController(YumiDualController):
         # prepare trajectory buffer
         self.desired_posture = YumiParam()
         
-    def reset(self):
+    def reset(self, state: YumiDualDeviceState):
         """ Reinitialize the controller setting the current posture as desired posture. 
             This happens after EGM (re)connects
         """
@@ -44,8 +44,8 @@ class YumiIndividualTrackingController(YumiDualController):
             self._device_read()
             if self._device_is_ready():
                 self.desired_posture = YumiParam(
-                    self.yumi_state.pose_gripper_r.pos, self.yumi_state.pose_gripper_r.rot, np.zeros(6), 0, 
-                    self.yumi_state.pose_gripper_l.pos, self.yumi_state.pose_gripper_l.rot, np.zeros(6), 0)
+                    state.pose_gripper_r.pos, state.pose_gripper_r.rot, np.zeros(6), 0, 
+                    state.pose_gripper_l.pos, state.pose_gripper_l.rot, np.zeros(6), 0)
                 print("Controller reset (previous posture has been discarded)")
                 break
             else:
@@ -64,7 +64,7 @@ class YumiIndividualTrackingController(YumiDualController):
     def _sanitize_vel(vel: Tuple[float]):
         return np.asarray(vel) if vel else np.array([0,0,0,0,0,0])
     
-    def policy(self, state: YumiDeviceState):
+    def policy(self, state: YumiDualDeviceState):
         """ Calculate target velocity for the current time step.
         """
         # update the current and desired robot state in the control law class, 

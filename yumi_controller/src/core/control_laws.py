@@ -385,6 +385,7 @@ class YumiDualAdmittanceControlLaw(YumiDualCartesianVelocityControlLaw):
         target_pos_1 = target_state.pose_gripper_r.pos + error_pos_1
         target_pos_2 = target_state.pose_gripper_l.pos + error_pos_2
         
+        # TODO weird indexing
         target_vel[0] = target_state.pose_gripper_r.vel[0] + error_vel_1[0]
         target_vel[1] = target_state.pose_gripper_r.vel[1] + error_vel_1[1]
         target_vel[2] = target_state.pose_gripper_r.vel[2] + error_vel_1[2]
@@ -396,6 +397,7 @@ class YumiDualAdmittanceControlLaw(YumiDualCartesianVelocityControlLaw):
         target_rot_1 = error_rot_1 * target_state.pose_gripper_r.rot
         target_rot_2 = error_rot_2 * target_state.pose_gripper_l.rot
         
+        # TODO weird indexing
         target_vel[3] = target_state.pose_gripper_r.vel[3] + error_wel_1[0]
         target_vel[4] = target_state.pose_gripper_r.vel[4] + error_wel_1[1]
         target_vel[5] = target_state.pose_gripper_r.vel[5] + error_wel_1[2]

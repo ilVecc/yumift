@@ -2,6 +2,8 @@ from typing import Tuple
 
 import numpy as np
 
+# TODO is this correct here?
+from .controller_base import YumiDualDeviceAction
 from .routine_sm import Routine
 from .parameters import Parameters
 from dynamics.utils import RobotState
@@ -44,9 +46,9 @@ class JointStateRoutine(Routine):
             vel = np.zeros(Parameters.dof)
             done = True
 
-        action = {
-            "control_space": "joint_space",
-            "joint_velocities": vel}
+        action = YumiDualDeviceAction()
+        action.control_space(YumiDualDeviceAction.ControlSpace.JOINT_SPACE)
+        action.velocity_joints(vel)
         return action, done
 
     def finish(self, robot_state_final: RobotState) -> None:

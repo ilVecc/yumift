@@ -51,7 +51,7 @@ def main():
                       cond_min_max=0.0, lp_filter=20.0, sample_rate=4, max_speed_deviation=90.0)
     activate_L = dict(tool=tool_L, wobj=work_obj, correction_frame=correction_frame, sensor_frame=sensor_frame,
                       cond_min_max=0.0, lp_filter=20.0, sample_rate=4, max_speed_deviation=90.0)
-    run = dict(cond_time=60.0, ramp_in_time=1.0, offset=dict(trans=xyz_origin, rot=quat_one), pos_corr_gain=0.0)
+    run = dict(cond_time=60.0, ramp_in_time=1.0, offset=dict(trans=xyz_origin, rot=quat_one), pos_corr_gain=0.0)  # TODO pos_corr_gain?
     stop = dict(ramp_out_time=1.0)
     settings_R = dict(allow_egm_motions=True, use_presync=False, setup_uc=setup_uc, activate=activate_R, run=run, stop=stop)
     settings_L = dict(allow_egm_motions=True, use_presync=False, setup_uc=setup_uc, activate=activate_L, run=run, stop=stop)
@@ -88,6 +88,8 @@ def main():
         print(res[0])
     else:
         print("CONTROLLER NOT STARTED!")
+        print("(are revolute counters up-to-date?)")
+        print("(is the firewall turned off?)")
         rospy.signal_shutdown("controller not started")
 
     rospy.spin()
@@ -102,6 +104,8 @@ if __name__ == "__main__":
 
 
 
+
+# TODO this should be taken care of
 
 # WORKING 
 # 

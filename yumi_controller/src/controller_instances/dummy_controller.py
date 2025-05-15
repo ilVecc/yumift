@@ -5,7 +5,7 @@ sys.path.append(str(pathlib.Path(__file__).absolute().parent.parent))
 import rospy
 import numpy as np
 
-from core.controller_base import YumiDualController
+from core.controller_base import YumiDualController, YumiDualDeviceState
 from core.control_laws import YumiIndividualCartesianVelocityControlLaw
 from core.trajectory import YumiParam
 from core.msg_utils import YumiParam_to_YumiCoordinatedRobotState
@@ -33,7 +33,7 @@ class YumiDummyController(YumiDualController):
         # at (0.4, -0.2, 0.2) and (0.4, 0.2, 0.2) for the right and left grippers
         self.desired_posture = YumiParam(vel_r=np.zeros(6), vel_l=np.zeros(6))
         
-    def reset(self):
+    def reset(self, state: YumiDualDeviceState):
         # This function is called every time the controller disconnects from Yumi,
         # for example when EGM is stopped after an error occured in Yumi.
         # This this controller has no special requirements, nothing is done here.

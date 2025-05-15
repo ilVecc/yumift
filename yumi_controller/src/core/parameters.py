@@ -7,7 +7,14 @@ class Parameters():
     """
     
     # degrees of freedom for the robot (DO NOT TOUCH, obv.)
-    dof = 14
+    dof_j_right = 7
+    dof_j_left = 7
+    dof_j = dof_j_right + dof_j_left
+    dof = dof_j
+    dof_c_right = 6
+    dof_c_left = 6
+    dof_c = dof_c_right + dof_c_left
+    cart = dof_c
     
     # controller rate in Hz, also defined in `kdl_kinematics.cpp` (both needs to be the same!)
     # this is a desired value, thus unreliable! check the actual rate

@@ -5,7 +5,7 @@ import numpy as np
 from . import hqp_tasks
 from .ik_solver import IKAlgorithm
 from .parameters import Parameters
-from .robot_state import YumiCoordinatedRobotState
+from .controller_base import YumiDualDeviceState, YumiDualDeviceAction
 from dynamics.hqp import HQPSolver, HQPTaskError
 
 
@@ -26,14 +26,13 @@ class HQPIKAlgorithm(IKAlgorithm):
         self._tasks["joint_position_bound"] = hqp_tasks.JointPositionBoundsTask(
             dof=Parameters.dof,
             bounds_lower=np.hstack([Parameters.joint_position_bound_lower, Parameters.joint_position_bound_lower]),
-            bounds_upper=np.hstack([Parameters.joint_position_bound_upper, Parameters.joint_position_bound_upper]),
-            timestep=Parameters.dt)
+            bounds_upper=np.hstack([Parameters.joint_position_bound_upper, Parameters.joint_position_bound_upper]))
 
         # joint velocity limit
         self._tasks["joint_velocity_bound"] = hqp_tasks.JointVelocityBoundsTask(
             dof=Parameters.dof,
             bounds_lower=-np.hstack([Parameters.joint_velocity_bound, Parameters.joint_velocity_bound]),
-            bounds_upper=np.hstack([Parameters.joint_velocity_bound, Parameters.joint_velocity_bound])).compute()  # constant
+            bounds_upper=np.hstack([Parameters.joint_velocity_bound, Parameters.joint_velocity_bound]))
 
         # control objective
         self._tasks["individual_control"] = hqp_tasks.IndividualControl(dof=Parameters.dof)
@@ -46,23 +45,25 @@ class HQPIKAlgorithm(IKAlgorithm):
         # elbow collision avoidance
         self._tasks["self_collision_elbow"] = hqp_tasks.ElbowProximity(
             dof=Parameters.dof,
-            min_dist=Parameters.elbows_min_distance,
-            timestep=Parameters.dt)
+            min_dist=Parameters.elbows_min_distance)
 
         # end effector collision avoidance
         self._tasks["end_effector_collision"] = hqp_tasks.EndEffectorProximity(
             dof=Parameters.dof,
-            min_dist=Parameters.grippers_min_distance,
-            timestep=Parameters.dt)
+            min_dist=Parameters.grippers_min_distance)
 
         # joint potential 
         self._tasks["joint_position_potential"] = hqp_tasks.JointPositionPotential(
             dof=Parameters.dof,
             default_pos=Parameters.neutral_pos,
-            weights=Parameters.potential_weight,
-            timestep=Parameters.dt)
+            weights=Parameters.potential_weight)
 
-    def solve(self, action: dict, state: YumiCoordinatedRobotState):
+        # TODO remove me
+        # cache
+        self._cache_joint_state = np.zeros((Parameters.dof,))
+        self._cache_velocities = np.zeros(12)
+
+    def solve(self, action: YumiDualDeviceAction, state: YumiDualDeviceState):
         """ Sets up stack of tasks and solves the inverse kinematics problem for
             individual or coordinated manipulation
         """
@@ -71,17 +72,23 @@ class HQPIKAlgorithm(IKAlgorithm):
             if key not in action:
                 action[key] = value
 
-        dt = action["timestep"]
+        # TODO i am ugly
+        self._cache_joint_state[0:7] = state.joint_pos_r
+        self._cache_joint_state[7:14] = state.joint_pos_l
 
+        dt = action["timestep"]
+        
         # stack of tasks, in descending hierarchy
         SoT = []
         # (1) velocity bound
         if action["joint_velocity_bound"]:
-            SoT.append(self._tasks["joint_velocity_bound"])
+            SoT.append(self._tasks["joint_velocity_bound"].compute())  # constant
 
         # (2) position bound
         if action["joint_position_bound"]:
-            SoT.append(self._tasks["joint_position_bound"].compute(joint_position=state.joint_pos, timestep=dt))
+            SoT.append(self._tasks["joint_position_bound"].compute(
+                joint_position=self._cache_joint_state, 
+                timestep=dt))
 
         # (3) elbow proximity limit task
         if action["elbow_collision"]:
@@ -92,7 +99,7 @@ class HQPIKAlgorithm(IKAlgorithm):
                 timestep=dt))
 
         # (4) velocity command task
-        if action["control_space"] == "individual":
+        if action["control_space"] == YumiDualDeviceAction.ControlSpace.INDIVIDUAL:
             # (4.0) gripper collision avoidance
             if action["gripper_collision"]:
                 SoT.append(self._tasks["end_effector_collision"].compute(
@@ -102,44 +109,48 @@ class HQPIKAlgorithm(IKAlgorithm):
                     timestep=dt))
 
             # (4.1) individual control
-            if "right_velocity" in action and "left_velocity" in action:
+            if "velocity_right" in action and "velocity_left" in action:
+                self._cache_velocities[:6] = action["velocity_right"]
+                self._cache_velocities[6:] = action["velocity_left"]
                 SoT.append(self._tasks["individual_control"].compute(
-                    control_vel=np.concatenate([action["right_velocity"], action["left_velocity"]]),
+                    control_vel=self._cache_velocities,
                     jacobian_grippers=state.jacobian_grippers))
             # (4.2) right motion
-            elif "right_velocity" in action:
+            elif "velocity_right" in action:
                 SoT.append(self._tasks["right_control"].compute(
-                    control_vel_right=action["right_velocity"],
+                    control_vel_right=action["velocity_right"],
                     jacobian_grippers_right=state.jacobian_gripper_r))
             # (4.3) left motion
-            elif "left_velocity" in action:
+            elif "velocity_left" in action:
                 SoT.append(self._tasks["left_control"].compute(
-                    control_vel_left=action["left_velocity"],
+                    control_vel_left=action["velocity_left"],
                     jacobian_grippers_left=state.jacobian_gripper_l))
 
             else:
-                print(f"When using individual control mode, \"right_velocity\" and/or \"left_velocity\" must be specified")
+                print(f"When using individual control mode, \"velocity_right\" and/or \"velocity_left\" must be specified")
                 return np.zeros(Parameters.dof)
 
-        elif action["control_space"] == "coordinated":
+        elif action["control_space"] == YumiDualDeviceAction.ControlSpace.COORDINATED:
             # (4.1) coordinated motion
-            if "relative_velocity" in action and "absolute_velocity" in action:
+            if "velocity_relative" in action and "velocity_absolute" in action:
+                self._cache_velocities[:6] = action["velocity_absolute"]
+                self._cache_velocities[6:] = action["velocity_relative"]
                 SoT.append(self._tasks["coordinated_control"].compute(
-                    control_vel=np.concatenate([action["absolute_velocity"], action["relative_velocity"]]),
+                    control_vel=self._cache_velocities,
                     jacobian_coordinated=state.jacobian_coordinated))
             # (4.2) relative motion
-            elif "relative_velocity" in action:
+            elif "velocity_relative" in action:
                 SoT.append(self._tasks["relative_control"].compute(
-                    control_vel_rel=action["relative_velocity"],
+                    control_vel_rel=action["velocity_relative"],
                     jacobian_coordinated_rel=state.jacobian_coordinated_rel))
             # (4.3) absolute motion
-            elif "absolute_velocity" in action:
+            elif "velocity_absolute" in action:
                 SoT.append(self._tasks["absolute_control"].compute(
-                    control_vel_abs=action["absolute_velocity"],
+                    control_vel_abs=action["velocity_absolute"],
                     jacobian_coordinated_abs=state.jacobian_coordinated_abs))
 
             else:
-                print(f"When using individual control mode, \"absolute_velocity\" and/or \"relative_velocity\" must be specified")
+                print(f"When using individual control mode, \"velocity_absolute\" and/or \"velocity_relative\" must be specified")
                 return np.zeros(Parameters.dof)
         else:
             print(f"Unknown control mode ({action['control_space']}), stopping")
@@ -147,21 +158,21 @@ class HQPIKAlgorithm(IKAlgorithm):
 
         # (5) joint potential task (tries to keep the robot in a natural configuration)
         if action["joint_potential"]:
-            SoT.append(self._tasks["joint_position_potential"].compute(joint_position=state.joint_pos, timestep=dt))
+            SoT.append(self._tasks["joint_position_potential"].compute(
+                joint_position=self._cache_joint_state, 
+                timestep=dt))
 
         # solve HQP problem
         try:
             vel = self._hqp_solver.solve(SoT=SoT)
         except HQPTaskError as ex:
-            print(f"Error in the HQP solver: {ex}")
+            print(f"Stopping. Error in the HQP solver: {ex}")
             # TODO what to do with this?
             # print("Stopping EGM for safety")
             # try:
             #     self._stop_egm.call()
             # except Exception:
             #     print("Failed to stop EGM (ignore if simulation does not support EGM)")
-            # stop everything (extra fail-safe step)
-            print("Joint velocity set to 0")
             vel = np.zeros(Parameters.dof)
 
         return vel
@@ -180,19 +191,19 @@ class PINVIKAlgorithm(IKAlgorithm):
         """
         pass
 
-    def solve(self, action: dict, state: YumiCoordinatedRobotState):
+    def solve(self, action: dict, state: YumiDualDeviceState):
 
         jacobian = None
         xdot = np.zeros(12)
 
-        if action["control_space"] == "individual":
-            xdot[0:6] = action.get("right_velocity", np.zeros(6))
-            xdot[6:12] = action.get("left_velocity", np.zeros(6))
+        if action["control_space"] == YumiDualDeviceAction.ControlSpace.INDIVIDUAL:
+            xdot[0:6] = action.get("velocity_right", np.zeros(6))
+            xdot[6:12] = action.get("velocity_left", np.zeros(6))
             jacobian = state.jacobian_grippers
 
-        elif action["control_space"] == "coordinated":
-            xdot[0:6] = action.get("absolute_velocity", np.zeros(6))
-            xdot[6:12] = action.get("relative_velocity", np.zeros(6))
+        elif action["control_space"] == YumiDualDeviceAction.ControlSpace.COORDINATED:
+            xdot[0:6] = action.get("velocity_absolute", np.zeros(6))
+            xdot[6:12] = action.get("velocity_relative", np.zeros(6))
             jacobian = state.jacobian_coordinated
 
         else:

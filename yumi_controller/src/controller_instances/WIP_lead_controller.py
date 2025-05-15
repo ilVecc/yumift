@@ -5,7 +5,7 @@ sys.path.append(str(pathlib.Path(__file__).absolute().parent.parent))
 import rospy
 import numpy as np
 
-from core.controller_base import YumiDualController
+from core.controller_base import YumiDualController, YumiDualDeviceState
 from core.control_laws import YumiDualAdmittanceControlLaw
 from core.parameters import Parameters
 
@@ -25,9 +25,9 @@ class YumiLeadController(YumiDualController):
         self.control_law = YumiDualAdmittanceControlLaw(GAINS, "forward")
         self.effective_mode = "individual"
         
-        self.reset()  # init trajectory (set current position)
+        self.reset(state)  # init trajectory (set current position)
 
-    def reset(self):
+    def reset(self, state: YumiDualDeviceState):
         """ Initialize the controller setting the current point as desired trajectory. 
         """
         self.control_law.clear()

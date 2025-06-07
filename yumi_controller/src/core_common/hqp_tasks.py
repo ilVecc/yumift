@@ -1,7 +1,7 @@
 import numpy as np
 
-from dynamics.utils import Frame, normalize3
-from dynamics.hqp import Task, Task, UpperTask, EqualTask
+from dynamics.utils import Frame
+from dynamics.hqp import UpperTask, EqualTask
 
 
 #

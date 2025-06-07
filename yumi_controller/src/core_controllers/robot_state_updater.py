@@ -10,8 +10,8 @@ from geometry_msgs.msg import WrenchStamped, Pose, Twist, Wrench
 from sensor_msgs.msg import JointState
 from yumi_controller.msg import YumiKinematics, RobotState, Jacobian
 
-from core import msg_utils
-from core.robot_state import YumiCoordinatedRobotState
+from core_common import msg_utils
+from core_common.robot_state import YumiCoordinatedRobotState
 from dynamics import utils as utils_dyn
 from dynamics.quat_utils import quat_diff
 
@@ -34,10 +34,6 @@ class YumiStateUpdater(object):
     def __init__(
         self,
         yumi_state : YumiCoordinatedRobotState,
-        ftsensor_right_topic : str,
-        ftsensor_left_topic : str,
-        jacobians_topic : str,
-        robot_state_topic : str,
         options : int
     ) -> None:
         super().__init__()
@@ -46,18 +42,18 @@ class YumiStateUpdater(object):
         self.yumi_state = yumi_state
         
         # RobotState publisher
-        self._robot_state_publisher = rospy.Publisher(robot_state_topic, RobotState, queue_size=1, tcp_nodelay=False)
+        self._robot_state_publisher = rospy.Publisher("/robot_state_coordinated", RobotState, queue_size=1, tcp_nodelay=False)
         self.options = options
         if self.options & COORDINATED:
             self.options |= INDIVIDUAL
         
         # read force sensors
         self._wrenches = np.zeros(12)  # [fR, mR, fL, mL]
-        rospy.Subscriber(ftsensor_right_topic, WrenchStamped, self._callback_ext_force, callback_args="right", queue_size=1, tcp_nodelay=False)
-        rospy.Subscriber(ftsensor_left_topic, WrenchStamped, self._callback_ext_force, callback_args="left", queue_size=1, tcp_nodelay=False)
+        rospy.Subscriber("/wrench_right", WrenchStamped, self._callback_ext_force, callback_args="right", queue_size=1, tcp_nodelay=False)
+        rospy.Subscriber("/wrench_left", WrenchStamped, self._callback_ext_force, callback_args="left", queue_size=1, tcp_nodelay=False)
         
-        rospy.Subscriber(jacobians_topic, YumiKinematics, self._callback_yumi, queue_size=1, tcp_nodelay=False)
-        rospy.wait_for_message(jacobians_topic, YumiKinematics)
+        rospy.Subscriber("/kinematics", YumiKinematics, self._callback_yumi, queue_size=1, tcp_nodelay=False)
+        rospy.wait_for_message("/kinematics", YumiKinematics)
         
         
     def _callback_ext_force(self, data: WrenchStamped, arm: str):
@@ -325,15 +321,11 @@ def main():
     # starting ROS node
     rospy.init_node("robot_state_updater", anonymous=False)
     
-    topic_sensor_r = rospy.get_param("~topic_sensor_r")
-    topic_sensor_l = rospy.get_param("~topic_sensor_l")
-    topic_jacobians = rospy.get_param("~topic_jacobians")
-    topic_robot_state = rospy.get_param("~topic_robot_state")
     coordinated_symmetry = rospy.get_param("~coordinated_symmetry")
     update_options = rospy.get_param("~update_options")
         
     robot_state = YumiCoordinatedRobotState(symmetry=coordinated_symmetry)
-    robot_state_updater = YumiStateUpdater(robot_state, topic_sensor_r, topic_sensor_l, topic_jacobians, topic_robot_state, update_options)
+    robot_state_updater = YumiStateUpdater(robot_state, update_options)
         
     rospy.spin()
 

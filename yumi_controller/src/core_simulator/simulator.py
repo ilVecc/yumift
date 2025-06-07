@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 
-# This is a super basic "simulator" or more like it integrates the velocity commands at 250 hz
-
-import numpy as np
-
 import rospy
 import threading
+
+import numpy as np
 
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Float64MultiArray as Float64MultiArrayMsg
@@ -53,6 +51,9 @@ class YumiJointState(object):
 
 
 class Simulator(object):
+    """ This is a simple kinematics simulator which integrates the input 
+        velocity commands at 250 hz
+    """
     def __init__(self):
         self.update_rate = 500 #hz
         self.dt = 1/self.update_rate
@@ -133,7 +134,8 @@ class Simulator(object):
 def main():
     # starting ROS node and subscribers
     rospy.init_node("yumi_simulator", anonymous=True)
-     
+    
+    # simulate EGM/RWS status topics
     pub_joint_states = rospy.Publisher("/yumi/egm/joint_states", JointState, queue_size=1)
     pub_egm_state = rospy.Publisher("/yumi/egm/egm_states", EGMState, queue_size=1)
     pub_rws_state = rospy.Publisher("/yumi/rws/system_states", SystemState, queue_size=1)

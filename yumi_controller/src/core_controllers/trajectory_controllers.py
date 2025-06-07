@@ -19,21 +19,21 @@ from yumi_controller.msg import (
 )
 from nav_msgs.msg import Path as PathMsg
 
-from core.controller_base import (
+from core_common.controller_base import (
     RoutinableYumiController, YumiDevice, 
     YumiDualDeviceState, YumiDualDeviceAction
 )
-from core.routines import ReadyPoseRoutine, CalibPoseRoutine
-from core.control_laws import (
+from core_common.routines import ReadyPoseRoutine, CalibPoseRoutine
+from core_common.control_laws import (
     YumiIndividualCartesianVelocityControlLaw, 
     YumiDualCartesianVelocityControlLaw, 
     YumiDualWrenchFeedbackControlLaw, 
     YumiDualAdmittanceControlLaw
 )
-from core.trajectory import YumiParam, YumiTrajectory, YumiTrajectoryParam
-import core.msg_utils as msg_utils
+from core_common.trajectory import YumiParam, YumiTrajectory, YumiTrajectoryParam
+import core_common.msg_utils as msg_utils
 
-from gains import GAINS
+from core_controllers.gains import GAINS
 
 
 DEBUG = False

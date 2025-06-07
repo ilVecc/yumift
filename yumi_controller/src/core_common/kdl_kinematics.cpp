@@ -1,4 +1,5 @@
-#include "ros/ros.h"
+#include <ros/ros.h>
+#include <ros/package.h>
 
 #include <kdl_parser/kdl_parser.hpp>
 #include <kdl/tree.hpp>
@@ -8,16 +9,15 @@
 #include <kdl/frames.hpp>
 #include <kdl/chainfksolverpos_recursive.hpp>
 
-#include <iostream> 
-#include <mutex>
-
 #include <std_msgs/Float64MultiArray.h>
 #include <geometry_msgs/Pose.h>
 #include <sensor_msgs/JointState.h>
-#include <yumi_controller/YumiKinematics.h>
 #include <abb_egm_msgs/EGMState.h>
+#include <yumi_controller/YumiKinematics.h>
 
-#include <ros/package.h>
+#include <iostream> 
+#include <mutex>
+
 
 // mutex 
 std::mutex mtx_receiving;
@@ -85,8 +85,8 @@ class YumiStatePublisher
     ros::Subscriber joint_state_sub;
     ros::Subscriber egm_state_sub;
 
-    ros::Publisher velocity_pub;
-    ros::Publisher jacobian_pub;
+    // ros::Publisher velocity_pub;
+    ros::Publisher kinematics_pub;
     ros::Publisher joint_states_pub;
 
     // define kdl tree and chain for each arm
@@ -175,8 +175,6 @@ class YumiStatePublisher
          0.0, 0.0, 0.0, 0.0
     };
 
-    // functions 
-
     // saves input data from driver
     void callback(const sensor_msgs::JointState::ConstPtr& joint_state_data);
     // function detemines if egm session is ative or not. 
@@ -191,13 +189,13 @@ class YumiStatePublisher
 
 // constructor, gets called when class instance is created
 YumiStatePublisher::YumiStatePublisher(ros::NodeHandle *nh){
-    // setup the supscribers and publishers
-    joint_state_sub = nh->subscribe("/yumi/egm/joint_states", 2, &YumiStatePublisher::callback, this);
-    egm_state_sub = nh->subscribe("/yumi/egm/egm_states", 2, &YumiStatePublisher::callback_egm_state, this);
 
-    jacobian_pub = nh->advertise<yumi_controller::YumiKinematics>("/jacobians", 1);
+    // setup the supscribers and publishers
+    joint_state_sub = nh->subscribe("/egm_joint_states", 2, &YumiStatePublisher::callback, this);
+    egm_state_sub = nh->subscribe("/egm_states", 2, &YumiStatePublisher::callback_egm_state, this);
+
+    kinematics_pub = nh->advertise<yumi_controller::YumiKinematics>("/kinematics", 1);
     joint_states_pub = nh->advertise<sensor_msgs::JointState>("/joint_states", 1);
-    velocity_pub = nh->advertise<std_msgs::Float64MultiArray>("/yumi/egm/joint_group_velocity_controller/command", 1);
 
     // get tree from urdf file for entire yumi
     std::string const PATH = ros::package::getPath("yumi_description"); // find path 
@@ -253,7 +251,7 @@ void YumiStatePublisher::callback(const sensor_msgs::JointState::ConstPtr& joint
         joint_state[14] = joint_state_data->position[14];
         joint_state[15] = joint_state_data->position[15];
         joint_state[16] = joint_state_data->position[16];
-        joint_state[17] = joint_state_data->position[17];      
+        joint_state[17] = joint_state_data->position[17];
     }
     else{ // real robot do not give values for gripper position 
         joint_state[14] = 0.0;
@@ -284,27 +282,15 @@ void YumiStatePublisher::callback_egm_state(const abb_egm_msgs::EGMState::ConstP
 
 // makes most calculations and sends to the controller
 void YumiStatePublisher::update(){
-    // if both egm session not available, publishes 0 velocity command incase one of them is active 
+    // if both egm session not available, publishes 0 velocity command in case one of them is active 
     if (egm_active == false){
-        std_msgs::Float64MultiArray msg;
-        std::vector<double> msg_data = {0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-        msg.data = msg_data;
-        velocity_pub.publish(msg);
-        // set initial joint pose for visualization
-        sensor_msgs::JointState msg_;
-        msg_.header.stamp = ros::Time::now();
-        for (int i = 0; i < 18; i++){
-            msg_.name.push_back(joint_name_list[i]);
-            msg_.position.push_back(init_joint_pos[i]);
-        }
-        std::cout << "inside loop" << std::endl;
-        joint_states_pub.publish(msg_);
+        std::cout << "EGM is not active! State is not updated!" << std::endl;
         return;
     }
 
     mtx_receiving.lock();
 
-   // joints state to kdl variables 
+    // joints state to kdl variables 
     for (int i= 0; i < 7; i++){
         q_right_arm(i) = joint_state[i];
         q_left_arm(i) = joint_state[i+7];
@@ -375,7 +361,7 @@ void YumiStatePublisher::update(){
     kinematics_msg.forwardKinematics.push_back(pose);
 
     // publish msg
-    jacobian_pub.publish(kinematics_msg);
+    kinematics_pub.publish(kinematics_msg);
     ros::spinOnce(); // spin ros and send msg direcly 
 }
 
@@ -383,17 +369,19 @@ void YumiStatePublisher::update(){
 int main(int argc, char** argv){
     // ROS node setup
     ros::init(argc, argv, "kdl_kinematics");
-    ros::NodeHandle nh;
+
     // multithreaded spinner 
     ros::AsyncSpinner spinner(0);
     spinner.start();
+    
     // main class 
+    ros::NodeHandle nh;
     YumiStatePublisher statePublisher(&nh);
     ros::Rate loopRate(500);  // Hz, set same value in parameters.py
 
     while (ros::ok()){
         statePublisher.update();
-        std::cout << "update loop" << std::endl;
+        // std::cout << "update loop" << std::endl;
         loopRate.sleep();
     }
 

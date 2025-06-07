@@ -11,12 +11,12 @@ import quaternion as quat
 
 from yumi_controller.msg import YumiPosture as YumiPostureMsg
 
-from core.controller_base import YumiDualController, YumiDevice, YumiDualDeviceState
-from core.control_laws import YumiIndividualCartesianVelocityControlLaw
-from core.trajectory import YumiParam
-import core.msg_utils as msg_utils
+from core_common.controller_base import YumiDualController, YumiDevice, YumiDualDeviceState
+from core_common.control_laws import YumiIndividualCartesianVelocityControlLaw
+from core_common.trajectory import YumiParam
+import core_common.msg_utils as msg_utils
 
-from gains import GAINS
+from core_controllers.gains import GAINS
 
 
 class YumiIndividualTrackingController(YumiDualController):

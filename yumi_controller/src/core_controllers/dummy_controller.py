@@ -5,10 +5,10 @@ sys.path.append(str(pathlib.Path(__file__).absolute().parent.parent))
 import rospy
 import numpy as np
 
-from core.controller_base import YumiDualController, YumiDualDeviceState
-from core.control_laws import YumiIndividualCartesianVelocityControlLaw
-from core.trajectory import YumiParam
-from core.msg_utils import YumiParam_to_YumiCoordinatedRobotState
+from core_common.controller_base import YumiDualController, YumiDualDeviceState
+from core_common.control_laws import YumiIndividualCartesianVelocityControlLaw
+from core_common.trajectory import YumiParam
+from core_common.msg_utils import YumiParam_to_YumiCoordinatedRobotState
 
 from gains import GAINS
 

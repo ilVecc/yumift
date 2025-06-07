@@ -5,9 +5,9 @@ sys.path.append(str(pathlib.Path(__file__).absolute().parent.parent))
 import rospy
 import numpy as np
 
-from core.controller_base import YumiDualController, YumiDualDeviceState
-from core.control_laws import YumiDualAdmittanceControlLaw
-from core.parameters import Parameters
+from core_common.controller_base import YumiDualController, YumiDualDeviceState
+from core_common.control_laws import YumiDualAdmittanceControlLaw
+from core_common.parameters import Parameters
 
 from gains import GAINS
 

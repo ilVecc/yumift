@@ -1,7 +1,8 @@
-cmake_minimum_required(VERSION 3.0.2)
+cmake_minimum_required(VERSION 3.12)
 project(yumi_description)
 
 find_package(catkin REQUIRED)
+
 catkin_package()
 
 #if(CATKIN_ENABLE_TESTING)
@@ -10,6 +11,6 @@ catkin_package()
 #endif()
 
 install(
-  DIRECTORY images meshes launch rviz urdf
+  DIRECTORY launch meshes rviz urdf
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )

@@ -1,12 +1,15 @@
-cmake_minimum_required(VERSION 3.0.2)
+cmake_minimum_required(VERSION 3.12)
 project(yumi_controller)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 add_compile_options(-std=c++17)
 
 ## Find catkin macros and libraries
-## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
-## is used, also find other catkin packages
+## find_package(catkin REQUIRED COMPONENTS xyz) searches for catkin package xyz 
+## and, if found, creates the usual xyz_FOUND, xyz_INCLUDE_DIRS etc. variables, 
+## but appends those variables to catkin_* variables as well (eg catkin_INCLUDE_DIRS
+## will contain xyz_INCLUDE_DIRS), which is a useful feature. Instead, doing 
+## find_package(xyz) creates variables but avoids appending them to catkin_*.
 find_package(
   catkin REQUIRED 
   COMPONENTS
@@ -30,7 +33,8 @@ find_package(
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
 ## See http://ros.org/doc/api/catkin/html/user_guide/setup_dot_py.html
-# catkin_python_setup()
+catkin_python_setup()
+
 
 ################################################
 ## Declare ROS messages, services and actions ##
@@ -80,13 +84,15 @@ add_message_files(
 #   Action2.action
 # )
 
-## Generate added messages and services with any dependencies listed here
+## Generate added messages and services (the ones above) with any dependencies 
+## listed here
 generate_messages(
   DEPENDENCIES
   std_msgs
   sensor_msgs
   geometry_msgs
 )
+
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -108,6 +114,7 @@ generate_messages(
 #   cfg/DynReconf2.cfg
 # )
 
+
 ###################################
 ## catkin specific configuration ##
 ###################################
@@ -126,6 +133,7 @@ catkin_package(
   message_runtime 
   kdl_parser
 )
+
 
 ###########
 ## Build ##
@@ -179,6 +187,7 @@ include_directories(
 catkin_install_python(
   PROGRAMS
   src/controllers/trajectory_controllers.py   
+  src/controllers/tracking_controllers.py
   DESTINATION 
   ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
@@ -219,6 +228,7 @@ install(
   DESTINATION 
   ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
+
 
 #############
 ## Testing ##

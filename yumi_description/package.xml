@@ -1,21 +1,24 @@
-<package>
+<?xml version="1.0"?>
+<package format="2">
   <name>yumi_description</name>
   <version>0.5.0</version>
 
-  <description>This package contains a number of URDF tutorials.</description>
-  <author email="davidvlu@gmail.com">David V. Lu!!</author>
+  <description>YuMi URDF with force sensors.</description>
+  
+  <maintainer email="sebastiano.fregnan@control.lth.se">Sebastiano Fregnan</maintainer>
 
-  <maintainer email="davidvlu@gmail.com">David V. Lu!!</maintainer>
+  <author email="sebastiano.fregnan@control.lth.se">Sebastiano Fregnan</author>
 
-  <license>BSD</license>
-  <url>http://ros.org/wiki/urdf_tutorial</url>
+  <license>MIT</license>
 
   <buildtool_depend>catkin</buildtool_depend>
+
   <build_depend>roslaunch</build_depend>
-  <run_depend>joint_state_publisher</run_depend>
-  <run_depend>joint_state_publisher_gui</run_depend>
-  <run_depend>robot_state_publisher</run_depend>
-  <run_depend>rviz</run_depend>
-  <run_depend>xacro</run_depend>
+
+  <exec_depend>joint_state_publisher</exec_depend>
+  <exec_depend>joint_state_publisher_gui</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>rviz</exec_depend>
+  <exec_depend>xacro</exec_depend>
 
 </package>

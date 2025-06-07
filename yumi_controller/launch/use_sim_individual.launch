@@ -1,9 +1,0 @@
-<launch>
-
-  <node pkg="yumi_controller" type="simulator.py" name="yumi_simulator" output="screen" />
-
-  <include file="$(find yumi_controller)/launch/base.launch">
-      <arg name="update_options" value="3" />
-  </include>
-  
-</launch>

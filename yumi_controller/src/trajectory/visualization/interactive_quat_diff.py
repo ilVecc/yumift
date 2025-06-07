@@ -3,7 +3,7 @@ import quaternion as quat
 
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider, CheckButtons
-from .MOVEME_plotter import plot_quat, Arrow3D
+from .plotter import plot_quat, Arrow3D
 
 
 fig = plt.figure()

@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<launch>
+
+  <!-- Using an nickname/identifier for the robot controller is good practice -->
+  <arg name="robot_ip" default=""/>  <!-- 192.168.125.1 for service port -->
+  <arg name="robot_nickname" default="yumi"/>
+  <arg name="rviz" default="true"/>
+  <arg name="individual" default="true"/>
+
+  <group ns="$(arg robot_nickname)">
+
+    <!-- start the real robot -->
+    <include if="$(eval robot_ip != '')" file="$(find yumi_controller)/launch/setup_rws_egm.launch">
+      <arg name="robot_ip" value="$(arg robot_ip)"/>
+      <arg name="robot_nickname" value="$(arg robot_nickname)"/>
+    </include>
+    <!-- start the simulator -->
+    <node unless="$(eval robot_ip != '')" pkg="yumi_controller" type="simulator.py" name="simulator" output="screen" />
+
+    <!-- start the kinematics computation -->    
+    <node pkg="yumi_controller" type="kdl_kinematics" name="unified_kinematics">
+      <remap from="/egm_joint_states" to="egm/joint_states"/>
+      <remap from="/egm_states"       to="egm/egm_states"/>
+      <remap from="/kinematics"       to="unified/kinematics"/>
+      <remap from="/joint_states"     to="unified/joint_states"/>
+    </node>
+    <!-- include Python node for computation of unified robot state (and possibily coordinated task space) -->
+    <include file="$(find yumi_controller)/launch/unified_state_updater.launch">
+      <arg name="coordinated_symmetry" value="0"/>
+      <arg if="$(arg individual)" name="update_options" value="3" />
+      <arg name="topic_sensor_r" default="sensors/wrench/right/world"/>
+      <arg name="topic_sensor_l" default="sensors/wrench/left/world"/>
+      <arg name="topic_kinematics" default="unified/kinematics"/>
+      <arg name="topic_robot_state" default="unified/robot_state_coordinated"/>
+    </include>
+
+    <!-- load URDF -->
+    <include file="$(find yumi_description)/launch/load.launch" />
+    <!-- start robot state publisher (i.e. publish ~joint_states to /tf) -->
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher">
+      <remap from="joint_states" to="unified/joint_states"/>
+    </node>
+
+    <!-- start rviz visualization -->
+    <include if="$(arg rviz)" file="$(find yumi_controller)/launch/display.launch" />
+  
+  </group>
+
+</launch>

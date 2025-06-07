@@ -36,7 +36,7 @@ class Trajectory(Generic[TParam], metaclass=ABCMeta):
     """
     def __init__(self) -> None:
         """ Initialize the trajectory.
-            When subclassing, always call this method at the end of the subclassed .__init__()
+            When subclassing, always call this method at the end of the subclassed `.__init__()`
         """
         self._param_init: TParam
         self._param_final: TParam
@@ -45,15 +45,15 @@ class Trajectory(Generic[TParam], metaclass=ABCMeta):
     
     def clear(self) -> None:
         """ Reset the trajectory. 
-            When subclassing, always call this method at the end of the subclassed .clear()
+            When subclassing, always call this method at the end of the subclassed `.clear()`
         """
         self._param_init = None
         self._param_final = None
         self._duration = 0
     
     def update(self, param_init: TParam, param_final: TParam, duration: float) -> None:
-        """ Set params of the trajectory. For safety, .clear() is automatically called before setting anything. 
-            When subclassing, always call this method at the beginning of the subclassed .update()
+        """ Set params of the trajectory. For safety, `.clear()` is automatically called before setting anything. 
+            When subclassing, always call this method at the beginning of the subclassed `.update()`
         """
         self.clear()
         self._param_init = param_init
@@ -190,8 +190,8 @@ def sampled(trajectory_class: PlanOrTrajType) -> PlanOrTrajType:
 class FakeTrajectory(Trajectory[Any]):
     """ Trajectory useful when constructing a complex path which does not use
         an underlying Trajectory object (i.e. in a double path, two objects
-        are needed instead of one). Remember to avoid using methods .compute() 
-        and .update() if not necessary. """
+        are needed instead of one). Remember to avoid using methods `.compute()` 
+        and `.update()` if not necessary. """
     def __init__(self) -> None:
         super().__init__()
     def compute(self, t) -> Any:

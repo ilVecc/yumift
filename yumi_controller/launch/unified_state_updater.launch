@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<launch>
+    
+    <arg name="RIGHT"       value="1"/>
+    <arg name="LEFT"        value="2"/>
+    <arg name="INDIVIDUAL"  value="3"/>  <!-- RIGHT + LEFT -->
+    <arg name="ABSOLUTE"    value="4"/>
+    <arg name="RELATIVE"    value="8"/>
+    <arg name="COORDINATED" value="12"/>  <!-- ABSOLUTE + RELATIVE -->
+    <arg name="ELBOW_RIGHT" value="16"/>
+    <arg name="ELBOW_LEFT"  value="32"/>
+    <arg name="ELBOWS"      value="48"/>  <!-- ELBOW_RIGHT + ELBOW_LEFT -->
+    <arg name="ARM_RIGHT"   value="64"/>
+    <arg name="ARM_LEFT"    value="128"/>
+    <arg name="ARMS"        value="192"/>  <!-- ARM_RIGHT + ARM_LEFT -->
+    <arg name="EVERYTHING"  value="255"/>  <!-- INDIVIDUAL + COORDINATED + ELBOWS + ARMS -->
+    
+    <!-- level of update (the highest, the slowest) -->
+    <arg name="update_options" default="$(arg EVERYTHING)"/>
+    <!-- symmetry of coordination (from -1, left-centric, to +1, right-centric) -->
+    <arg name="coordinated_symmetry" default="0"/>
+    <!-- inputs -->
+    <arg name="topic_sensor_r" default="/wrench_right"/>
+    <arg name="topic_sensor_l" default="/wrench_left"/>
+    <arg name="topic_kinematics" default="/kinematics"/>
+    <!-- output -->
+    <arg name="topic_robot_state" default="/robot_state_coordinated"/>
+
+    <node pkg="yumi_controller" type="robot_state_updater.py" name="unified_robot_state_updater" output="screen">
+        <param name="coordinated_symmetry" type="int" value="$(arg coordinated_symmetry)"/>
+        <param name="update_options"       type="int" value="$(arg update_options)"/>
+        <remap from="/wrench_right" to="$(arg topic_sensor_r)"/>
+        <remap from="/wrench_left"  to="$(arg topic_sensor_l)"/>
+        <remap from="/kinematics"   to="$(arg topic_kinematics)"/>
+        <remap from="/robot_state_coordinated" to="$(arg topic_robot_state)"/>
+    </node>
+
+</launch>

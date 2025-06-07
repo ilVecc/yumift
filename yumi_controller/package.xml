@@ -1,7 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>yumi_controller</name>
-  <version>0.1.0</version>
+  <version>0.2.0</version>
+
   <description>The controller package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
@@ -34,6 +35,7 @@
   <!--   <depend>roscpp</depend> -->
   <!--   Note that this is equivalent to the following: -->
   <!--   <build_depend>roscpp</build_depend> -->
+  <!--   <build_export_depend>roscpp</build_export_depend> -->
   <!--   <exec_depend>roscpp</exec_depend> -->
   <!-- Use build_depend for packages you need at compile time: -->
   <!--   <build_depend>message_generation</build_depend> -->
@@ -51,33 +53,48 @@
 
   <build_depend>roscpp</build_depend>
   <build_depend>rospy</build_depend>
+  <build_depend>message_generation</build_depend>
   <build_depend>sensor_msgs</build_depend>
   <build_depend>std_msgs</build_depend>
-  <build_depend>kdl_parser</build_depend>
-  <build_depend>message_generation</build_depend>
   <build_depend>geometry_msgs</build_depend>
   <build_depend>abb_egm_msgs</build_depend>
-  <build_depend>abb_rapid_sm_addin_msgs</build_depend>
-  <build_depend>abb_robot_msgs</build_depend>
-  <build_depend>abb_rws_service_provider</build_depend>
+  <build_depend>kdl_parser</build_depend>  <!-- file/string/XML/urdf::Model to KDL::Tree -->
+  <!-- <build_depend>liborocos-kdl</build_depend> -->
+  <build_depend>liborocos-kdl-dev</build_depend>
 
+  <!-- This package does not export headers -->
+  <!-- 
   <build_export_depend>roscpp</build_export_depend>
   <build_export_depend>rospy</build_export_depend>
   <build_export_depend>sensor_msgs</build_export_depend>
   <build_export_depend>std_msgs</build_export_depend>
-  <build_export_depend>kdl_parser</build_export_depend>
   <build_export_depend>geometry_msgs</build_export_depend>
   <build_export_depend>abb_egm_msgs</build_export_depend>
-  <build_export_depend>abb_rapid_sm_addin_msgs</build_export_depend>
-  <build_export_depend>abb_robot_msgs</build_export_depend>
+  <build_export_depend>kdl_parser</build_export_depend> 
+  -->
   
   <exec_depend>roscpp</exec_depend>
   <exec_depend>rospy</exec_depend>
+  <exec_depend>ros_controllers</exec_depend>
+  <exec_depend>message_runtime</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>
   <exec_depend>std_msgs</exec_depend>
-  <exec_depend>message_runtime</exec_depend>
   <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>abb_egm_msgs</exec_depend>
+  <exec_depend>abb_rapid_sm_addin_msgs</exec_depend>
+  <exec_depend>abb_rws_service_provider</exec_depend>
+  <!-- <exec_depend>abb_robot_msgs</exec_depend> -->
   <exec_depend>kdl_parser</exec_depend>
+  <exec_depend>liborocos-kdl</exec_depend>
+  <!-- <exec_depend>liborocos-kdl-dev</exec_depend> -->
+  <exec_depend>geometry2</exec_depend>
+  <!-- Python dependencies -->
+  <exec_depend>python3-pip</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python-numpy-quaternion-pip</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+  <!-- <exec_depend>python3-scipy</exec_depend> -->
+  <exec_depend>quadprog-pip</exec_depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

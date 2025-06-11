@@ -186,7 +186,6 @@ class YumiTrajectoryController(RoutinableYumiController):
         def _wxyz_to_xyzw(q: np.quaternion):
             return np.roll(quat.as_float_array(q), -1)
     
-    # TODO use state instead of self.yumi_state
     def policy(self, state: YumiDualDeviceState) -> YumiDualDeviceAction:
         """ Calculate target velocity for the current time step.
         """

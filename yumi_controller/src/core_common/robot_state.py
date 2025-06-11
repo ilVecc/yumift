@@ -23,10 +23,10 @@ class YumiRobotState(RobotState):
         super().__init__(14)  # ignore all variables, instead wrap _right and _left using properties
         self._right = RobotState(7, joint_pos[:7], joint_vel[:7], None, joint_torque[:7], 
                                     pose_pos[:3], pose_rot[0], pose_vel[:6], None, pose_wrench[:6], 
-                                    jacobian[0:6, 0:7])
+                                    jacobian[0:6, 0:7], None)
         self._left = RobotState(7, joint_pos[7:], joint_vel[7:], None, joint_torque[7:], 
                                    pose_pos[3:], pose_rot[1], pose_vel[6:], None, pose_wrench[6:], 
-                                   jacobian[6:12, 7:14])
+                                   jacobian[6:12, 7:14], None)
         # gripping
         self.grip_r = grip_r
         self.grip_l = grip_l

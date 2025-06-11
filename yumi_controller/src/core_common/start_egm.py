@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 import rospy, rospkg, rosservice
 
 import yaml

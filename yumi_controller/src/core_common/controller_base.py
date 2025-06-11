@@ -3,17 +3,22 @@ from enum import Enum
 
 import rospy
 import numpy as np
-from threading import Lock
 
 from std_msgs.msg import Float64MultiArray as Float64MultiArrayMsg
 from abb_robot_msgs.msg import SystemState as SystemStateMsg
 from abb_robot_msgs.srv import TriggerWithResultCode as TriggerWithResultCodeSrv
 from abb_rapid_sm_addin_msgs.srv import SetSGCommand as SetSGCommandSrv
-from yumi_controller.msg import RobotState as RobotStateMsg
 
 from .robot_state import YumiCoordinatedRobotState
 from .parameters import Parameters
 from .msg_utils import RobotStateMsg_to_YumiCoordinatedRobotState
+
+from yumi_controller.msg import RobotState as RobotStateMsg
+
+
+###############################################################################
+#                              CONTROLLER DEVICE                              #
+###############################################################################
 
 from dynamics.controllers import (
     AbstractController, AbstractDevice, 
@@ -125,7 +130,7 @@ class YumiDevice(AbstractDevice[YumiDualDeviceState, YumiDualDeviceCommand]):
         rospy.wait_for_message("/yumi/robot_state_coordinated", RobotStateMsg)
         
         # command publishers
-        self._pub_yumi = YumiVelocityCommand()
+        self._pub_vel = YumiVelocityCommand()
         self._pub_grip = YumiGrippersCommand()
         
         # EGM error handler and status updater (updates `self._device_ready`)
@@ -162,10 +167,74 @@ class YumiDevice(AbstractDevice[YumiDualDeviceState, YumiDualDeviceCommand]):
     def send(self, command: YumiDualDeviceCommand):
         # yumi control command and gripper control command (if any)
         # avoid sendind commands all the time to optimize bandwidth
-        self._pub_yumi.send_velocity_cmd(command._dq_target)
+        self._pub_vel.send_velocity_cmd(command._dq_target)
         if (command._grip_r is not None) or (command._grip_l is not None):
             self._pub_grip.send_position_cmd(command._grip_r, command._grip_l)
 
+# UTILS
+
+class YumiVelocityCommand(object):
+    """ Used for storing the velocity command for yumi
+    """
+    def __init__(self):
+        self._pub = rospy.Publisher("/yumi/egm/joint_group_velocity_controller/command", Float64MultiArrayMsg, queue_size=1, tcp_nodelay=True)
+
+    def send_velocity_cmd(self, joint_velocity: np.ndarray):
+        """ Velocity should be an np.array() with 14 elements, [right arm, left arm]
+        """
+        # flip the arry to [left, right]
+        msg = Float64MultiArrayMsg(
+            data=joint_velocity[7:14].tolist() + joint_velocity[0:7].tolist())
+        self._pub.publish(msg)
+
+class YumiGrippersCommand(object):
+    """ Class for controlling the grippers on YuMi, the grippers are controlled
+        in [mm] and uses ros service
+    """
+    def __init__(self):
+        # rosservice, for control over grippers
+        self._service_SetSGCommand = rospy.ServiceProxy("/yumi/rws/sm_addin/set_sg_command", SetSGCommandSrv, persistent=True)
+        self._service_RunSGRoutine = rospy.ServiceProxy("/yumi/rws/sm_addin/run_sg_routine", TriggerWithResultCodeSrv, persistent=True)
+        self._prev_gripper_r = 0
+        self._prev_gripper_l = 0
+
+    def send_position_cmd(self, gripper_r=None, gripper_l=None):
+        """ Set new gripping position
+            :param gripperRight: float [mm]
+            :param gripperLeft: float [mm]
+        """
+        tol = 1e-5
+        try:
+            # stacks/set the commands for the grippers 
+            # do not send the same command twice as grippers will momentarily regrip
+
+            # for right gripper
+            if gripper_r is not None:
+                if abs(self._prev_gripper_r - gripper_r) >= tol:
+                    if gripper_r <= 0.1:
+                        self._service_SetSGCommand.call(task="T_ROB_R", command=6)
+                    else:
+                        self._service_SetSGCommand.call(task="T_ROB_R", command=5, target_position=gripper_r)
+                    self._prev_gripper_r = gripper_r
+
+            # for left gripper
+            if gripper_l is not None:
+                if abs(self._prev_gripper_l - gripper_l) >= tol:
+                    if gripper_l <= 0.1: # if gripper set close to zero then grip in 
+                        self._service_SetSGCommand.call(task="T_ROB_L", command=6)
+                    else: # otherwise move to position 
+                        self._service_SetSGCommand.call(task="T_ROB_L", command=5, target_position=gripper_l)
+                    self._prev_gripper_l = gripper_l
+
+            # sends of the commands to the robot
+            self._service_RunSGRoutine.call()
+
+        except Exception as ex:
+            print(f"SmartGripper error : {ex}")
+
+###############################################################################
+#                                 CONTROLLERS                                 #
+###############################################################################
 
 from .ik_solver import IKSolver
 from .ik_algorithms import HQPIKAlgorithm, PINVIKAlgorithm
@@ -297,119 +366,3 @@ class YumiDualController(
         command.grip_right(action.get("gripper_right"))
         command.grip_left(action.get("gripper_left"))
         return command
-
-
-from typing import List
-from .routine_sm import RoutineStateMachine, Routine
-
-class RoutinableYumiController(YumiDualController):
-
-    def __init__(self, robot_handle: YumiDevice, iksolver: str = "pinv", routines: List[Routine] = []):
-        super().__init__(robot_handle, iksolver)
-        
-        # routine variables
-        self._lock_routine_request = Lock()
-        self._routine_request = None
-        self._routine_machine = RoutineStateMachine()
-        for routine in routines:
-            self._routine_machine.register(routine)
-        
-    @abstractmethod
-    def reset(self, state: YumiDualDeviceState):
-        """ Method called when EGM stops.
-        """
-        raise NotImplementedError()
-    
-    def request_routine(self, name: str):
-        """ Set the routine to run. This can be done either internally in
-            the `self.policy()` function or externally in another thread. 
-            If you do it internally, it will be executed in the next cycle.
-        """
-        with self._lock_routine_request:
-            self._routine_request = name
-    
-    def _inner_policy(self, state: YumiDualDeviceState) -> YumiDualDeviceCommand:
-        """ New internal policy for the controller. Now, before computing the 
-            policy, run the requested rountine, if any is requested or already
-            running. Otherwise, run the policy.
-        """
-        # copy the request to avoid locking it for long
-        with self._lock_routine_request:
-            request = self._routine_request
-            self._routine_request = None
-        # execute the request (if exists)
-        action, done = self._routine_machine.run(state, request)
-        if done is True:
-            # routine just finished, reset controller first
-            self.reset(state)
-        elif action is not None:
-            # action from routine exists, return it
-            return action
-        
-        return self.policy(state)
-    
-    @abstractmethod
-    def policy(self, state: YumiDualDeviceState) -> YumiDualDeviceCommand: 
-        raise NotImplementedError()
-
-
-# UTILS
-
-class YumiVelocityCommand(object):
-    """ Used for storing the velocity command for yumi
-    """
-    def __init__(self):
-        self._pub = rospy.Publisher("/yumi/egm/joint_group_velocity_controller/command", Float64MultiArrayMsg, queue_size=1, tcp_nodelay=True)
-
-    def send_velocity_cmd(self, joint_velocity: np.ndarray):
-        """ Velocity should be an np.array() with 14 elements, [right arm, left arm]
-        """
-        # flip the arry to [left, right]
-        msg = Float64MultiArrayMsg(
-            data=joint_velocity[7:14].tolist() + joint_velocity[0:7].tolist())
-        self._pub.publish(msg)
-
-class YumiGrippersCommand(object):
-    """ Class for controlling the grippers on YuMi, the grippers are controlled
-        in [mm] and uses ros service
-    """
-    def __init__(self):
-        # rosservice, for control over grippers
-        self._service_SetSGCommand = rospy.ServiceProxy("/yumi/rws/sm_addin/set_sg_command", SetSGCommandSrv, persistent=True)
-        self._service_RunSGRoutine = rospy.ServiceProxy("/yumi/rws/sm_addin/run_sg_routine", TriggerWithResultCodeSrv, persistent=True)
-        self._prev_gripper_r = 0
-        self._prev_gripper_l = 0
-
-    def send_position_cmd(self, gripper_r=None, gripper_l=None):
-        """ Set new gripping position
-            :param gripperRight: float [mm]
-            :param gripperLeft: float [mm]
-        """
-        tol = 1e-5
-        try:
-            # stacks/set the commands for the grippers 
-            # do not send the same command twice as grippers will momentarily regrip
-
-            # for right gripper
-            if gripper_r is not None:
-                if abs(self._prev_gripper_r - gripper_r) >= tol:
-                    if gripper_r <= 0.1:
-                        self._service_SetSGCommand.call(task="T_ROB_R", command=6)
-                    else:
-                        self._service_SetSGCommand.call(task="T_ROB_R", command=5, target_position=gripper_r)
-                    self._prev_gripper_r = gripper_r
-
-            # for left gripper
-            if gripper_l is not None:
-                if abs(self._prev_gripper_l - gripper_l) >= tol:
-                    if gripper_l <= 0.1: # if gripper set close to zero then grip in 
-                        self._service_SetSGCommand.call(task="T_ROB_L", command=6)
-                    else: # otherwise move to position 
-                        self._service_SetSGCommand.call(task="T_ROB_L", command=5, target_position=gripper_l)
-                    self._prev_gripper_l = gripper_l
-
-            # sends of the commands to the robot
-            self._service_RunSGRoutine.call()
-
-        except Exception as ex:
-            print(f"SmartGripper error : {ex}")

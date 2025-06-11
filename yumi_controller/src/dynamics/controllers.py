@@ -5,6 +5,9 @@ from typing import Any, TypeVar, Type, Generic
 import time
 from threading import Lock
 
+###############################################################################
+#                                   DEVICE                                    #
+###############################################################################
 
 class AbstractDeviceState(object):
     def __init__(self):
@@ -54,6 +57,9 @@ class AbstractDevice(Generic[TState, TCommand], metaclass=ABCMeta):
         """
         raise NotImplementedError()
 
+###############################################################################
+#                                 CONTROLLER                                  #
+###############################################################################
 
 class AbstractController(Generic[TState, TAction, TCommand], metaclass=ABCMeta):
     """ Class for controlling a generic device, inherit this class and concretize

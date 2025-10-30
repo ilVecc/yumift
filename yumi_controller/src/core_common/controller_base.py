@@ -10,8 +10,8 @@ from abb_robot_msgs.srv import TriggerWithResultCode as TriggerWithResultCodeSrv
 from abb_rapid_sm_addin_msgs.srv import SetSGCommand as SetSGCommandSrv
 
 from .robot_state import YumiCoordinatedRobotState
-from .parameters import Parameters
 from .msg_utils import RobotStateMsg_to_YumiCoordinatedRobotState
+from .parameters import ControllerParameters
 
 from yumi_controller.msg import RobotState as RobotStateMsg
 
@@ -22,15 +22,171 @@ from yumi_controller.msg import RobotState as RobotStateMsg
 
 from dynamics.controllers import (
     AbstractController, AbstractDevice, 
-    AbstractDeviceState, AbstractDeviceAction, AbstractDeviceCommand
+    AbstractDeviceState, AbstractControllerAction, AbstractDeviceCommand
 )
 
 # TODO maybe make YumiCoordinatedRobotState an AbstractDeviceState instead of this
-class YumiDualDeviceState(YumiCoordinatedRobotState, AbstractDeviceState):
+class YumiDualDeviceState(AbstractDeviceState, YumiCoordinatedRobotState):
     def __init__(self) -> None:
         super().__init__()
 
-class YumiDualDeviceAction(AbstractDeviceAction, dict):
+class YumiDualDeviceCommand(AbstractDeviceCommand):
+    def __init__(self, 
+        dq_target : np.ndarray = np.zeros(ControllerParameters.DOF), 
+        grip_r : float = None, 
+        grip_l : float = None
+    ) -> None:
+        super().__init__()
+        self._dq_target = dq_target
+        self._grip_r = grip_r
+        self._grip_l = grip_l
+
+    def dq_target(self, target : np.ndarray):
+        assert target.shape == (ControllerParameters.DOF,)
+        self._dq_target = target
+
+    def grip_right(self, target : float):
+        self._grip_r = target
+
+    def grip_left(self, target : float):
+        self._grip_l = target
+
+# TODO why not dual?
+# TODO remove "/yumi" from everywhere
+class YumiDevice(AbstractDevice[YumiDualDeviceState, YumiDualDeviceCommand]):
+    
+    def __init__(self):
+        super().__init__()
+        # yumi state subscriber
+        self._cache_state: YumiDualDeviceState
+        self._device_ready = False
+        self._device_ready_changed = False
+        rospy.Subscriber("/yumi/unified/robot_state_coordinated", RobotStateMsg, self._callback_received_state, queue_size=1, tcp_nodelay=False)
+        # ensure to start the controller with a real robot state 
+        # (no wait means default state (all zeros), very bad)
+        # TODO
+        rospy.wait_for_message("/yumi/unified/robot_state_coordinated", RobotStateMsg)
+        
+        # command publishers
+        self._pub_vel = YumiVelocityCommand()
+        self._pub_grip = YumiGrippersCommand()
+        
+        # EGM error handler and status updater (updates `self._device_ready`)
+        self._start_rapid = rospy.ServiceProxy("/yumi/rws/start_rapid", TriggerWithResultCodeSrv)
+        # TODO handle other flags in the message (flags are: motors_on, auto_mode, rapid_running)
+        rospy.Subscriber("/yumi/rws/system_states", SystemStateMsg, self._callback_received_rapid_state, queue_size=1, tcp_nodelay=False)
+        # TODO
+        rospy.wait_for_message("/yumi/rws/system_states", SystemStateMsg)
+    
+    def _callback_received_rapid_state(self, data: SystemStateMsg):
+        self._cache_rws_auto_mode = data.auto_mode
+
+    def _callback_received_state(self, data: RobotStateMsg):
+        self._cache_state = RobotStateMsg_to_YumiCoordinatedRobotState(data)  # TODO this is broken, type mismatch
+        self._cache_state.time = rospy.Time.now()
+    
+    def did_status_change(self):
+        return self._device_ready_changed
+    
+    def is_ready(self) -> bool:
+        return self._device_ready
+    
+    def read(self) -> YumiDualDeviceState:
+        """ Stores the constantly updating state of Yumi inside the variables 
+            actually used by the controller, effectively updating the state 
+            in the controller. The data coming from Yumi might be old (because 
+            of a disconnection), thus the RWS status is used as Yumi status.
+        """
+        # update status and set "status changed" flag
+        current_status = self._cache_rws_auto_mode
+        self._device_ready_changed = current_status != self.is_ready()
+        self._device_ready = current_status
+        return self._cache_state
+    
+    def send(self, command: YumiDualDeviceCommand):
+        # yumi control command and gripper control command (if any)
+        # avoid sendind commands all the time to optimize bandwidth
+        self._pub_vel.send_velocity_cmd(command._dq_target)
+        if (command._grip_r is not None) or (command._grip_l is not None):
+            self._pub_grip.send_position_cmd(command._grip_r, command._grip_l)
+
+# UTILS
+
+class YumiVelocityCommand(object):
+    """ Used for storing the velocity command for yumi
+    """
+    def __init__(self):
+        self._pub = rospy.Publisher("/yumi/egm/joint_group_velocity_controller/command", Float64MultiArrayMsg, queue_size=1, tcp_nodelay=True)
+
+    def send_velocity_cmd(self, joint_velocity: np.ndarray):
+        """ Velocity should be an np.array() with 14 elements, [right arm, left arm]
+        """
+        # flip the array to [left, right] as required by ros_control velocity controller
+        msg = Float64MultiArrayMsg(
+            data=joint_velocity[7:14].tolist() + joint_velocity[0:7].tolist())
+        self._pub.publish(msg)
+
+class YumiGrippersCommand(object):
+    """ Class for controlling the grippers on YuMi, the grippers are controlled
+        in [mm] and uses ros service
+    """
+    def __init__(self):
+        # ROS services for SmartGrippers
+        self._service_SetSGCommand = rospy.ServiceProxy("/yumi/rws/sm_addin/set_sg_command", SetSGCommandSrv, persistent=True)
+        self._service_RunSGRoutine = rospy.ServiceProxy("/yumi/rws/sm_addin/run_sg_routine", TriggerWithResultCodeSrv, persistent=True)
+        self._prev_gripper_r = 0
+        self._prev_gripper_l = 0
+
+    def _set_position_service(self, name: str, current: float, target: float, tol: float = 1e-5):
+        """ Set the new position for a gripper
+            :param name: EGM task to use
+            :param current: current position value of the gripper
+            :param target: target position value of the gripper
+            :returns changed: position changed flag
+        """
+        if abs(current - target) >= tol:
+            if target <= 0.1:
+                # CLOSE command
+                self._service_SetSGCommand.call(task=name, command=6)
+            else:
+                # GOTO command
+                self._service_SetSGCommand.call(task=name, command=5, target_position=target)
+            return True
+        return False
+
+    def send_position_cmd(self, gripper_r: float = None, gripper_l: float = None):
+        """ Set new gripping position
+            :param gripper_r: position in millimeters
+            :param gripper_l: position in millimeters
+        """
+        did_something = False
+        try:
+            # stacks/set the commands for the grippers 
+            # do not send the same command twice as grippers will momentarily regrip
+            
+            # set position values for the grippers
+            if gripper_r is not None:
+                if self._set_position_service("T_ROB_R", self._prev_gripper_r, gripper_r):
+                    self._prev_gripper_r = gripper_r
+                    did_something = True
+            
+            if gripper_l is not None:
+                if self._set_position_service("T_ROB_L", self._prev_gripper_l, gripper_l):
+                    self._prev_gripper_l = gripper_l
+                    did_something = True
+
+            # send the commands to the robot
+            if did_something:
+                self._service_RunSGRoutine.call()
+
+        except Exception as ex:
+            print(f"SmartGripper error : {ex}")
+
+###############################################################################
+#                                 CONTROLLERS                                 #
+###############################################################################
+
+class YumiDualDeviceAction(AbstractControllerAction, dict):
     """ Represents an action for a dual-control ABB Dual-Arm Yumi.
         This action is a subclass of `Dict`, which allows to write
         complex and hot-swappable action solvers due to the 
@@ -70,18 +226,18 @@ class YumiDualDeviceAction(AbstractDeviceAction, dict):
         self["control_space"] = space
     
     def velocity_joints(self, velocity : np.ndarray):
-        assert velocity.shape == (Parameters.dof,)
+        assert velocity.shape == (ControllerParameters.DOF,)
         self["velocity_joints"] = velocity
     
     def timestep(self, value : float):
         self["timestep"] = value
     
     def velocity_right(self, velocity : np.ndarray):
-        assert velocity.shape == (Parameters.dof_c_right,)
+        assert velocity.shape == (ControllerParameters.DOF_EE_RIGHT,)
         self["velocity_right"] = velocity
     
     def velocity_left(self, velocity : np.ndarray):
-        assert velocity.shape == (Parameters.dof_c_left,)
+        assert velocity.shape == (ControllerParameters.DOF_EE_LEFT,)
         self["velocity_left"] = velocity
     
     def velocity_absolute(self, velocity : np.ndarray):
@@ -98,144 +254,6 @@ class YumiDualDeviceAction(AbstractDeviceAction, dict):
     def gripper_left(self, value : float):
         self["gripper_left"] = value
  
-class YumiDualDeviceCommand(AbstractDeviceCommand):
-    def __init__(self) -> None:
-        super().__init__()
-        self._dq_target : np.ndarray = np.zeros(Parameters.dof)
-        self._grip_r : float = None
-        self._grip_l : float = None
-
-    def dq_target(self, command : np.ndarray):
-        assert command.shape == (Parameters.dof,)
-        self._dq_target = command
-
-    def grip_right(self, command : float):
-        self._grip_r = command
-
-    def grip_left(self, command : float):
-        self._grip_l = command
-
-# TODO why not dual?
-class YumiDevice(AbstractDevice[YumiDualDeviceState, YumiDualDeviceCommand]):
-    
-    def __init__(self):
-        super().__init__()
-        # yumi state subscriber
-        self._cache_state: YumiDualDeviceState
-        self._device_ready = False
-        self._device_ready_changed = False
-        rospy.Subscriber("/yumi/robot_state_coordinated", RobotStateMsg, self._callback_yumi_state, queue_size=1, tcp_nodelay=False)
-        # ensure to start the controller with a real robot state 
-        # (no wait means default state (all zeros), very bad)
-        rospy.wait_for_message("/yumi/robot_state_coordinated", RobotStateMsg)
-        
-        # command publishers
-        self._pub_vel = YumiVelocityCommand()
-        self._pub_grip = YumiGrippersCommand()
-        
-        # EGM error handler and status updater (updates `self._device_ready`)
-        self._start_rapid = rospy.ServiceProxy("/yumi/rws/start_rapid", TriggerWithResultCodeSrv)
-        # TODO handle other flags in the message (flags are: motors_on, auto_mode, rapid_running)
-        rospy.Subscriber("/yumi/rws/system_states", SystemStateMsg, self._callback_yumi_rapid_state, queue_size=1, tcp_nodelay=False)
-        rospy.wait_for_message("/yumi/rws/system_states", SystemStateMsg)
-    
-    def _callback_yumi_rapid_state(self, data: SystemStateMsg):
-        self._cache_rws_auto_mode = data.auto_mode
-
-    def _callback_yumi_state(self, data: RobotStateMsg):
-        self._cache_state = RobotStateMsg_to_YumiCoordinatedRobotState(data)
-        self._cache_state.time = rospy.Time.now()
-    
-    def did_status_change(self):
-        return self._device_ready_changed
-    
-    def is_ready(self) -> bool:
-        return self._device_ready
-    
-    def read(self) -> YumiDualDeviceState:
-        """ Stores the constantly updating state of Yumi inside the variables 
-            actually used by the controller, effectively updating the state 
-            in the controller. The data coming from Yumi might be old (because 
-            of a disconnection), thus the RWS status is used as Yumi status.
-        """
-        # update status and set "status changed" flag
-        current_status = self._cache_rws_auto_mode
-        self._device_ready_changed = current_status != self.is_ready()
-        self._device_ready = current_status
-        return self._cache_state
-    
-    def send(self, command: YumiDualDeviceCommand):
-        # yumi control command and gripper control command (if any)
-        # avoid sendind commands all the time to optimize bandwidth
-        self._pub_vel.send_velocity_cmd(command._dq_target)
-        if (command._grip_r is not None) or (command._grip_l is not None):
-            self._pub_grip.send_position_cmd(command._grip_r, command._grip_l)
-
-# UTILS
-
-class YumiVelocityCommand(object):
-    """ Used for storing the velocity command for yumi
-    """
-    def __init__(self):
-        self._pub = rospy.Publisher("/yumi/egm/joint_group_velocity_controller/command", Float64MultiArrayMsg, queue_size=1, tcp_nodelay=True)
-
-    def send_velocity_cmd(self, joint_velocity: np.ndarray):
-        """ Velocity should be an np.array() with 14 elements, [right arm, left arm]
-        """
-        # flip the arry to [left, right]
-        msg = Float64MultiArrayMsg(
-            data=joint_velocity[7:14].tolist() + joint_velocity[0:7].tolist())
-        self._pub.publish(msg)
-
-class YumiGrippersCommand(object):
-    """ Class for controlling the grippers on YuMi, the grippers are controlled
-        in [mm] and uses ros service
-    """
-    def __init__(self):
-        # rosservice, for control over grippers
-        self._service_SetSGCommand = rospy.ServiceProxy("/yumi/rws/sm_addin/set_sg_command", SetSGCommandSrv, persistent=True)
-        self._service_RunSGRoutine = rospy.ServiceProxy("/yumi/rws/sm_addin/run_sg_routine", TriggerWithResultCodeSrv, persistent=True)
-        self._prev_gripper_r = 0
-        self._prev_gripper_l = 0
-
-    def send_position_cmd(self, gripper_r=None, gripper_l=None):
-        """ Set new gripping position
-            :param gripperRight: float [mm]
-            :param gripperLeft: float [mm]
-        """
-        tol = 1e-5
-        try:
-            # stacks/set the commands for the grippers 
-            # do not send the same command twice as grippers will momentarily regrip
-
-            # for right gripper
-            if gripper_r is not None:
-                if abs(self._prev_gripper_r - gripper_r) >= tol:
-                    if gripper_r <= 0.1:
-                        self._service_SetSGCommand.call(task="T_ROB_R", command=6)
-                    else:
-                        self._service_SetSGCommand.call(task="T_ROB_R", command=5, target_position=gripper_r)
-                    self._prev_gripper_r = gripper_r
-
-            # for left gripper
-            if gripper_l is not None:
-                if abs(self._prev_gripper_l - gripper_l) >= tol:
-                    if gripper_l <= 0.1: # if gripper set close to zero then grip in 
-                        self._service_SetSGCommand.call(task="T_ROB_L", command=6)
-                    else: # otherwise move to position 
-                        self._service_SetSGCommand.call(task="T_ROB_L", command=5, target_position=gripper_l)
-                    self._prev_gripper_l = gripper_l
-
-            # sends of the commands to the robot
-            self._service_RunSGRoutine.call()
-
-        except Exception as ex:
-            print(f"SmartGripper error : {ex}")
-
-###############################################################################
-#                                 CONTROLLERS                                 #
-###############################################################################
-
 from .ik_solver import IKSolver
 from .ik_algorithms import HQPIKAlgorithm, PINVIKAlgorithm
 
@@ -252,9 +270,9 @@ class YumiDualController(
         and gripper commands via service `/yumi/rws/sm_addin/set_sg_command`.
     """
     
-    def __init__(self, robot_handle: YumiDevice, iksolver: str = "pinv"):
+    def __init__(self, yumi_device: YumiDevice, iksolver: str = "pinv"):
         self._device : YumiDevice
-        super().__init__(robot_handle)
+        super().__init__(yumi_device)
         
         # TODO extract me from here
         # setup the IK solvers
@@ -265,8 +283,12 @@ class YumiDualController(
         self._iksolver.switch(iksolver)
     
     def start(self):
-        super().start(Parameters.update_rate)
+        super().start(ControllerParameters.update_rate)
 
+    def stop(self):
+        print("Controller shutting down")
+        super().stop()
+    
     def _inner_loop(self, control_rate: float):
         """ ROS implementation of the original function.
         """
@@ -277,7 +299,7 @@ class YumiDualController(
         # when the controller is shut down, send a stop command
         stop_commands = 3
         for i in range(stop_commands):
-            command = (np.zeros(Parameters.dof), None, None)
+            command = YumiDualDeviceCommand(np.zeros(ControllerParameters.DOF), None, None)
             self._device.send(command)
             print(f"Sent stop command ({i+1}/{stop_commands})")
             
@@ -320,7 +342,7 @@ class YumiDualController(
     def default_policy(self, state: YumiDualDeviceState) -> YumiDualDeviceAction:
         action = YumiDualDeviceAction()
         action.control_space(YumiDualDeviceAction.ControlSpace.JOINT_SPACE)
-        action.velocity_joints(np.zeros(Parameters.dof))
+        action.velocity_joints(np.zeros(ControllerParameters.DOF))
         
     @abstractmethod
     def policy(self, state: YumiDualDeviceState) -> YumiDualDeviceAction:
@@ -344,23 +366,24 @@ class YumiDualController(
             if necessary, and clip the commands.
             
             :param action: the action to be converted
-            :returns: the reuqired command
+            :returns: the required command
         """
-        # get joint velocities and publish them
+        # solve action for joint velocities
         if action["control_space"] == YumiDualDeviceAction.ControlSpace.JOINT_SPACE:
             dq_target = action["velocity_joints"]
         else:
             dq_target = self._iksolver.solve(action, state)
             
         # log joints with clipping velocities
-        vel_clip_r = np.abs(dq_target[0:7]) > Parameters.joint_velocity_bound
-        vel_clip_l = np.abs(dq_target[7:14]) > Parameters.joint_velocity_bound
+        vel_clip_r = np.abs(dq_target[0:7]) > ControllerParameters.joint_velocity_bound
+        vel_clip_l = np.abs(dq_target[7:14]) > ControllerParameters.joint_velocity_bound
         if np.any(vel_clip_r) or np.any(vel_clip_l):
             idxs = np.arange(7) + 1
             labels = "".join([f" R{i}" for i in idxs[vel_clip_r]]) \
                    + "".join([f" L{i}" for i in idxs[vel_clip_l]])
             print(f"Joints [{labels} ] are clipping!")
         
+        # create command
         command = YumiDualDeviceCommand()
         command.dq_target(dq_target)
         command.grip_right(action.get("gripper_right"))

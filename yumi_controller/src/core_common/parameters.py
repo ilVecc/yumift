@@ -2,20 +2,26 @@ import numpy as np
 
 # TODO make these loadable
 
-class Parameters():
+class RobotConstants():
     """ This class stores all tunable parameters for the controller.
     """
     
     # degrees of freedom for the robot (DO NOT TOUCH, obv.)
-    dof_j_right = 7
-    dof_j_left = 7
-    dof_j = dof_j_right + dof_j_left
-    dof = dof_j
-    dof_c_right = 6
-    dof_c_left = 6
-    dof_c = dof_c_right + dof_c_left
-    cart = dof_c
+    DOF_JOINTS_RIGHT = 7
+    DOF_JOINTS_LEFT = 7
+    DOF_JOINTS = DOF_JOINTS_RIGHT + DOF_JOINTS_LEFT
+    DOF = DOF_JOINTS
+    DOF_EE_RIGHT = 6
+    DOF_EE_LEFT = 6
+    DOF_EE = DOF_EE_RIGHT + DOF_EE_LEFT
+    EE = DOF_EE
     
+    # calibration configuration (red marks on Yumi)
+    CONFIG_CALIB = np.array([ 0.0, -2.270, -2.356, 0.524, 0.0, 0.670, 0.0,
+                              0.0, -2.270,  2.356, 0.524, 0.0, 0.670, 0.0])
+
+
+class ControllerParameters(RobotConstants):
     # controller rate in Hz, also defined in `kdl_kinematics.cpp` (both needs to be the same!)
     # this is a desired value, thus unreliable! check the actual rate
     update_rate = 500
@@ -29,10 +35,6 @@ class Parameters():
     # reset configuration 
     reset_pos = np.array([ 0.7, -1.7, -0.8, 1.0, -2.2, 1.0, 0.0, 
                           -0.7, -1.7,  0.8, 1.0,  2.2, 1.0, 0.0])
-    
-    # calibration configuration
-    calib_pos = np.array([ 0.0, -2.270, -2.356, 0.524, 0.0, 0.670, 0.0,
-                           0.0, -2.270,  2.356, 0.524, 0.0, 0.670, 0.0])
 
     ######################     HQP INVERSE KINEMATICS     #####################
     # extra objectives that should be included in HQP, if not already required
@@ -79,13 +81,13 @@ class Parameters():
     
     @classmethod
     def secondary_nothing(cls, q, dq): 
-        return np.zeros(cls.dof)
+        return np.zeros(cls.DOF)
     
     @classmethod
     def secondary_neutral(cls, q, dq): 
-        return - cls.k0 * (1/cls.dof) * (q - cls.neutral_pos) / cls.q_span ** 2
+        return - cls.k0 * (1/cls.DOF) * (q - cls.neutral_pos) / cls.q_span ** 2
     
     @classmethod
     def secondary_center(cls, q, dq): 
-        return - cls.k0 * (1/cls.dof) * (q - cls.q_avg) / cls.q_span ** 2
+        return - cls.k0 * (1/cls.DOF) * (q - cls.q_avg) / cls.q_span ** 2
     ###########################################################################

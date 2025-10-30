@@ -5,7 +5,7 @@ import numpy as np
 # TODO is this correct here?
 from .controller_base import YumiDualDeviceAction
 from .routine_sm import Routine
-from .parameters import Parameters
+from .parameters import ControllerParameters
 from dynamics.utils import RobotState
 from trajectory.polynomial import CubicTrajectory
 
@@ -35,7 +35,7 @@ class JointStateRoutine(Routine):
         current_joint_position = robot_state_curr.joint_pos
 
         # advance by time step
-        self._time += Parameters.dt  # TODO super wrong, use real data
+        self._time += ControllerParameters.dt  # TODO super wrong, use real data
 
         # if final time is reached, exit with "done" state
         if self._time <= self._final_time:
@@ -43,7 +43,7 @@ class JointStateRoutine(Routine):
             vel = dq + (q - current_joint_position)
             done = False
         else:
-            vel = np.zeros(Parameters.dof)
+            vel = np.zeros(ControllerParameters.DOF)
             done = True
 
         action = YumiDualDeviceAction()
@@ -57,8 +57,8 @@ class JointStateRoutine(Routine):
 
 class CalibPoseRoutine(JointStateRoutine):
     def __init__(self) -> None:
-        super().__init__("calib_pose", Parameters.calib_pos)
+        super().__init__("calib_pose", ControllerParameters.CONFIG_CALIB)
 
 class ReadyPoseRoutine(JointStateRoutine):
     def __init__(self) -> None:
-        super().__init__("ready_pose", Parameters.reset_pos)
+        super().__init__("ready_pose", ControllerParameters.reset_pos)

@@ -126,7 +126,7 @@ generate_messages(
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
 #  INCLUDE_DIRS include
-#  LIBRARIES test_cotroller
+#  LIBRARIES test_controller
 #  CATKIN_DEPENDS roscpp rospy sensor_msgs std_msgs
 #  DEPENDS system_lib
   CATKIN_DEPENDS 
@@ -147,7 +147,7 @@ include_directories(
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/test_cotroller.cpp
+#   src/${PROJECT_NAME}/test_controller.cpp
 # )
 
 ## Add cmake target dependencies of the library
@@ -229,14 +229,11 @@ catkin_install_python(
 ## Mark other files for installation (e.g. launch and bag files, etc.)
 install(
   FILES
-  bringup/yumi_rws_egm.launch
-  base.launch
-  use_real.launch
-  use_sim.launch
+  bringup.launch
+  setup_rws_egm.launch
+  unified_state_updater.launch
   sensors.launch
-  sensors_comp.launch
-  sensors_tools.launch
-  state_updater.launch
+  display.launch
   DESTINATION 
   ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )

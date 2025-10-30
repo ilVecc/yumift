@@ -1,5 +1,5 @@
 # Wrenched YuMi control
-Modular controllers for the ABB Dual-Arm YuMi robot over ROS Melodic. 
+Modular controllers for the ABB Dual-Arm YuMi robot over ROS Noetic. 
 
 This package contains interfaces and control algorithms for the ABB Dual-Armed YuMi, and in particular for admittance controllers. The core functionality includes Inverse Kinematics (IK) solvers for YuMi in both **individual** (i.e. right and left) and **coordinated** (i.e. absolute and relative) manipulation of the arms. In general, this package is robot and sensor agnostic, as different robots can be controlled using the same abstract controller architecture. The IK problem is solved either with classical pseudo-inverted Jacobian or with Hierarchical Quadratic Programming (HQP); in the latter method, the control objectives are solved together with feasibility objectives (see documentation). The robot is visualized in `rviz`, and a very simple kinematic simulator is included when working with real hardware is not possible. 
 
@@ -8,7 +8,7 @@ This package contains interfaces and control algorithms for the ABB Dual-Armed Y
 * [General Architecture](#general-architecture)
 * [Requirements](#requirements)
   * [Using WSL2](#using-wsl2)
-* [Building the package](#build)
+* [Building the package](#building-the-package)
 * [Robot bring-up](#robot-bring-up)
   * [Working with hardware](#working-with-hardware)
     * [RobotWare requirements](#robotware-requirements)
@@ -30,11 +30,20 @@ In the specific case of ABB YuMi, the provided semi-concrete Python controller c
 ## Requirements
 This package expects an Ubuntu 20.04 system and uses ROS Noetic (Desktop version is better).
 
+* `Python3.8` with `pip` is required. While the first is the default choice in Ubuntu 20.04, the second is not necessarily installed (e.g. in a WSL). Do so by executing
+```
+sudo apt install python3-pip
+```
+or instead, if `pip` is already part of the system, be sure to use the latest version (i.e. installing `pinocchio` requires `cmeel` and `manylinux_2_28`, and `pip` needs to know how to use it)
+```
+python3 -m pip install -U pip
+```
+
 * for ROS Noetic Desktop, follow the [official installation guide](https://wiki.ros.org/noetic/Installation/Ubuntu), and do not skip installing `rosdep`;
 
 * to ease the building process, install `catkin-tools`
 ```
-sudo apt install -Y python3-catkin-tools
+sudo apt install -y python3-catkin-tools
 ```
 
 ### Using WSL2
@@ -51,7 +60,7 @@ When done, run `wsl --shutdown` in a PowerShell terminal to restart the WSL inst
 ## Building the package
 Create a folder for the Catkin workspace
 ```
-mkdir -p ~/yumift_ws/src && cd ~/yumift_ws/src && catkin init
+mkdir -p ~/yumift_ws/src && cd ~/yumift_ws && catkin init && cd src
 ```
 
 Next, clone [`abb_robot_driver`](https://github.com/ros-industrial/abb_robot_driver) and run the required commands with
@@ -74,8 +83,8 @@ git clone https://github.com/ilVecc/yumift.git
 
 Finally, install all the required dependencies with
 ```
-rosdep update
-rosdep install --from-paths . --ignore-src --rosdistro noetic
+rosdep update --rosdistro=noetic
+rosdep install --from-paths . --ignore-src --rosdistro noetic -y
 ```
 and build workspace with
 ``` 
@@ -93,28 +102,35 @@ To `rosrun` files in the workspace, one may need to mark them as executable with
 sudo chmod +x ~/yumift_ws/src/yumift/yumi_controller/src/<FILENAME>
 ```
 
-
 ## Robot bring-up
 Before running anything from this package, YuMi must be brang-up. There are two operative modes (hardware and simulation) and two "state update" mode (individual and dual). When running dual controllers, append `individual:=false` to the `roslaunch` commands in the subsections; this separation allows avoidance  of unnecessary computation, making the state update faster (up to 250Hz in individual mode).
 
-### Working with hardware
-Before using the controllers on YuMi, it must be set up in a specific way (see info in the following sections). When done, to bring-up YuMi run
+*Note*: the visualization window, RViz, might not start up, or might start and then exit immediately with a red error log message. In this case it might be necessary to 
 ```
-roslaunch yumi_controller bringup.launch robot_ip:=<yumi_ip>
+echo "export DISABLE_ROS1_EOL_WARNINGS=1" >> ~/.bashrc
+echo "export LIBGL_ALWAYS_SOFTWARE=1" >> ~/.bashrc
+source ~/.bashrc
 ```
-and in another terminal enable EGM communication using
-```
-rosrun yumi_controller start_egm.py
-```
-If this step returns errors, follow the instructions displayed in the terminal.
 
-If different joint velocity limits are needed, they must changed in `config/config_hardware_egm.yaml`. 
+### Working with simulation
+As a first step, it is recommended to work safely without hardware. 
+
+#### Execute bring-up command
+Start the kinematic simulator instead of EGM using
+```
+roslaunch yumi_controller bringup.launch
+```
+This is a very basic kinematic simulator, and can be replaced by a more realistic one as long as it has the same ROS interface as the ABB ROS drivers. Another option is to have a Windows machine running RobotStudio with a Virtual Controller. To use this method, follow the same instructions as in the previous section. 
+
+### Working with hardware
+Before using the controllers on YuMi, hardware must be set up in a specific way. 
 
 #### RobotWare requirements
 YuMi must be running a RobotWare version with `EGM` option and `State Machine` add-in. 
+<!-- TODO add instructions found in Google Slides -->
 
 #### Networking requirements
-Connect the YuMi via the service port (`XP23` label) or the WAN port (`XP28` label). 
+Connect YuMi via the service port (`XP23` label) or the WAN port (`XP28` label). 
 These two networks use different settings:
 - *Service port*: YuMi acts as DHCP server, and uses the fixed IP `192.168.125.1`;
 - *WAN port*: YuMi acts as a device on an external network, and the IP must be set (or added) in YuMi settings `Control Panel / Configuration / Communication / IP Settings`.
@@ -145,12 +161,18 @@ Otherwise, if gravity compensation is not needed (i.e. no grippers are mounted),
 roslaunch yumi_controller sensors.launch sensor_ip_right:=<right_ip> sensor_ip_left:=<left_ip> use_raw:=true
 ```
 
-### Working with simulation
-To work safely without hardware, start the kinematic simulator instead of EGM using
+#### Execute bring-up command
+With all the setup done, to bring-up YuMi run
 ```
-roslaunch yumi_controller bringup.launch
+roslaunch yumi_controller bringup.launch robot_ip:=<yumi_ip>
 ```
-This is a very basic kinematic simulator, and can be replaced by a more realistic one as long as it has the same ROS interface as the ABB ROS drivers. Another option is to have a Windows machine running RobotStudio with a Virtual Controller. To use this method, follow the same instructions as in the previous section. 
+and in another terminal enable EGM communication using
+```
+rosrun yumi_controller start_egm.py
+```
+If this step returns errors, follow the instructions displayed in the terminal.
+
+If different joint velocity limits are needed, they must changed in `config/config_hardware_egm.yaml`. 
 
 ## Using off-the-shelf controllers
 A set of velocity controllers is shipped with this package. These are categorized as *individual* (acting separately on each arm) or *dual* (acting in either *individual* or *coordinated* fashion, i.e. absolute and relative pose control). All controllers receive either a `yumi_controller/YumiPosture` (tracking controllers) or a `yumi_controller/YumiTrajectory` (trajectory controllers) message (the latter is simply a list of the former). Trajectory controllers are *"routinable"*, meaning that they can execute pre-registered routines that achieve particular motions (e.g. "go back home", "grippers point down", etc.). 
@@ -181,7 +203,6 @@ rosrun yumi_controller dummy_controller.py
 ```
 
 Checkout `core_common/parameters.py` for some useful parameters for IK solvers and routines.
-
 
 ### Trajectory controllers
 To start a trajectory controller use
@@ -221,7 +242,6 @@ rosrun yumi_controller tracking_controllers.py single
 with available options `single`, `whole`.
 
 This controller is more versatile, as its intended use is to continuously receivce `YumiPosture` messages from a node, bypassing the trajectory creation described above.   
-
 
 ### Force controllers
 Start a force-based trajectory controller with

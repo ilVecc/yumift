@@ -20,9 +20,9 @@ from yumi_controller.msg import (
 from nav_msgs.msg import Path as PathMsg
 
 from core_common.controller_base import (
-    RoutinableYumiController, YumiDevice, 
-    YumiDualDeviceState, YumiDualDeviceAction
+    YumiDevice, YumiDualDeviceState, YumiDualDeviceAction
 )
+from core_common.controller_routinable import RoutinableYumiController
 from core_common.routines import ReadyPoseRoutine, CalibPoseRoutine
 from core_common.control_laws import (
     YumiIndividualCartesianVelocityControlLaw, 
@@ -329,11 +329,8 @@ def main():
     else:
         raise AttributeError(f"no such option '{parser.type}'")
     
-    def shutdown_callback():
-        print("Controller shutting down")
-        yumi_controller.stop()
-    
-    rospy.on_shutdown(shutdown_callback)
+    rospy.on_shutdown(yumi_controller.stop)
+    rospy.sleep(3)
     
     yumi_controller.ready()
     yumi_controller.start()  # locking

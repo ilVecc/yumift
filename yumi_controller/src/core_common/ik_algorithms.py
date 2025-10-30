@@ -4,9 +4,9 @@ import numpy as np
 
 from . import hqp_tasks
 from .ik_solver import IKAlgorithm
-from .parameters import Parameters
+from .parameters import ControllerParameters
 from .controller_base import YumiDualDeviceState, YumiDualDeviceAction
-from dynamics.hqp import HQPSolver, HQPTaskError
+from dynamics.hqp import HQPSolver, HQPTaskError, Task
 
 
 class HQPIKAlgorithm(IKAlgorithm):
@@ -15,52 +15,52 @@ class HQPIKAlgorithm(IKAlgorithm):
         super().__init__(name="hqp", can_init_late=True)
 
     # TODO handle this with the usual  .register_task("name", obj_task)  APIs
-    #      though this time an ordered dict is needed
+    #      though this time an ordered dict (or dict->array) is needed
     def init(self):
         """ Sets up the HQP solver and the desired tasks
         """
         self._hqp_solver = HQPSolver()
-        self._tasks: Dict[str, hqp_tasks.Task] = {}
+        self._tasks: Dict[str, Task] = {}
 
         # joint position limit
         self._tasks["joint_position_bound"] = hqp_tasks.JointPositionBoundsTask(
-            dof=Parameters.dof,
-            bounds_lower=np.hstack([Parameters.joint_position_bound_lower, Parameters.joint_position_bound_lower]),
-            bounds_upper=np.hstack([Parameters.joint_position_bound_upper, Parameters.joint_position_bound_upper]))
+            dof=ControllerParameters.DOF,
+            bounds_lower=np.hstack([ControllerParameters.joint_position_bound_lower, ControllerParameters.joint_position_bound_lower]),
+            bounds_upper=np.hstack([ControllerParameters.joint_position_bound_upper, ControllerParameters.joint_position_bound_upper]))
 
         # joint velocity limit
         self._tasks["joint_velocity_bound"] = hqp_tasks.JointVelocityBoundsTask(
-            dof=Parameters.dof,
-            bounds_lower=-np.hstack([Parameters.joint_velocity_bound, Parameters.joint_velocity_bound]),
-            bounds_upper=np.hstack([Parameters.joint_velocity_bound, Parameters.joint_velocity_bound]))
+            dof=ControllerParameters.DOF,
+            bounds_lower=-np.hstack([ControllerParameters.joint_velocity_bound, ControllerParameters.joint_velocity_bound]),
+            bounds_upper=np.hstack([ControllerParameters.joint_velocity_bound, ControllerParameters.joint_velocity_bound]))
 
         # control objective
-        self._tasks["individual_control"] = hqp_tasks.IndividualControl(dof=Parameters.dof)
-        self._tasks["right_control"] = hqp_tasks.RightControl(dof=Parameters.dof)
-        self._tasks["left_control"] = hqp_tasks.LeftControl(dof=Parameters.dof)
-        self._tasks["coordinated_control"] = hqp_tasks.CoordinatedControl(dof=Parameters.dof)
-        self._tasks["absolute_control"] = hqp_tasks.AbsoluteControl(dof=Parameters.dof)
-        self._tasks["relative_control"] = hqp_tasks.RelativeControl(dof=Parameters.dof)
+        self._tasks["individual_control"] = hqp_tasks.IndividualControl(dof=ControllerParameters.DOF)
+        self._tasks["right_control"] = hqp_tasks.RightControl(dof=ControllerParameters.DOF)
+        self._tasks["left_control"] = hqp_tasks.LeftControl(dof=ControllerParameters.DOF)
+        self._tasks["coordinated_control"] = hqp_tasks.CoordinatedControl(dof=ControllerParameters.DOF)
+        self._tasks["absolute_control"] = hqp_tasks.AbsoluteControl(dof=ControllerParameters.DOF)
+        self._tasks["relative_control"] = hqp_tasks.RelativeControl(dof=ControllerParameters.DOF)
 
         # elbow collision avoidance
         self._tasks["self_collision_elbow"] = hqp_tasks.ElbowProximity(
-            dof=Parameters.dof,
-            min_dist=Parameters.elbows_min_distance)
+            dof=ControllerParameters.DOF,
+            min_dist=ControllerParameters.elbows_min_distance)
 
         # end effector collision avoidance
         self._tasks["end_effector_collision"] = hqp_tasks.EndEffectorProximity(
-            dof=Parameters.dof,
-            min_dist=Parameters.grippers_min_distance)
+            dof=ControllerParameters.DOF,
+            min_dist=ControllerParameters.grippers_min_distance)
 
         # joint potential 
         self._tasks["joint_position_potential"] = hqp_tasks.JointPositionPotential(
-            dof=Parameters.dof,
-            default_pos=Parameters.neutral_pos,
-            weights=Parameters.potential_weight)
+            dof=ControllerParameters.DOF,
+            default_pos=ControllerParameters.neutral_pos,
+            weights=ControllerParameters.potential_weight)
 
         # TODO remove me
         # cache
-        self._cache_joint_state = np.zeros((Parameters.dof,))
+        self._cache_joint_state = np.zeros((ControllerParameters.DOF,))
         self._cache_velocities = np.zeros(12)
 
     def solve(self, action: YumiDualDeviceAction, state: YumiDualDeviceState):
@@ -68,7 +68,7 @@ class HQPIKAlgorithm(IKAlgorithm):
             individual or coordinated manipulation
         """
         # add extra feasibility tasks (if not already included)
-        for key, value in Parameters.safety_objectives.items():
+        for key, value in ControllerParameters.safety_objectives.items():
             if key not in action:
                 action[key] = value
 
@@ -128,7 +128,7 @@ class HQPIKAlgorithm(IKAlgorithm):
 
             else:
                 print(f"When using individual control mode, \"velocity_right\" and/or \"velocity_left\" must be specified")
-                return np.zeros(Parameters.dof)
+                return np.zeros(ControllerParameters.DOF)
 
         elif action["control_space"] == YumiDualDeviceAction.ControlSpace.COORDINATED:
             # (4.1) coordinated motion
@@ -151,10 +151,10 @@ class HQPIKAlgorithm(IKAlgorithm):
 
             else:
                 print(f"When using individual control mode, \"velocity_absolute\" and/or \"velocity_relative\" must be specified")
-                return np.zeros(Parameters.dof)
+                return np.zeros(ControllerParameters.DOF)
         else:
             print(f"Unknown control mode ({action['control_space']}), stopping")
-            return np.zeros(Parameters.dof)
+            return np.zeros(ControllerParameters.DOF)
 
         # (5) joint potential task (tries to keep the robot in a natural configuration)
         if action["joint_potential"]:
@@ -173,7 +173,7 @@ class HQPIKAlgorithm(IKAlgorithm):
             #     self._stop_egm.call()
             # except Exception:
             #     print("Failed to stop EGM (ignore if simulation does not support EGM)")
-            vel = np.zeros(Parameters.dof)
+            vel = np.zeros(ControllerParameters.DOF)
 
         return vel
 
@@ -208,7 +208,7 @@ class PINVIKAlgorithm(IKAlgorithm):
 
         else:
             print(f"Unknown control mode ({action['control_space']}), stopping")
-            return np.zeros(Parameters.dof)
+            return np.zeros(ControllerParameters.DOF)
 
         # TODO `state.joint_pos` is a `np.concat`, veeeeery slow
         joint_pos = np.zeros(14)
@@ -217,7 +217,7 @@ class PINVIKAlgorithm(IKAlgorithm):
             joint_pos[i+7] = state.joint_pos_l[i]
         jacobian_pinv = np.linalg.pinv(jacobian)
         vel = jacobian_pinv @ xdot \
-            + (np.eye(Parameters.dof) - jacobian_pinv @ jacobian) @ Parameters.secondary_neutral(joint_pos, None)  # `state.joint_vel` not needed
+            + (np.eye(ControllerParameters.DOF) - jacobian_pinv @ jacobian) @ ControllerParameters.secondary_neutral(joint_pos, None)  # `state.joint_vel` not needed
 
         return vel
 

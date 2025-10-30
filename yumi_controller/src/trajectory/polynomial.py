@@ -104,6 +104,9 @@ class CubicPosTrajectory(CubicTrajectory[PositionParam]):
 
 
 
+
+
+
 class CubicQuatTrajectory_OLD(CubicTrajectory[QuaternionParam]):
     
     def __init__(self) -> None:
@@ -173,6 +176,9 @@ class CubicQuatTrajectory(CubicTrajectory[QuaternionParam]):
         dW = W + 2 * Jq_ddq * Q.conj() - 0.5 * norm3(W.vec)**2 * quat.one
 
         return QuaternionParam(Q, W.vec, dW.vec)
+
+
+
 
 
 

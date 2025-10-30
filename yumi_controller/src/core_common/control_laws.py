@@ -1,7 +1,7 @@
 import numpy as np
 import quaternion as quat
 
-from .parameters import Parameters
+from .parameters import ControllerParameters
 from .robot_state import YumiCoordinatedRobotState
 
 from dynamics.control_laws import ControlLawError, AbstractControlLaw, CartesianVelocityControlLaw
@@ -18,7 +18,7 @@ class YumiIndividualCartesianVelocityControlLaw(AbstractControlLaw):
         in individual motion only.
     """
     def __init__(self, gains):
-        super().__init__(initial_timestep=Parameters.dt)
+        super().__init__(initial_timestep=ControllerParameters.dt)
         self.mode = "individual"
         self.control_right = CartesianVelocityControlLaw(gains["individual"]["right"]["clik"]["position"], gains["individual"]["right"]["clik"]["rotation"], gains["individual"]["right"]["clik"]["max_deviation"])
         self.control_left  = CartesianVelocityControlLaw(gains["individual"]["left"]["clik"]["position"], gains["individual"]["left"]["clik"]["rotation"], gains["individual"]["left"]["clik"]["max_deviation"])
@@ -31,8 +31,7 @@ class YumiIndividualCartesianVelocityControlLaw(AbstractControlLaw):
     
     @property
     def current_pose_individual(self):
-        """
-        Return current individual pose as a tuple of (pos_r, rot_r, pos_l, rot_l)
+        """ Return current individual pose as a tuple of (pos_r, rot_r, pos_l, rot_l)
         """
         current_pos_r = np.copy(self.control_right.current_position)
         current_rot_r = np.copy(self.control_right.current_rotation)
@@ -42,16 +41,14 @@ class YumiIndividualCartesianVelocityControlLaw(AbstractControlLaw):
     
     @property
     def last_target_velocity(self):
-        """
-        Return last target velocity as a tuple of (vel_1, vel_2) where _1
-        is either _right or _absolute and _2 is either _left or _relative 
+        """ Return last target velocity as a tuple of (vel_1, vel_2) where _1
+            is either _right or _absolute and _2 is either _left or _relative 
         """
         return self.last_target_velocity_individual
     
     @property
     def last_target_velocity_individual(self):
-        """
-        Return last individual target velocity as a tuple of (vel_r, vel_l)
+        """ Return last individual target velocity as a tuple of (vel_r, vel_l)
         """
         vel_r_init = np.copy(self.control_right.target_velocity)
         vel_l_init = np.copy(self.control_left.target_velocity)
@@ -62,21 +59,13 @@ class YumiIndividualCartesianVelocityControlLaw(AbstractControlLaw):
         self.control_left.clear()
 
     def update_current_state(self, yumi_state: YumiCoordinatedRobotState):
-        """ 
-        Updates individual poses
+        """ Updates individual poses
         """
         self.control_right.update_current_state(yumi_state.pose_gripper_r)
         self.control_left.update_current_state(yumi_state.pose_gripper_l)
     
     def update_desired_state(self, target_state: YumiCoordinatedRobotState):
         """ Updates the desired velocities and target position. 
-            ATTENTION: this function uses `pose_gripper_r` and `pose_gripper_l` as
-            desired target for both the individual (right and left) and the coordinated 
-            (absolute and relative) modes. This behaviour is desired since in this way 
-            we avoid calculating the coordinated poses from the individuals ones and 
-            vice versa, which is unnecessary since this is a velocity controller.
-            This means that `target_state` will be used as individual or coordinated 
-            based on the current value of `self.mode`.
         """
         self.control_right.update_desired_state(target_state.pose_gripper_r)
         self.control_left.update_desired_state(target_state.pose_gripper_l)
@@ -88,7 +77,7 @@ class YumiIndividualCartesianVelocityControlLaw(AbstractControlLaw):
             self.control_right.compute_target_state()
         except ControlLawError as ex:
             # turn off deviation error if gripper collision constraint is active for individual mode
-            if not Parameters.safety_objectives["gripper_collision"]:
+            if not ControllerParameters.safety_objectives["gripper_collision"]:
                 raise ex
         return self.control_right.target_velocity
 
@@ -98,7 +87,7 @@ class YumiIndividualCartesianVelocityControlLaw(AbstractControlLaw):
         try:
             self.control_left.compute_target_state()
         except Exception as ex:
-            if not Parameters.safety_objectives["gripper_collision"]:
+            if not ControllerParameters.safety_objectives["gripper_collision"]:
                 raise ex
         return self.control_left.target_velocity
 
@@ -116,7 +105,7 @@ class YumiDualCartesianVelocityControlLaw(AbstractControlLaw):
         in either individual or coordinated motion.
     """
     def __init__(self, gains):
-        super().__init__(initial_timestep=Parameters.dt)
+        super().__init__(initial_timestep=ControllerParameters.dt)
         self.mode = None  # can be either "individual" or "coordinated"
         self.control_right = CartesianVelocityControlLaw(gains["individual"]["right"]["clik"]["position"], gains["individual"]["right"]["clik"]["rotation"], gains["individual"]["right"]["clik"]["max_deviation"])
         self.control_left  = CartesianVelocityControlLaw(gains["individual"]["left"]["clik"]["position"], gains["individual"]["left"]["clik"]["rotation"], gains["individual"]["left"]["clik"]["max_deviation"])
@@ -223,7 +212,7 @@ class YumiDualCartesianVelocityControlLaw(AbstractControlLaw):
             self.control_right.compute_target_state()
         except ControlLawError as ex:
             # turn off deviation error if gripper collision constraint is active for individual mode
-            if not Parameters.safety_objectives["gripper_collision"]:
+            if not ControllerParameters.safety_objectives["gripper_collision"]:
                 raise ex
         return self.control_right.target_velocity
 
@@ -233,7 +222,7 @@ class YumiDualCartesianVelocityControlLaw(AbstractControlLaw):
         try:
             self.control_left.compute_target_state()
         except Exception as ex:
-            if not Parameters.safety_objectives["gripper_collision"]:
+            if not ControllerParameters.safety_objectives["gripper_collision"]:
                 raise ex
         return self.control_left.target_velocity
     
@@ -334,10 +323,10 @@ class YumiDualAdmittanceControlLaw(YumiDualCartesianVelocityControlLaw):
                 return None
             return np.diag(weight_f).tolist() + np.diag(weight_t).tolist()
         
-        self.admittance_right = AdmittanceWrench(weights("right", "m"), weights("right", "k"), weights("right", "d"), Parameters.dt, discretization)
-        self.admittance_left = AdmittanceWrench(weights("left", "m"), weights("left", "k"), weights("left", "d"), Parameters.dt, discretization)
-        self.admittance_abs = AdmittanceWrench(weights("abs", "m"), weights("abs", "k"), weights("abs", "d"), Parameters.dt, discretization)
-        self.admittance_rel = AdmittanceWrench(weights("rel", "m"), weights("rel", "k"), weights("rel", "d"), Parameters.dt, discretization)
+        self.admittance_right = AdmittanceWrench(weights("right", "m"), weights("right", "k"), weights("right", "d"), ControllerParameters.dt, discretization)
+        self.admittance_left = AdmittanceWrench(weights("left", "m"), weights("left", "k"), weights("left", "d"), ControllerParameters.dt, discretization)
+        self.admittance_abs = AdmittanceWrench(weights("abs", "m"), weights("abs", "k"), weights("abs", "d"), ControllerParameters.dt, discretization)
+        self.admittance_rel = AdmittanceWrench(weights("rel", "m"), weights("rel", "k"), weights("rel", "d"), ControllerParameters.dt, discretization)
         self.wrench_right = np.zeros((6,))
         self.wrench_left = np.zeros((6,))
         self.wrench_abs = np.zeros((6,))

@@ -5,7 +5,7 @@ from dynamics.utils import RobotState, Frame, jacobian_combine
 
 
 class YumiRobotState(RobotState):
-    """ State of the robot [right, left]
+    """ State of the robot [right, left] in base frame
     """
     def __init__(
         self,
@@ -20,13 +20,14 @@ class YumiRobotState(RobotState):
         grip_r: float = 0.,
         grip_l: float = 0.
     ):
-        super().__init__(14)  # ignore all variables, instead wrap _right and _left using properties
         self._right = RobotState(7, joint_pos[:7], joint_vel[:7], None, joint_torque[:7], 
                                     pose_pos[:3], pose_rot[0], pose_vel[:6], None, pose_wrench[:6], 
                                     jacobian[0:6, 0:7], None)
         self._left = RobotState(7, joint_pos[7:], joint_vel[7:], None, joint_torque[7:], 
                                    pose_pos[3:], pose_rot[1], pose_vel[6:], None, pose_wrench[6:], 
                                    jacobian[6:12, 7:14], None)
+        # super().__init__(14)  # ignore all variables, instead wrap _right and _left using properties
+        self.dofs = 14
         # gripping
         self.grip_r = grip_r
         self.grip_l = grip_l
@@ -82,7 +83,7 @@ class YumiRobotState(RobotState):
     
     @property
     def pose_wrench_r(self):
-        return self._right.effector_wrench
+        return self._right.effector_wrc
     
     @property
     def pose_force_r(self):
@@ -147,7 +148,7 @@ class YumiRobotState(RobotState):
     
     @property
     def pose_wrench_l(self):
-        return self._left.effector_wrench
+        return self._left.effector_wrc
     
     @property
     def pose_force_l(self):
@@ -169,8 +170,8 @@ class YumiRobotState(RobotState):
     # TODO refactor this
     @joint_pos.setter
     def joint_pos(self, value):
-        self._right._joint_pos = value[:7]
-        self._left._joint_pos = value[7:]
+        self._right.joint_pos = value[:7]
+        self._left.joint_pos = value[7:]
     
     @property
     def joint_vel(self):
@@ -179,12 +180,17 @@ class YumiRobotState(RobotState):
     # TODO refactor this
     @joint_vel.setter
     def joint_vel(self, value):
-        self._right._joint_vel = value[:7]
-        self._left._joint_vel = value[7:]
+        self._right.joint_vel = value[:7]
+        self._left.joint_vel = value[7:]
         
     @property
     def joint_acc(self):
         return np.concatenate([self.joint_acc_r, self.joint_acc_l])
+    
+    @joint_acc.setter
+    def joint_acc(self, value):
+        self._right.joint_acc = value[:7]
+        self._left.joint_acc = value[7:]
     
     @property
     def joint_tau(self):
@@ -193,8 +199,8 @@ class YumiRobotState(RobotState):
     # TODO refactor this
     @joint_tau.setter
     def joint_tau(self, value):
-        self._right._joint_tau = value[:7]
-        self._left._joint_tau = value[7:]
+        self._right.joint_tau = value[:7]
+        self._left.joint_tau = value[7:]
 
     @property
     def effector_pos(self):
@@ -229,14 +235,14 @@ class YumiRobotState(RobotState):
         return np.concatenate([self.pose_acc_ang_r, self.pose_acc_ang_l])
     
     @property
-    def effector_wrench(self):
+    def effector_wrc(self):
         return np.concatenate([self.pose_wrench_r, self.pose_wrench_l])
     
     # TODO refactor this
-    @effector_wrench.setter
-    def effector_wrench(self, value):
-        self._right._effector_wrc = value[:6]
-        self._left._effector_wrc = value[6:]
+    @effector_wrc.setter
+    def effector_wrc(self, value):
+        self._right.effector_wrc = value[:6]
+        self._left.effector_wrc = value[6:]
     
     @property
     def effector_force(self):
@@ -253,8 +259,8 @@ class YumiRobotState(RobotState):
     # TODO refactor this
     @jacobian.setter
     def jacobian(self, value):
-        self._right._jac = value[:6, :7]
-        self._left._jac = value[6:, 7:]
+        self._right.jacobian = value[:6, :7]
+        self._left.jacobian = value[6:, 7:]
 
 
 class YumiCoordinatedRobotState(YumiRobotState):

@@ -11,7 +11,7 @@ import quaternion as quat
 
 from yumi_controller.msg import YumiPosture as YumiPostureMsg
 
-from core_common.controller_base import YumiDualController, YumiDevice, YumiDualDeviceState
+from core_common.controller_base import YumiDualController, YumiDualDeviceState, YumiDualDeviceAction, YumiDevice
 from core_common.control_laws import YumiIndividualCartesianVelocityControlLaw
 from core_common.trajectory import YumiParam
 import core_common.msg_utils as msg_utils
@@ -25,7 +25,7 @@ class YumiIndividualTrackingController(YumiDualController):
         `YumiIndividualCartesianVelocityControlLaw` control law.
     """
     def __init__(self):
-        super().__init__(robot_handle=YumiDevice(), iksolver="pinv")
+        super().__init__(yumi_device=YumiDevice(), iksolver="pinv")
         
         # define control law
         self.control_law = YumiIndividualCartesianVelocityControlLaw(GAINS)
@@ -64,20 +64,21 @@ class YumiIndividualTrackingController(YumiDualController):
     def _sanitize_vel(vel: Tuple[float]):
         return np.asarray(vel) if vel else np.array([0,0,0,0,0,0])
     
-    def policy(self, state: YumiDualDeviceState):
+    def policy(self, state: YumiDualDeviceState) -> YumiDualDeviceAction:
         """ Calculate target velocity for the current time step.
         """
         # update the current and desired robot state in the control law class, 
         # then compute the required command
-        dt = (rospy.Time.now() - self.yumi_time).to_sec()
+        dt = (rospy.Time.now() - state.time).to_sec()
         yumi_desired_state = msg_utils.YumiParam_to_YumiCoordinatedRobotState(self.desired_posture)
-        vel_r, vel_l = self.control_law.update_and_compute(self.yumi_state, yumi_desired_state, dt)
+        vel_r, vel_l = self.control_law.update_and_compute(state, yumi_desired_state, dt)
         
         # calculate new target velocities for this time step
-        action = dict()
-        action["control_space"] = self.control_law.mode
-        action["right_velocity"], action["left_velocity"] = vel_r, vel_l
-                
+        action = YumiDualDeviceAction()
+        action.control_space(YumiDualDeviceAction.ControlSpace.from_str(self.control_law.mode))
+        action.timestep(dt)
+        action.velocity_right(vel_r) 
+        action.velocity_left(vel_l)
         return action
 
 

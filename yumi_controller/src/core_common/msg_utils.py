@@ -10,7 +10,7 @@ from .robot_state import YumiCoordinatedRobotState
 from .trajectory import YumiParam
 from dynamics.utils import Frame, jacobian_combine
 
-### ROS messages to interal object representation
+### ROS messages to internal object representation
 
 def TwistMsg_to_ndarray(twist: TwistMsg):
     vx = twist.linear.x
@@ -42,7 +42,7 @@ def PoseMsg_to_Frame(pose_msg: PoseMsg, frame: Frame = None):
 
 def JacobianMsg_to_ndarray(jacobian: JacobianMsg, array: np.ndarray = None):
     if array is None:
-        jac = np.zeros((6, jacobian.dof), dtype=np.float)
+        jac = np.zeros((6, jacobian.dof), dtype=np.float64)
     jac[0, :] = jacobian.vx
     jac[1, :] = jacobian.vy
     jac[2, :] = jacobian.vz
@@ -73,7 +73,7 @@ def RobotStateMsg_to_YumiCoordinatedRobotState(robot_state: RobotStateMsg, yumi_
     else:
         pose_wrench_l = np.zeros(6)
         jac_gripper_l = np.zeros((6,7))
-    yumi_state.effector_wrench = np.concatenate([pose_wrench_r, pose_wrench_l])
+    yumi_state.effector_wrc = np.concatenate([pose_wrench_r, pose_wrench_l])
     yumi_state.jacobian_grippers = jacobian_combine(jac_gripper_r, jac_gripper_l)
     
     if "absolute" in robot_state.poseName:

@@ -13,16 +13,11 @@ class AbstractDeviceState(object):
     def __init__(self):
         self.time : Any
 
-class AbstractDeviceAction(object):
-    def __init__(self):
-        self.time : Any
-
 class AbstractDeviceCommand(object):
     def __init__(self):
         self.time : Any
 
-TState = TypeVar("TState", bound=Type[AbstractDeviceState])
-TAction = TypeVar("TAction", bound=Type[AbstractDeviceAction])
+TState = TypeVar("TState", bound=Type[AbstractDeviceState])  # TODO need covariant=True ?
 TCommand = TypeVar("TCommand", bound=Type[AbstractDeviceCommand])
 
 class AbstractDevice(Generic[TState, TCommand], metaclass=ABCMeta):
@@ -57,9 +52,17 @@ class AbstractDevice(Generic[TState, TCommand], metaclass=ABCMeta):
         """
         raise NotImplementedError()
 
+TDevice = TypeVar("TDevice", bound=Type[AbstractDevice])
+
 ###############################################################################
 #                                 CONTROLLER                                  #
 ###############################################################################
+
+class AbstractControllerAction(object):
+    def __init__(self):
+        self.time : Any
+
+TAction = TypeVar("TAction", bound=Type[AbstractControllerAction])
 
 class AbstractController(Generic[TState, TAction, TCommand], metaclass=ABCMeta):
     """ Class for controlling a generic device, inherit this class and concretize

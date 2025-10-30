@@ -7,7 +7,7 @@ import numpy as np
 
 from core_common.controller_base import YumiDualController, YumiDualDeviceState
 from core_common.control_laws import YumiDualAdmittanceControlLaw
-from core_common.parameters import Parameters
+from core_common.parameters import ControllerParameters
 
 from gains import GAINS
 
@@ -75,7 +75,7 @@ class YumiLeadController(YumiDualController):
             print(f"Stopping motion (exception: {ex})")
             action = {
                 "control_space": "joint_space",
-                "joint_velocities": np.zeros(Parameters.dof)}
+                "joint_velocities": np.zeros(ControllerParameters.DOF)}
         
         return action
 
@@ -86,14 +86,11 @@ def main():
     
     yumi_controller = YumiLeadController()
     
-    def shutdown_callback():
-        yumi_controller.pause()
-        print("Controller shutting down")
+    rospy.on_shutdown(yumi_controller.stop)
+    rospy.sleep(3)
     
-    rospy.on_shutdown(shutdown_callback)
-    
-    yumi_controller.start()
-
+    yumi_controller.ready()
+    yumi_controller.start()  # locking
 
 if __name__ == "__main__":
     main()

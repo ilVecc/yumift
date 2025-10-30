@@ -49,8 +49,10 @@ class YumiStateUpdater(object):
         
         # read force sensors
         self._wrenches = np.zeros(12)  # [fR, mR, fL, mL]
-        rospy.Subscriber("/wrench_right", WrenchStamped, self._callback_ext_force, callback_args="right", queue_size=1, tcp_nodelay=False)
-        rospy.Subscriber("/wrench_left", WrenchStamped, self._callback_ext_force, callback_args="left", queue_size=1, tcp_nodelay=False)
+        # rospy.Subscriber("/wrench_right", WrenchStamped, self._callback_ext_force, callback_args="right", queue_size=1, tcp_nodelay=False)
+        # rospy.Subscriber("/wrench_left", WrenchStamped, self._callback_ext_force, callback_args="left", queue_size=1, tcp_nodelay=False)
+        rospy.Subscriber("/sensors/wrench/right/world", WrenchStamped, self._callback_ext_force, callback_args="right", queue_size=1, tcp_nodelay=False)
+        rospy.Subscriber("/sensors/wrench/left/world", WrenchStamped, self._callback_ext_force, callback_args="left", queue_size=1, tcp_nodelay=False)
         
         rospy.Subscriber("/kinematics", YumiKinematics, self._callback_yumi, queue_size=1, tcp_nodelay=False)
         rospy.wait_for_message("/kinematics", YumiKinematics)
@@ -104,8 +106,8 @@ class YumiStateUpdater(object):
         state.pose_elbow_l.vel =  pose_elbow_vel[6:]
          
         # force
-        state.effector_wrench = self._wrenches
-        state.joint_tau = state.jacobian_grippers.T @ state.effector_wrench
+        state.effector_wrc = self._wrenches
+        state.joint_tau = state.jacobian_grippers.T @ state.effector_wrc
     
     # TODO maybe quat.from_rotation_vector can be optimized
     def _update_coordinated(self):
@@ -164,7 +166,7 @@ class YumiStateUpdater(object):
         
         # update wrenches
         # (using the kineto-statics duality, i.e. pose_wrench = link_mat.T @ wrench_coordinated )
-        wrench_coordinated = np.linalg.inv(link_mat.T) @ state.effector_wrench
+        wrench_coordinated = np.linalg.inv(link_mat.T) @ state.effector_wrc
         state.pose_wrench_abs = wrench_coordinated[:6]
         state.pose_wrench_rel = wrench_coordinated[6:]
 

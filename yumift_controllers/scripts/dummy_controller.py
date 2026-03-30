@@ -2,13 +2,12 @@
 import rospy
 import numpy as np
 
-from yumift_common.controller_base import YumiDevice, YumiDualController, YumiDualDeviceState, YumiDualDeviceAction
-from yumift_common.control_laws import YumiIndividualCartesianVelocityControlLaw
-from yumift_common.ik_algorithms import PINVIKAlgorithm
-from yumift_common.trajectory import YumiParam
-from yumift_common.msg_utils import YumiParam_to_YumiCoordinatedRobotState
-
-from yumift_controllers.utils import load_config
+from yumift_controllers.common.device import YumiDevice, YumiDualDeviceState
+from yumift_controllers.common.controller_base import YumiDualController, YumiDualDeviceAction
+from yumift_controllers.common.control_laws import YumiIndividualCartesianVelocityControlLaw
+from yumift_controllers.ik.algorithms import PINVIKAlgorithm
+from yumift_controllers.impl.trajectory import YumiParam
+from yumift_controllers.misc.utils import load_config, YumiParam_to_YumiCoordinatedRobotState
 
 
 class YumiDummyController(YumiDualController):

@@ -8,11 +8,11 @@ import numpy as np, quaternion as quat
 
 from yumift_msgs.msg import YumiPosture as YumiPostureMsg
 
-from yumift_controllers.common.controller_base import YumiDualController, YumiDualDeviceState, YumiDualDeviceAction, YumiDevice
+from yumift_controllers.common.device import YumiDualDeviceState, YumiDevice
+from yumift_controllers.common.controller_base import YumiDualController, YumiDualDeviceAction
 from yumift_controllers.common.control_laws import YumiIndividualCartesianVelocityControlLaw
-from yumift_controllers.trajectory import YumiParam
-from yumift_controllers.msg_utils import YumiParam_to_YumiCoordinatedRobotState
-from yumift_controllers.utils import load_config
+from yumift_controllers.impl.trajectory import YumiParam
+from yumift_controllers.misc.utils import load_config, YumiParam_to_YumiCoordinatedRobotState
 
 
 class YumiIndividualTrackingController(YumiDualController):

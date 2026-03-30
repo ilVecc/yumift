@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 import rospy
 
-from yumift_controllers.common.controller_base import YumiDualController, YumiDualDeviceState, YumiDualDeviceAction, YumiDevice
+from yumift_controllers.common.device import YumiDualDeviceState, YumiDevice
+from yumift_controllers.common.controller_base import YumiDualController, YumiDualDeviceAction
 from yumift_controllers.common.control_laws import YumiDualAdmittanceControlLaw
 from yumift_controllers.ik.algorithms import PINVIKAlgorithm
-
-from yumift_controllers.utils import load_config
+from yumift_controllers.misc.utils import load_config
 
 
 # TODO no need for this to be dual

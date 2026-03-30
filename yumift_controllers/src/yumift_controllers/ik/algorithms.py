@@ -2,11 +2,12 @@ from typing import Dict
 
 import numpy as np
 
+from .pinv_tasks import *
 from .hqp_tasks import *
 from .hqp_parameters import HQPParameters
-from .pinv_tasks import *
 from .solver import IKAlgorithm
-from ..common.controller_base import YumiDualDeviceState, YumiDualDeviceAction
+from ..common.device import YumiDualDeviceState
+from ..common.controller_base import YumiDualDeviceAction
 
 from yumift_common.constants import YumiRobotConstants
 
@@ -59,7 +60,7 @@ class HQPIKAlgorithm(IKAlgorithm):
         # joint potential 
         self._tasks["joint_position_potential"] = JointPositionPotential(
             dof=YumiRobotConstants.DOF,
-            default_pos=HQPParameters.CONFIG_NEUTRAL_POS,
+            default_pos=YumiRobotConstants.JOINT_POS_NEUTRAL,
             weights=HQPParameters.potential_weight)
 
         # TODO remove me

@@ -59,7 +59,7 @@ class JointStateRoutine(Routine):
 
 class CalibPoseRoutine(JointStateRoutine):
     def __init__(self) -> None:
-        super().__init__("calib_pose", YumiRobotConstants.CONFIG_CALIB)
+        super().__init__("calib_pose", YumiRobotConstants.JOINT_POS_CALIB)
 
 class ReadyPoseRoutine(JointStateRoutine):
     def __init__(self) -> None:

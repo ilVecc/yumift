@@ -19,9 +19,13 @@ class YumiRobotConstants():
     EE = DOF_EE
 
     # calibration configuration (red marks on Yumi)
-    CONFIG_CALIB = np.array([ 0.0, -2.270, -2.356, 0.524, 0.0, 0.670, 0.0,
-                              0.0, -2.270,  2.356, 0.524, 0.0, 0.670, 0.0])
-    
+    JOINT_POS_CALIB = np.array([ 0.0, -2.270, -2.356, 0.524, 0.0, 0.670, 0.0,
+                                 0.0, -2.270,  2.356, 0.524, 0.0, 0.670, 0.0])
+
+    # for joint potential, defining a neutral pose to move towards
+    JOINT_POS_NEUTRAL = np.array([ 0.7, -1.7, -0.8, 1.0, -2.2, 1.0, 0.0, 
+                                  -0.7, -1.7,  0.8, 1.0,  2.2, 1.0, 0.0])
+        
     # max values before joints becomes saturated, values are from
     # https://search.abb.com/library/Download.aspx?DocumentID=3HAC052982-001&LanguageCode=en
     # (scale to 0.99 as an extra safety boundary)

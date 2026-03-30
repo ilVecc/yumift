@@ -3,7 +3,8 @@ from typing import List
 
 from threading import Lock
 
-from .controller_base import YumiDualController, YumiDevice, YumiDualDeviceState, YumiDualDeviceCommand
+from yumift_controllers.common.device import YumiDualDeviceState, YumiDevice
+from yumift_controllers.common.controller_base import YumiDualController, YumiDualDeviceCommand
 from .routine_sm import RoutineStateMachine, Routine
 from ..ik.solver import IKAlgorithm
 

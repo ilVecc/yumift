@@ -1,1 +1,0 @@
-This package contains controller files, logically divided in: common, instances, trajectories, dynamics, routines. In the future, these will be separated in distinct packages.

@@ -21,7 +21,3 @@ class HQPParameters():
     # for joint potential, be less strict on the last wrist joints
     potential_weight = np.array([1., 1., 1., 1., 1., 1., 0.25, 
                                  1., 1., 1., 1., 1., 1., 0.25])
-    
-    # for joint potential, defining a neutral pose to move towards
-    CONFIG_NEUTRAL_POS = np.array([ 0.7, -1.7, -0.8, 1.0, -2.2, 1.0, 0.0, 
-                                   -0.7, -1.7,  0.8, 1.0,  2.2, 1.0, 0.0])

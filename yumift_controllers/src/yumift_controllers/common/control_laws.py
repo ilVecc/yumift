@@ -2,12 +2,11 @@ from enum import Enum
 
 import numpy as np, quaternion as quat
 
-from yumift_common.robot_state import YumiCoordinatedRobotState
 from .parameters import ControllerParameters
-from ..ik.hqp_parameters import HQPParameters
+from yumift_common.robot_state import YumiCoordinatedRobotState
 
 from dynamicals.utils import Frame
-from dynamicals.common.control_laws import ControlLawError, AbstractControlLaw
+from dynamicals.common.control_laws import AbstractControlLaw
 from dynamicals.impl import CartesianVelocityControlLaw
 from dynamicals.systems import AdmittanceWrench
 
@@ -77,23 +76,12 @@ class YumiIndividualCartesianVelocityControlLaw(AbstractControlLaw):
     def compute_individual_right_target_velocity(self):
         """ Calculates the target velocities for individual right arm control.
         """
-        try:
-            self.control_right.compute_target_state()
-        except ControlLawError as ex:
-            # turn off deviation error if gripper collision constraint is active for individual mode
-            if not HQPParameters.safety_objectives["gripper_collision"]:
-                raise ex
-        return self.control_right.target_velocity
+        return self.control_right.compute_target_state()
 
     def compute_individual_left_target_velocity(self):
         """ Calculates the target velocities for individual left arm control.
         """
-        try:
-            self.control_left.compute_target_state()
-        except Exception as ex:
-            if not HQPParameters.safety_objectives["gripper_collision"]:
-                raise ex
-        return self.control_left.target_velocity
+        return self.control_left.compute_target_state()
 
     def compute_target_state(self):
         return self.compute_individual_right_target_velocity(), self.compute_individual_left_target_velocity()
@@ -217,23 +205,12 @@ class YumiDualCartesianVelocityControlLaw(AbstractControlLaw):
     def compute_individual_right_target_velocity(self):
         """ Calculates the target velocities for individual right arm control.
         """
-        try:
-            self.control_right.compute_target_state()
-        except ControlLawError as ex:
-            # turn off deviation error if gripper collision constraint is active for individual mode
-            if not HQPParameters.safety_objectives["gripper_collision"]:
-                raise ex
-        return self.control_right.target_velocity
+        return self.control_right.compute_target_state()
 
     def compute_individual_left_target_velocity(self):
         """ Calculates the target velocities for individual left arm control.
         """
-        try:
-            self.control_left.compute_target_state()
-        except Exception as ex:
-            if not HQPParameters.safety_objectives["gripper_collision"]:
-                raise ex
-        return self.control_left.target_velocity
+        return self.control_left.compute_target_state()
     
     def compute_coordinated_absolute_target_velocity(self):
         """ Calculates the target velocities for absolute motion i.e. controlling

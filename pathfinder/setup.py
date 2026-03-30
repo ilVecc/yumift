@@ -15,5 +15,5 @@ setup(
     packages=find_packages(where="src/"),
     entry_points={},
     python_requires=">=3.8, <4",
-    install_requires=["numpy", "numpy-quaternion", "control-dynamics"]
+    install_requires=["numpy", "numpy-quaternion", "dynamicals"]
 )

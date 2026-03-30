@@ -85,6 +85,8 @@ Finally, install all the required dependencies with
 ```
 rosdep update --rosdistro=noetic
 rosdep install --from-paths . --ignore-src --rosdistro noetic -y
+python3 -m pip install -U -e yumift/dynamicals
+python3 -m pip install -U -e yumift/pathfinder
 ```
 and build workspace with
 ``` 
@@ -93,23 +95,25 @@ catkin build
 
 For easy startup, add to `.bashrc` the source command
 ``` 
-echo "source ~/yumift_ws/devel/setup.bash" >> ~/.bashrc
-source ~/.bashrc
+echo "source ~/yumift_ws/devel/setup.bash" >> ~/.bashrc && source ~/.bashrc
 ``` 
 
-To `rosrun` files in the workspace, one may need to mark them as executable with
+<!-- To `rosrun` files in the workspace, one may need to mark them as executable with
 ```
 sudo chmod +x ~/yumift_ws/src/yumift/yumi_controller/src/<FILENAME>
-```
+``` -->
 
 ## Robot bring-up
 Before running anything from this package, YuMi must be brang-up. There are two operative modes (hardware and simulation) and two "state update" mode (individual and dual). When running dual controllers, append `individual:=false` to the `roslaunch` commands in the subsections; this separation allows avoidance  of unnecessary computation, making the state update faster (up to 250Hz in individual mode).
 
+Since ROS Noetic is now in its End Of Life, an annoying message will pop-up every time you launch RViz. Use the following to disable it
+```
+echo "export DISABLE_ROS1_EOL_WARNINGS=1" >> ~/.bashrc && source ~/.bashrc
+```
+
 *Note*: the visualization window, RViz, might not start up, or might start and then exit immediately with a red error log message. In this case it might be necessary to 
 ```
-echo "export DISABLE_ROS1_EOL_WARNINGS=1" >> ~/.bashrc
-echo "export LIBGL_ALWAYS_SOFTWARE=1" >> ~/.bashrc
-source ~/.bashrc
+echo "export LIBGL_ALWAYS_SOFTWARE=1" >> ~/.bashrc && source ~/.bashrc
 ```
 
 ### Working with simulation
@@ -118,7 +122,7 @@ As a first step, it is recommended to work safely without hardware.
 #### Execute bring-up command
 Start the kinematic simulator instead of EGM using
 ```
-roslaunch yumi_controller bringup.launch
+roslaunch yumift_common bringup.launch
 ```
 This is a very basic kinematic simulator, and can be replaced by a more realistic one as long as it has the same ROS interface as the ABB ROS drivers. Another option is to have a Windows machine running RobotStudio with a Virtual Controller. To use this method, follow the same instructions as in the previous section. 
 
@@ -154,28 +158,28 @@ If working with ATI NetBox, set IP, configuration file (the specific one for the
 
 Next, to achieve gravity compensation of the ABB SmartGrippers, bring-up YuMi and connect to the netboxes using
 ```
-roslaunch yumi_controller sensors.launch sensor_ip_right:=<right_ip> sensor_ip_left:=<left_ip>
+roslaunch yumift_common sensors.launch sensor_ip_right:=<right_ip> sensor_ip_left:=<left_ip>
 ```
 Otherwise, if gravity compensation is not needed (i.e. no grippers are mounted), use
 ```
-roslaunch yumi_controller sensors.launch sensor_ip_right:=<right_ip> sensor_ip_left:=<left_ip> use_raw:=true
+roslaunch yumift_common sensors.launch sensor_ip_right:=<right_ip> sensor_ip_left:=<left_ip> use_raw:=true
 ```
 
 #### Execute bring-up command
 With all the setup done, to bring-up YuMi run
 ```
-roslaunch yumi_controller bringup.launch robot_ip:=<yumi_ip>
+roslaunch yumift_common bringup.launch robot_ip:=<yumi_ip>
 ```
 and in another terminal enable EGM communication using
 ```
-rosrun yumi_controller start_egm.py
+rosrun yumift_common start_egm.py
 ```
 If this step returns errors, follow the instructions displayed in the terminal.
 
-If different joint velocity limits are needed, they must changed in `config/config_hardware_egm.yaml`. 
+If different joint velocity limits are needed, they must changed in `yumift_common/config/config_hardware_egm.yaml`. 
 
 ## Using off-the-shelf controllers
-A set of velocity controllers is shipped with this package. These are categorized as *individual* (acting separately on each arm) or *dual* (acting in either *individual* or *coordinated* fashion, i.e. absolute and relative pose control). All controllers receive either a `yumi_controller/YumiPosture` (tracking controllers) or a `yumi_controller/YumiTrajectory` (trajectory controllers) message (the latter is simply a list of the former). Trajectory controllers are *"routinable"*, meaning that they can execute pre-registered routines that achieve particular motions (e.g. "go back home", "grippers point down", etc.). 
+A set of velocity controllers is shipped with this package. These are categorized as *individual* (acting separately on each arm) or *dual* (acting in either *individual* or *coordinated* fashion, i.e. absolute and relative pose control). All controllers receive either a `yumift_msgs/YumiPosture` (tracking controllers) or a `yumift_msgs/YumiTrajectory` (trajectory controllers) message (the latter is simply a list of the former). Trajectory controllers are *"routinable"*, meaning that they can execute pre-registered routines that achieve particular motions (e.g. "go back home", "grippers point down", etc.). 
 
 The available controllers are:
 - `SingleTrackingController` achieves independent cartesian tracking control (i.e. each arm receives a dedicated posture, from two separate topics);
@@ -193,21 +197,21 @@ In each controller, a `YumiPosture` message can be set to represent six differen
 - `relative`, i.e. interpret the left arm fields ase relative pose;
 - `coordinated`, i.e. `absolute` and `relative` simultaneously.
 
-Checkout `core_controllers/gains.py` to tune the gains of the various controllers. For trajectory controllers, a set of example trajectories is also provided (see following subsections for more info).
+Checkout `yumift_controllers/config/gains.yaml` to tune the gains of the various controllers. For trajectory controllers, a set of example trajectories is also provided (see following subsections for more info).
 
 ### Tutorial controller:
 This controller only serves as a tutorial on how to build controllers. This controller simply commands to achieve a pre-defined pose.
 For safety/educational purpose, only run this file in simulation. To start the controller use
 ``` 
-rosrun yumi_controller dummy_controller.py
+rosrun yumift_controllers dummy_controller.py
 ```
 
-Checkout `core_common/parameters.py` for some useful parameters for IK solvers and routines.
+Checkout `yumift_controllers/common/parameters.py` for some useful generic controller parameters and `yumift_controllers/ik/` for IK solvers and routines.
 
 ### Trajectory controllers
 To start a trajectory controller use
 ```
-rosrun yumi_controller trajectory_controllers.py simple
+rosrun yumift_controllers trajectory_controllers.py simple
 ```
 with available options `simple`, `dual`, `wrenched`, `compliant`.
 
@@ -215,29 +219,39 @@ Trajectories are cubic polynomials and are automatically computed based on the r
 
 Send some example trajectories to the controller with
 ```
-rosrun yumi_controller demo_1_some_trajectories.py
+rosrun yumift_controllers demo_1_some_trajectories.py
 ```
 Have a look at the various `demo_*` files for a description of the trajectories.
 
 Alternatively, send commands directly through the command line with
 ``` 
-rostopic pub /trajectory yumi_controller/YumiTrajectory "
+rostopic pub /trajectory yumift_msgs/YumiTrajectory "
 trajectory:
-- positionLeft:  [0.4,  0.3, 0.6]
-  positionRight: [0.4, -0.3, 0.6]
-  orientationLeft:  [0, 0, 0, 1]
-  orientationRight: [0, 0, 0, 1]
-  gripperLeft: 20
-  gripperRight: 20
-  pointTime: 4.0
-mode: 'individual'"
+- primary_pose:
+    position: 
+      x:  0.4
+      y: -0.3
+      z:  0.6
+    orientation: 
+      w: 1
+  secondary_pose:
+    position:
+      x:  0.4
+      y:  0.3
+      z:  0.6
+    orientation:
+      w: 1
+  gripper_right: 20
+  gripper_left: 20
+  time_to_execute: 4.0
+mode: yumift_msgs/YumiTrajectory.INDIVIDUAL"
 --once
 ``` 
 
 ### Tracking controllers
 To start a tracking controller use
 ```
-rosrun yumi_controller tracking_controllers.py single
+rosrun yumift_controllers tracking_controllers.py single
 ```
 with available options `single`, `whole`.
 
@@ -246,16 +260,16 @@ This controller is more versatile, as its intended use is to continuously receiv
 ### Force controllers
 Start a force-based trajectory controller with
 ```
-rosrun yumi_controller trajectory_controllers.py wrenched
+rosrun yumift_controllers trajectory_controllers.py wrenched
 ```
 with available options `wrenched`, `compliant`.
 
 When writing custom controllers, forces are available in the `RobotState` object received in the controller main loop. If no sensors are available, a simple "wrench simulator" can be used running
 ```
-rosrun yumi_controller wrench_simulator.py
+rosrun yumift_controllers wrench_simulator.py
 ```
 
 ## Notes
-This package comes as is. Use it at your own risk.
+This code comes as is. Use it at your own risk.
 
 **Maintainer**: Sebastiano Fregnan ([sebastiano@fregnan.me](mailto:sebastiano@fregnan.me))

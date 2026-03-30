@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<launch>
+  
+  <include file="$(find yumift_description)/launch/load.launch" />
+
+  <node name="joint_state_publisher_gui" pkg="joint_state_publisher_gui" type="joint_state_publisher_gui" />
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find yumift_description)/rviz/yumift.rviz" required="true" />
+
+</launch>

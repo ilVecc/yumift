@@ -1,27 +1,21 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>yumi_controller</name>
+  <name>yumift_common</name>
   <version>0.2.0</version>
 
-  <description>The controller package</description>
+  <description>
+    The controller package
+  </description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
-  <!-- Example:  -->
-  <!-- <maintainer email="jane.doe@example.com">Jane Doe</maintainer> -->
   <maintainer email="sebastiano.fregnan@control.lth.se">Sebastiano Fregnan</maintainer>
 
-
   <!-- One license tag required, multiple allowed, one license per tag -->
-  <!-- Commonly used license strings: -->
-  <!--   BSD, MIT, Boost Software License, GPLv2, GPLv3, LGPLv2.1, LGPLv3 -->
   <license>MIT</license>
-
 
   <!-- Url tags are optional, but multiple are allowed, one per tag -->
   <!-- Optional attribute type can be: website, bugtracker, or repository -->
-  <!-- Example: -->
-  <!-- <url type="website">http://wiki.ros.org/test_cotroller</url> -->
-
+  <url type="repository">http://github.com/ilVecc/yumift</url>
 
   <!-- Author tags are optional, multiple are allowed, one per tag -->
   <!-- Authors do not have to be maintainers, but could be -->
@@ -50,16 +44,16 @@
   <!-- Use doc_depend for packages you need only for building documentation: -->
   <!--   <doc_depend>doxygen</doc_depend> -->
   <buildtool_depend>catkin</buildtool_depend>
+  <buildtool_depend>python3-setuptools</buildtool_depend>
 
   <build_depend>roscpp</build_depend>
   <build_depend>rospy</build_depend>
-  <build_depend>message_generation</build_depend>
-  <build_depend>sensor_msgs</build_depend>
   <build_depend>std_msgs</build_depend>
+  <build_depend>sensor_msgs</build_depend>
   <build_depend>geometry_msgs</build_depend>
   <build_depend>abb_egm_msgs</build_depend>
-  <build_depend>kdl_parser</build_depend>  <!-- file/string/XML/urdf::Model to KDL::Tree -->
-  <!-- <build_depend>liborocos-kdl</build_depend> -->
+  <build_depend>yumift_msgs</build_depend>
+  <build_depend>kdl_parser</build_depend>  <!-- from file/string/XML/urdf::Model to KDL::Tree -->
   <build_depend>liborocos-kdl-dev</build_depend>
 
   <!-- This package does not export headers -->
@@ -83,18 +77,20 @@
   <exec_depend>abb_egm_msgs</exec_depend>
   <exec_depend>abb_rapid_sm_addin_msgs</exec_depend>
   <exec_depend>abb_rws_service_provider</exec_depend>
-  <!-- <exec_depend>abb_robot_msgs</exec_depend> -->
+  <exec_depend>abb_robot_msgs</exec_depend>
   <exec_depend>kdl_parser</exec_depend>
   <exec_depend>liborocos-kdl</exec_depend>
-  <!-- <exec_depend>liborocos-kdl-dev</exec_depend> -->
   <exec_depend>geometry2</exec_depend>
+  <exec_depend>yumift_msgs</exec_depend>
+  <exec_depend>yumift_simulation</exec_depend>
   <!-- Python dependencies -->
   <exec_depend>python3-pip</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
   <exec_depend>python3-numpy</exec_depend>
   <exec_depend>python-numpy-quaternion-pip</exec_depend>
-  <exec_depend>python3-yaml</exec_depend>
-  <!-- <exec_depend>python3-scipy</exec_depend> -->
-  <exec_depend>quadprog-pip</exec_depend>
+  <!-- Pinocchio dropped support for Ubuntu 20.04 in version 3.7.0, but PIP  -->
+  <!-- in Python3.8 (default version for ROS Noetic) offers pinocchio<=3.4.0 -->
+  <exec_depend version_lte="3.4.0">python3-pin</exec_depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

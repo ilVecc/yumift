@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>yumift_msgs</name>
+  <version>0.2.0</version>
+  <description>
+    Messages for YumiFT
+  </description>
+
+  <maintainer email="sebastiano.fregnan@control.lth.se">Sebastiano Fregnan</maintainer>
+  <license>MIT</license>
+
+  <url type="repository">http://github.com/ilVecc/yumift</url>
+  <author email="sebastiano.fregnan@control.lth.se">Sebastiano Fregnan</author>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <buildtool_depend>python3-setuptools</buildtool_depend>
+
+  <build_depend>message_generation</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <build_depend>geometry_msgs</build_depend>
+  
+  <exec_depend>rospy</exec_depend>
+  <exec_depend>message_runtime</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>geometry2</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+
+  <export>
+    <architecture_independent/>
+  </export>
+  
+</package>

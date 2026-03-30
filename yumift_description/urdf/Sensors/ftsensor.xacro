@@ -1,0 +1,61 @@
+<?xml version="1.0"?>
+<robot name="schunk_mini40" xmlns:xacro="http://www.ros.org/wiki/xacro">
+    
+  <!-- Import all Gazebo-customization elements, including Gazebo colors -->
+  <xacro:include filename="$(find yumift_description)/urdf/Sensors/ftsensor.gazebo.xacro" />
+
+  <xacro:macro name="schunk_mini40" params="parent name *origin">
+
+    <!--joint between {parent} and base-->
+    <joint name="${parent}_joint" type="fixed">
+      <parent link="${parent}"/>
+      <child link="${name}_base"/>
+      <xacro:insert_block name="origin"/>
+    </joint>
+
+    <link name="${name}_base"/>
+
+    <joint name="${name}_base_joint" type="fixed">
+      <parent link="${name}_base"/>
+      <child link="${name}"/>
+      <origin xyz="0 0 ${0.010 + 0.014}" rpy="0 0 ${PI/2}" />
+    </joint>
+
+    <link name="${name}">
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="0.2"/>
+      <inertia ixx="0.000005" ixy="0" ixz="0" iyy="0.000005" iyz="0" izz="0.0000098"/>
+      </inertial>
+
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://yumift_description/meshes/ftsensor/ftsensor.stl"/>
+        </geometry>
+        <material name="Light_Grey"/>
+      </visual>
+
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://yumift_description/meshes/ftsensor/coarse/ftsensor.stl"/>
+        </geometry>
+        <material name="Light_Grey"/>
+      </collision>
+    </link>
+
+    <joint name="${name}_joint" type="fixed">
+      <parent link="${name}"/>
+      <child link="${name}_tool"/>
+      <origin xyz="0 0 0.008" rpy="0 0 0" />
+    </joint>
+    
+    <link name="${name}_tool"/>
+
+     <!--Extensions -->
+    <xacro:schunk_mini40_gazebo name="${name}" />
+
+  </xacro:macro>
+
+</robot>

@@ -1,0 +1,123 @@
+# settings, see wiki for more information
+xyz_origin: &xyz_origin
+  x: 0.0
+  y: 0.0
+  z: 0.0
+
+quat_one: &quat_one
+  q1: 1.0
+  q2: 0.0
+  q3: 0.0
+  q4: 0.0
+
+tframe: &tframe
+  trans: *xyz_origin
+  rot: *quat_one
+
+# Gripper info page 21-22 in https://abb.sluzba.cz/Pages/Public/IRC5UserDocumentationRW6/en/3HC054949%20PM%20IRB%2014000%20Gripper-en.pdf
+# mass [kg], center_of_gravity [mm], inertia [kgm^2]
+total_load_R: &total_load_R
+  mass: 0.230
+  cog:
+    x: 8.2
+    y: 11.7
+    z: 52.0
+  aom: *quat_one
+  ix: 0.00021
+  iy: 0.00024
+  iz: 0.00009
+
+total_load_L: &total_load_L
+  mass: 0.230
+  cog:
+    x: 8.2
+    y: 11.7
+    z: 52.0
+  aom: *quat_one
+  ix: 0.00021
+  iy: 0.00024
+  iz: 0.00009
+
+tool_R: &tool_R
+  robhold: True
+  tframe: *tframe
+  tload: *total_load_R
+
+tool_L: &tool_L
+  robhold: True
+  tframe: *tframe
+  tload: *total_load_L
+  
+work_obj: &work_obj
+  robhold: False
+  ufprog: True
+  ufmec: ""
+  uframe:
+    trans: *xyz_origin
+    rot: *quat_one
+  oframe:
+    trans: *xyz_origin
+    rot: *quat_one
+
+correction_frame: &correction_frame
+  trans: *xyz_origin
+  rot: *quat_one
+
+sensor_frame: &sensor_frame
+  trans: *xyz_origin
+  rot: *quat_one
+
+activate_R: &activate_R
+  tool: *tool_R
+  wobj: *work_obj
+  correction_frame: *correction_frame
+  sensor_frame: *sensor_frame
+  cond_min_max: 0.0
+  lp_filter: 20.0
+  sample_rate: 4
+  max_speed_deviation: 90.0
+
+activate_L: &activate_L
+  tool: *tool_L
+  wobj: *work_obj
+  correction_frame: *correction_frame
+  sensor_frame: *sensor_frame
+  cond_min_max: 0.0
+  lp_filter: 20.0
+  sample_rate: 4
+  max_speed_deviation: 90.0
+
+setup_uc: &setup_uc
+  use_filtering: True
+  comm_timeout: 1.0
+
+run: &run
+  cond_time: 60.0
+  ramp_in_time: 1.0
+  offset:
+    trans: *xyz_origin
+    rot: *quat_one
+  pos_corr_gain: 0.0  # TODO this is P in the EGM control $dp <- dvd + P * (pd - p)$
+
+stop: &stop
+  ramp_out_time: 1.0
+
+task_settings_R: &task_settings_R
+  task: "T_ROB_R"
+  settings:
+    allow_egm_motions: True
+    use_presync: False
+    setup_uc: *setup_uc
+    activate: *activate_R
+    run: *run
+    stop: *stop
+
+task_settings_L: &task_settings_L
+  task: "T_ROB_L"
+  settings:
+    allow_egm_motions: True
+    use_presync: False
+    setup_uc: *setup_uc
+    activate: *activate_L
+    run: *run
+    stop: *stop

@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>yumift_description</name>
+  <version>0.5.0</version>
+  <description>
+    YuMi URDF with force sensors.
+  </description>
+  <maintainer email="sebastiano.fregnan@control.lth.se">Sebastiano Fregnan</maintainer>
+  <license>MIT</license>
+  
+  <author email="sebastiano.fregnan@control.lth.se">Sebastiano Fregnan</author>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>roslaunch</build_depend>
+
+  <exec_depend>joint_state_publisher</exec_depend>
+  <exec_depend>joint_state_publisher_gui</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>hector_xacro_tools</exec_depend>
+  <exec_depend>rviz</exec_depend>
+  <exec_depend>xacro</exec_depend>
+
+</package>

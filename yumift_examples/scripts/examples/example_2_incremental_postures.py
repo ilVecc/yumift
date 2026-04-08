@@ -3,10 +3,19 @@ import rospy
 
 from yumift_msgs.helper import Helper as H
 
+# This second example is a follow-up to the first one and demostrates how to 
+# send incremental trajectories.
+# 
+# As seen previously, a trajectory is a list of global postures with a duration. 
+# Sometime, it's more useful to express the next point along the trajectory as a 
+# movement from the previous one, so to avoid manually computing each posture.
+# This can be conveniently achieved with the `incremental` keyword.
 
 if __name__ == "__main__":
+    # First, initialize the ROS node
     rospy.init_node("example_2_incremental_postures", anonymous=True)
     
+    # Then, as seen in the previous example, quickly contruct and send a trajectory
     H.quick_send(
         topic="/trajectory",
         print_message="Incremental trajectory sent",
@@ -18,6 +27,8 @@ if __name__ == "__main__":
                 incremental=H.Incr.OFF),
             # These three points are expressed as an increment to their previous 
             # point, w.r.t. the (global) world frame, i.e. Yumi's base.
+            # Essentially, we are now passing a transformation (translation and 
+            # rotation) instead of a pose (position and orientation).
             H.posture( 5.0,
                 # [0.35, -0.2, 0.2]_WORLD + [0, +0.10, 0]_WORLD
                 primary=([0, +0.10, 0], H.e2q(0, 0, -45, "rxyz")),

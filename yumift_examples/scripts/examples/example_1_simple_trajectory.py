@@ -1,39 +1,63 @@
 #!/usr/bin/env python3
 import rospy
 
-from yumift_msgs.msg import YumiTrajectory
-from yumift_msgs.yumi_posture_helper import Helper
+# This first example demostrates how to send trajectories to a Yumi trajectory
+# controller accepting `yumift_msgs/YumiTrajectory` messages. 
+# 
+# To send a trajectory, you need to manually create a YumiTrajectory message,
+# which in turn requires multiple YumiPosture messages. This is cumbersome and 
+# error-prone. The Helper class provides useful methods that simplify the 
+# creation of trajectories and postures.
 
+from yumift_msgs.helper import Helper as H
 
 def main():
-    # starting ROS node and subscribers
+    # First, we need to add ROS node capabilities to this Python script.
+    # This essentially connects the script to the "ROS network".
     rospy.init_node("example_1_simple_trajectory", anonymous=True)
-    pub = rospy.Publisher("/trajectory", YumiTrajectory, queue_size=1, latch=True)
-    rospy.sleep(0.1)
 
-    msg = Helper.trajectory(
-        YumiTrajectory.INDIVIDUAL,              # trajectory control mode (more on this in following examples)
-        [
-        Helper.posture(
-            5.0,                                # time to get to this point [s]
-            (                                   # `yumi_base_link` is the reference frame
-                [0.35, -0.2, 0.2],              # right arm position, as vector [x, y, z]
-                Helper.eul2quat(-90,0,0),       # right arm orientation, as quaterniorn [w, x, y, z]
-                0.0                             # gripper width for the right fingers [mm]
-            ),
-            ([0.35, +0.2, 0.2], Helper.eul2quat(+90,0,0), 0.0)), # compact definition for left arm
-        Helper.posture(
-            5.0,
-            ([0.35, -0.1, 0.04], Helper.eul2quat(0, 45, -135, "rzyx"), 20.0),
-            ([0.35, +0.1, 0.04], Helper.eul2quat(0, 45, +135, "rzyx"), 20.0)),
-        Helper.posture(
-            5.0,
-            ([0.45, -0.15, 0.15], Helper.eul2quat(0,180,0)),
-            ([0.45, +0.15, 0.15], Helper.eul2quat(0,180,0))),
-        ])
-    pub.publish(msg)
-    print("Trajectory message sent")
-    rospy.sleep(15+1)                           # sleep for at least the total time
+    # Then, simply define the pose of each arm as a tuple.
+    # The first term is the position, the second the orientation, and the third
+    # is the (optional) gripper width. Everything is expesssed with respect to 
+    # the `yumi_base_link` reference frame.
+    right_arm = (
+        # End-effector position, as vector [x, y, z]
+        [0.35, -0.2, 0.2],
+        # End-effector orientation, as quaterniorn [w, x, y, z]
+        # Instead of a quaternion, you can use this handy function, which converts
+        # Euler angles (with relative X-Y-Z convention by default) to quaternions.
+        H.e2q(-90, 0, 0),
+        # Gripper fingers width, in [mm]
+        0.0
+    )
+    
+    # Now, use the pose just created to create a posture message using the following
+    # helper function. A posture is ideally a tuple composed of a right arm pose, a
+    # left arm pose, and the time required to achieve them. 
+    first_posture = H.posture(
+        # time to get to this posture, in [s]
+        5.0,
+        # The pose defined above
+        right_arm,
+        # The compact version of the definition above, for the left arm this time
+        ([0.35, +0.2, 0.2], H.e2q(+90, 0, 0), 0.0)
+    )
+
+    # Finally, use this function to immediately create and send a list of postures
+    # to a controller accepting YumiTrajectory messages.
+    H.quick_send(
+        topic="/trajectory",
+        print_message="Example trajectory sent",
+        wait_completion=True,   # sleep for the trajectory total time
+        postures=[
+            first_posture,
+            H.posture( 5.0,
+                ([0.35, -0.10, 0.04], H.e2q(0, 45, -135, "rzyx"), 20.0),
+                ([0.35, +0.10, 0.04], H.e2q(0, 45, +135, "rzyx"), 20.0)),
+            H.posture( 5.0,
+                ([0.45, -0.15, 0.15], H.e2q(0, 180, 0), ),  # no gripper value needed
+                ([0.45, +0.15, 0.15], H.e2q(0, 180, 0), )),
+    ])
 
 
 if __name__ == "__main__":

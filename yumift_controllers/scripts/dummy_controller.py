@@ -3,7 +3,7 @@ import rospy
 import numpy as np
 
 from yumift_controllers.common.device import YumiDevice, YumiDualDeviceState
-from yumift_controllers.common.controller_base import YumiDualController, YumiDualDeviceAction
+from yumift_controllers.common.controller_base import YumiDualController, MixedVelocityYumiAction
 from yumift_controllers.common.control_laws import YumiIndividualCartesianVelocityControlLaw
 from yumift_controllers.ik.algorithms import PINVIKAlgorithm
 from yumift_controllers.impl.trajectory import YumiParam
@@ -18,7 +18,7 @@ class YumiDummyController(YumiDualController):
     def __init__(self, device : YumiDevice):
         # Here the controller is initialized by setting its inverse kinematics
         # solver; in this example, the pseudo-inverse is chosen.
-        super().__init__(device, iksolvers=[PINVIKAlgorithm()])
+        super().__init__(device, ikalgorithms=[PINVIKAlgorithm()])
         
         # Define the control law computing velocity commands.
         # Here a cartesian velocity control law is showcased; the "individual"
@@ -39,7 +39,7 @@ class YumiDummyController(YumiDualController):
         # may want to delete after an error.
         print("Reset function working")
         
-    def policy(self, state: YumiDualDeviceState) -> YumiDualDeviceAction:
+    def policy(self, state: YumiDualDeviceState) -> MixedVelocityYumiAction:
         # This is the main component of the controller. Here the control action 
         # is decided and computed, and in particular control laws are used. 
         # Keep in mind that all the steps illustrated here might be unnecessary 
@@ -70,8 +70,8 @@ class YumiDummyController(YumiDualController):
         
         # This is an action. For more information on the fields, please read the 
         # documentation of `self._solve_action()`.
-        action = YumiDualDeviceAction()
-        action.control_space(YumiDualDeviceAction.ControlSpace.INDIVIDUAL)
+        action = MixedVelocityYumiAction()
+        action.control_space(MixedVelocityYumiAction.ControlSpace.INDIVIDUAL)
         action.velocity_right(vel_r)
         action.velocity_left(vel_l)
                 

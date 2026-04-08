@@ -13,7 +13,7 @@ import pickle
 
 from geometry_msgs.msg import WrenchStamped as WrenchStampedMsg
 from yumift_msgs.msg import YumiPosture as YumiPostureMsg, YumiTrajectory as YumiTrajectoryMsg
-from yumift_msgs.yumi_posture_helper import Helper
+from yumift_msgs.helper import Helper as H
 
 
 class MeasurementWizard():
@@ -480,109 +480,109 @@ def measurement_campaign(filename_left, filename_right):
     
     wizard.print_campaign("motion (1/6) : FACE DOWN")
     wizard.measure_posture_list([
-        Helper.posture(4.0,
+        H.posture(4.0,
             ([0.4, -0.25, 0.1], [0, 1, 0, 0]),
             ([0.4,  0.25, 0.1], [0, 1, 0, 0])),
-        Helper.posture(4.0,
-            (Helper.eul2quat(0, +30, 0, "sxyz"),),
-            (Helper.eul2quat(0, +30, 0, "sxyz"),),
+        H.posture(4.0,
+            (H.e2q(0, +30, 0, "sxyz"),),
+            (H.e2q(0, +30, 0, "sxyz"),),
             incremental = YumiPostureMsg.GLOBAL),
-        Helper.posture(4.0
-            (Helper.eul2quat(0, -60, 0, "sxyz"),),
-            (Helper.eul2quat(0, -60, 0, "sxyz"),),
+        H.posture(4.0
+            (H.e2q(0, -60, 0, "sxyz"),),
+            (H.e2q(0, -60, 0, "sxyz"),),
             incremental = YumiPostureMsg.GLOBAL),
         ])
 
     wizard.print_campaign("motion (2/6) : FACE INSIDE")
     wizard.measure_posture_list([
-        Helper.posture(4.0,
-            ([0.45, -0.1, 0.25], Helper.eul2quat(-90, 0, 0, "sxyz")),
-            ([0.45,  0.1, 0.25], Helper.eul2quat(+90, 0, 0, "sxyz")),),
-        Helper.posture(4.0
-            (Helper.eul2quat(-30, 0, 0, "sxyz"),),
-            (Helper.eul2quat(+30, 0, 0, "sxyz"),),
+        H.posture(4.0,
+            ([0.45, -0.1, 0.25], H.e2q(-90, 0, 0, "sxyz")),
+            ([0.45,  0.1, 0.25], H.e2q(+90, 0, 0, "sxyz")),),
+        H.posture(4.0
+            (H.e2q(-30, 0, 0, "sxyz"),),
+            (H.e2q(+30, 0, 0, "sxyz"),),
             incremental = YumiPostureMsg.GLOBAL),
-        Helper.posture(4.0
-            (Helper.eul2quat(+60, 0, 0, "sxyz"),),
-            (Helper.eul2quat(-60, 0, 0, "sxyz"),),
+        H.posture(4.0
+            (H.e2q(+60, 0, 0, "sxyz"),),
+            (H.e2q(-60, 0, 0, "sxyz"),),
             incremental = YumiPostureMsg.GLOBAL),
         ])
     
     wizard.print_campaign("motion (3/6) : FACE UP")
     wizard.measure_posture_list([
-        Helper.posture(4.0,
-            ([0.4, -0.2, 0.4], Helper.eul2quat(0, 0, 0, "sxyz")),
-            ([0.4,  0.2, 0.4], Helper.eul2quat(0, 0, 0, "sxyz")),),
-        Helper.posture(4.0,
-            (Helper.eul2quat(0, +30, 0, "sxyz"),),
-            (Helper.eul2quat(0, +30, 0, "sxyz"),),
+        H.posture(4.0,
+            ([0.4, -0.2, 0.4], H.e2q(0, 0, 0, "sxyz")),
+            ([0.4,  0.2, 0.4], H.e2q(0, 0, 0, "sxyz")),),
+        H.posture(4.0,
+            (H.e2q(0, +30, 0, "sxyz"),),
+            (H.e2q(0, +30, 0, "sxyz"),),
             incremental = YumiPostureMsg.GLOBAL),
-        Helper.posture(4.0,
-            (Helper.eul2quat(+30, 0, 0, "sxyz"),),
-            (Helper.eul2quat(+30, 0, 0, "sxyz"),),
+        H.posture(4.0,
+            (H.e2q(+30, 0, 0, "sxyz"),),
+            (H.e2q(+30, 0, 0, "sxyz"),),
             incremental = YumiPostureMsg.GLOBAL),
-        Helper.posture(4.0,
-            (Helper.eul2quat(-60, 0, 0, "sxyz"),),
-            (Helper.eul2quat(-60, 0, 0, "sxyz"),),
+        H.posture(4.0,
+            (H.e2q(-60, 0, 0, "sxyz"),),
+            (H.e2q(-60, 0, 0, "sxyz"),),
             incremental = YumiPostureMsg.GLOBAL),
         ])
     wizard.goto_posture(
-        Helper.posture(4.0,
-            (Helper.eul2quat(+30, 0, 0, "sxyz"),),
-            (Helper.eul2quat(+30, 0, 0, "sxyz"),),
+        H.posture(4.0,
+            (H.e2q(+30, 0, 0, "sxyz"),),
+            (H.e2q(+30, 0, 0, "sxyz"),),
             incremental = YumiPostureMsg.GLOBAL)
         )
     wizard.measure_posture_list([
-        Helper.posture(4.0,
-            (Helper.eul2quat(0, -60, 0, "sxyz"),),
-            (Helper.eul2quat(0, -60, 0, "sxyz"),),
+        H.posture(4.0,
+            (H.e2q(0, -60, 0, "sxyz"),),
+            (H.e2q(0, -60, 0, "sxyz"),),
             incremental = YumiPostureMsg.GLOBAL),
-        Helper.posture(4.0,
-            (Helper.eul2quat(+30, 0, 0, "sxyz"),),
-            (Helper.eul2quat(+30, 0, 0, "sxyz"),),
+        H.posture(4.0,
+            (H.e2q(+30, 0, 0, "sxyz"),),
+            (H.e2q(+30, 0, 0, "sxyz"),),
             incremental = YumiPostureMsg.GLOBAL),
-        Helper.posture(4.0,
-            (Helper.eul2quat(-60, 0, 0, "sxyz"),),
-            (Helper.eul2quat(-60, 0, 0, "sxyz"),),
+        H.posture(4.0,
+            (H.e2q(-60, 0, 0, "sxyz"),),
+            (H.e2q(-60, 0, 0, "sxyz"),),
             incremental = YumiPostureMsg.GLOBAL),
         ])
     wizard.goto_posture(
-        Helper.posture(4.0,
-            (Helper.eul2quat(+30, 0, 0, "sxyz"),),
-            (Helper.eul2quat(+30, 0, 0, "sxyz"),),
+        H.posture(4.0,
+            (H.e2q(+30, 0, 0, "sxyz"),),
+            (H.e2q(+30, 0, 0, "sxyz"),),
             incremental = YumiPostureMsg.GLOBAL),
         )
     
     # wizard.print_campaign("motion (4/6) : FACE OUTSIDE")
     # wizard.measure_posture_list([
-    #      Helper.posture(4.0,
-    #         ([0.45, -0.45, 0.5], Helper.eul2quat(+90, 0, 0, "sxyz")),
-    #         ([0.45,  0.45, 0.5], Helper.eul2quat(-90, 0, 0, "sxyz")),),
+    #      H.posture(4.0,
+    #         ([0.45, -0.45, 0.5], H.eul2quat(+90, 0, 0, "sxyz")),
+    #         ([0.45,  0.45, 0.5], H.eul2quat(-90, 0, 0, "sxyz")),),
     #     ])
     
     wizard.print_campaign("motion (5/6) : FACE BACKWARD")
     wizard.measure_posture_list([
-        Helper.posture(4.0,
-            ([0.15, -0.25, 0.6], Helper.eul2quat(0, -90, 0, "rxyz")),
-            ([0.15,  0.25, 0.6], Helper.eul2quat(0, -90, 0, "rxyz")),),
-        Helper.posture(4.0,
-            (Helper.eul2quat(0, 0, +30, "sxyz"),),
-            (Helper.eul2quat(0, 0, +30, "sxyz"),),
+        H.posture(4.0,
+            ([0.15, -0.25, 0.6], H.e2q(0, -90, 0, "rxyz")),
+            ([0.15,  0.25, 0.6], H.e2q(0, -90, 0, "rxyz")),),
+        H.posture(4.0,
+            (H.e2q(0, 0, +30, "sxyz"),),
+            (H.e2q(0, 0, +30, "sxyz"),),
             incremental = YumiPostureMsg.GLOBAL),
-        Helper.posture(4.0,
-            (Helper.eul2quat(0, 0, -60, "sxyz"),),
-            (Helper.eul2quat(0, 0, -60, "sxyz"),),
+        H.posture(4.0,
+            (H.e2q(0, 0, -60, "sxyz"),),
+            (H.e2q(0, 0, -60, "sxyz"),),
             incremental = YumiPostureMsg.GLOBAL),
         ])
     
     wizard.print_campaign("motion (6/6) : FACE FORWARD")
     wizard.measure_posture_list([
-        Helper.posture(3.0,
-            ([0.45, -0.15, 0.25], Helper.eul2quat(-90, 0, 0, "sxyz")),
-            ([0.45,  0.15, 0.25], Helper.eul2quat(+90, 0, 0, "sxyz")),),
-        Helper.posture(3.0,
-            ([0.45, -0.25, 0.0], Helper.eul2quat(0, 90, 0, "rxyz")),
-            ([0.45,  0.25, 0.0], Helper.eul2quat(0, 90, 0, "rxyz")),),
+        H.posture(3.0,
+            ([0.45, -0.15, 0.25], H.e2q(-90, 0, 0, "sxyz")),
+            ([0.45,  0.15, 0.25], H.e2q(+90, 0, 0, "sxyz")),),
+        H.posture(3.0,
+            ([0.45, -0.25, 0.0], H.e2q(0, 90, 0, "rxyz")),
+            ([0.45,  0.25, 0.0], H.e2q(0, 90, 0, "rxyz")),),
         ])
 
     wizard.print_campaign("resetting to READY")

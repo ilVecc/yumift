@@ -119,8 +119,6 @@ class YumiStateUpdater(object):
         state.pose_abs = Frame.from_matrix(np.linalg.inv(state.pose_gripper_r.matrix()) @ state.pose_gripper_l.matrix()).partial(alpha_)
         state.pose_rel = Frame.from_matrix(np.linalg.inv(state.pose_gripper_r.partial(beta_).matrix()) @ state.pose_gripper_l.partial(beta).matrix())
         
-        print(state.pose_abs)
-        
         # coordinated jacobian
         link_mat = np.zeros((12,12)) 
         # absolute linking matrix: maps gripper velocities to the velocity average

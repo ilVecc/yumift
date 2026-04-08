@@ -1,6 +1,7 @@
 from abc import ABCMeta, abstractmethod
 from enum import Enum
 from typing import List
+from typing_extensions import override
 
 import rospy
 import numpy as np
@@ -12,7 +13,7 @@ from yumift_common.constants import YumiRobotConstants
 from dynamicals.common.controllers import AbstractController, AbstractControllerAction
 
 
-class YumiDualDeviceAction(AbstractControllerAction, dict):
+class MixedVelocityYumiAction(AbstractControllerAction, dict):
     """ Represents an action for a dual-control ABB Dual-Arm Yumi.
         This action is a subclass of `Dict`, which allows to write
         complex and hot-swappable action solvers due to the 
@@ -48,7 +49,7 @@ class YumiDualDeviceAction(AbstractControllerAction, dict):
     def __init__(self) -> None:
         super().__init__()
     
-    def control_space(self, space : "YumiDualDeviceAction.ControlSpace"):
+    def control_space(self, space : "MixedVelocityYumiAction.ControlSpace"):
         self["control_space"] = space
     
     def velocity_joints(self, velocity : np.ndarray):
@@ -85,7 +86,7 @@ from ..ik.solver import IKSolver, IKAlgorithm
 
 # TODO why dual?
 class YumiDualController(
-    AbstractController[YumiDualDeviceState, YumiDualDeviceAction, YumiDualDeviceCommand], 
+    AbstractController[YumiDualDeviceState, MixedVelocityYumiAction, YumiDualDeviceCommand], 
     metaclass=ABCMeta
 ):
     """ Class for controlling YuMi, inherit this class and create your own 
@@ -96,31 +97,32 @@ class YumiDualController(
         and gripper commands via service `/yumi/rws/sm_addin/set_sg_command`.
     """
     
-    def __init__(self, yumi_device: YumiDevice, iksolvers : List[IKAlgorithm]):
+    def __init__(self, yumi_device: YumiDevice, ikalgorithms : List[IKAlgorithm]):
         self._device : YumiDevice
+        self._device_ready_prev = False
         super().__init__(yumi_device)
         
         # TODO extract me from here
-        # setup the IK solvers
-        self._iksolver = IKSolver()
-        for algo in iksolvers:
-            self._iksolver.register(algo)
-        # select first algorithm as default
-        self._iksolver.switch(iksolvers[0].name)
+        # setup the IK solvers and select the first one as default
+        self._iksolver = IKSolver(ikalgorithms)
+        self._iksolver.switch(ikalgorithms[0].name)
     
+    @override
     def start(self):
         super().start(ControllerParameters.update_rate)
 
+    @override
     def stop(self):
         print("Controller shutting down")
         super().stop()
     
-    def _inner_loop(self, control_rate: float):
+    @override
+    def spin(self, control_rate: float):
         """ ROS implementation of the original function.
         """
         rate = rospy.Rate(control_rate)
         while not rospy.is_shutdown():
-            self.cycle()
+            self.spin_once()
             rate.sleep()
         # when the controller is shut down, send a stop command
         stop_commands = 3
@@ -130,49 +132,56 @@ class YumiDualController(
             print(f"Sent stop command ({i+1}/{stop_commands})")
             
     def _on_device_lost(self):
-        """ Decides what happens when control mode goes from "auto" to "manual".
+        """ Decides what happens when e.g. control mode goes from "auto" to "manual".
         """
         print("Controller lost device after \"device_lost\" event")
     
     def _on_device_regained(self, state: YumiDualDeviceState):
-        """ Decides what happens when control mode goes from "manual" to "auto".
+        """ Decides what happens when e.g. control mode goes from "manual" to "auto".
         """
         self.reset(state)
         print("Controller ran \"reset()\" after \"device_regained\" event")
-        self._device._start_rapid.call()
+        self.device_reset()
         print("Restared RAPID")
     
-    def _device_is_ready(self) -> bool:
+    @override
+    def device_is_ready(self) -> bool:
         """ Calls the default `self._device.is_ready()` but then runs status 
             change logic before returning it.
         """
-        ret = self._device.is_ready()
-        if self._device.did_status_change():
-            if self._device.is_ready():
+        device_ready_curr = self._device.is_ready()
+        # handle change in device readyness
+        if device_ready_curr != self._device_ready_prev:
+            self._device_ready_prev = device_ready_curr
+            if device_ready_curr:
                 # if auto_mode was off and now it's on (eg. after acknoledgment of EGM error)
                 print("Regained control (auto_mode=true)")
-                state = self._device_read()
+                state = self.device_read()
                 self._on_device_regained(state)
             else:
                 # if auto_mode was on and now it's off (eg. after "joint contraint violation" error)
                 print("Lost control (auto_mode=false)")
                 self._on_device_lost()
-        return ret
+        
+        return device_ready_curr
     
     @abstractmethod
+    @override
     def reset(self, state: YumiDualDeviceState):
         """ Method called when EGM stops.
         """
         raise NotImplementedError()
     
-    def fallback(self, state: YumiDualDeviceState) -> YumiDualDeviceAction:
-        action = YumiDualDeviceAction()
-        action.control_space(YumiDualDeviceAction.ControlSpace.JOINT_SPACE)
+    @override
+    def fallback(self, state: YumiDualDeviceState) -> MixedVelocityYumiAction:
+        action = MixedVelocityYumiAction()
+        action.control_space(MixedVelocityYumiAction.ControlSpace.JOINT_SPACE)
         action.velocity_joints(np.zeros(YumiRobotConstants.DOF))
         return action
         
     @abstractmethod
-    def policy(self, state: YumiDualDeviceState) -> YumiDualDeviceAction:
+    @override
+    def policy(self, state: YumiDualDeviceState) -> MixedVelocityYumiAction:
         """ This function should generate velocity commands for the controller.
             There are three control modes: 
             1. joint space control
@@ -188,7 +197,8 @@ class YumiDualController(
         """
         raise NotImplementedError()
 
-    def solve_action(self, state: YumiDualDeviceState, action: YumiDualDeviceAction) -> YumiDualDeviceCommand:
+    @override
+    def solve_action(self, state: YumiDualDeviceState, action: MixedVelocityYumiAction) -> YumiDualDeviceCommand:
         """ Convert a desired action to the required command using an IK solver,
             if necessary, and clip the commands.
             
@@ -196,7 +206,7 @@ class YumiDualController(
             :returns: the required command
         """
         # solve action for joint velocities
-        if action["control_space"] == YumiDualDeviceAction.ControlSpace.JOINT_SPACE:
+        if action["control_space"] == MixedVelocityYumiAction.ControlSpace.JOINT_SPACE:
             dq_target = action["velocity_joints"]
         else:
             dq_target = self._iksolver.solve(action, state)

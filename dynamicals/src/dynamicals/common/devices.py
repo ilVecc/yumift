@@ -16,6 +16,16 @@ TCommand = TypeVar("TCommand", bound=Type[AbstractDeviceCommand])
 class AbstractDevice(Generic[TState, TCommand], metaclass=ABCMeta):
     
     @abstractmethod
+    def reset(self) -> bool:
+        """ Run the reset checklist of the device.
+            This function could be useful when a device needs a specific reset 
+            procedure, e.g. after a readiness status change.
+        
+            :returns: a flag that describes the completion of the reset checklist 
+        """
+        raise NotImplementedError()
+    
+    @abstractmethod
     def is_ready(self) -> bool:
         """ Returns the current readiness of the device.
         

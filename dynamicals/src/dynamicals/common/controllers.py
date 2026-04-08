@@ -1,6 +1,6 @@
 # TODO when swtiching to Python3.8, use @final on the methods
-from abc import ABCMeta, abstractmethod #, final
-from typing import Any, TypeVar, Type, Generic
+from abc import ABCMeta, abstractmethod
+from typing import Any, TypeVar, Type, Generic, final
 
 import time
 from threading import Lock
@@ -15,6 +15,12 @@ class AbstractControllerAction(object):
 TAction = TypeVar("TAction", bound=Type[AbstractControllerAction])
 
 
+# TODO could be useful
+class DeviceUnavailableException(Exception):
+    def __init__(self, *args: object) -> None:
+        super().__init__(*args)
+
+
 class AbstractController(Generic[TState, TAction, TCommand], metaclass=ABCMeta):
     """ Class for controlling a generic device, inherit this class and concretize
         every abstract function. `self.policy()` and `self.fallback()` 
@@ -22,20 +28,20 @@ class AbstractController(Generic[TState, TAction, TCommand], metaclass=ABCMeta):
         finally produces a command sent by the device.
     """
 
-    def __init__(self, device: AbstractDevice[TState, TCommand]):
+    def __init__(self, device : AbstractDevice[TState, TCommand]):
         # signal "controller is stopped"
-        self._lock_controller_stop = Lock()
-        self._controller_stop = False
+        self._lock_controller_stopped = Lock()
+        self._controller_stopped = False
         # signal "controller can command"
         self._lock_controller_ready = Lock()
         self._controller_ready = False
         # device handle
         self._device = device
-        self._device_last_state: TState
+        self._device_last_state : TState
 
     # execution functions
 
-    def _inner_loop(self, rate):
+    def spin(self, rate):
         """ Internal blocking control loop. Overwrite this function to use 
             different rate-handling strategies. This function can be stopped 
             calling `self.stop()` from another thread or in the default/desired 
@@ -44,12 +50,12 @@ class AbstractController(Generic[TState, TAction, TCommand], metaclass=ABCMeta):
         dt = 1 / rate
         init = time.time()
         while not self.is_stopped():
-            self.cycle()
+            self.spin_once()
             time.sleep(max(0, dt - (time.time() - init)))
             init = time.time()
 
     # TODO @final  maybe not
-    def cycle(self):
+    def spin_once(self):
         """ Compute and send commands to the device. In order, this function:
             1. fetches and updates current device status
             2. if device is not ready, does nothing
@@ -58,9 +64,9 @@ class AbstractController(Generic[TState, TAction, TCommand], metaclass=ABCMeta):
             4. transforms the action to a command
             5. sends the command
         """
-        # fetch state of device
-        state = self._device_read()
-        if self._device_is_ready():
+        if self.device_is_ready():
+            # fetch state of device
+            state = self.device_read()
             # run a computation step of the controller
             if self.is_ready():
                 action = self._desired_policy(state)
@@ -68,8 +74,9 @@ class AbstractController(Generic[TState, TAction, TCommand], metaclass=ABCMeta):
                 action = self._default_policy(state)
             # solve the action and send it
             command = self.solve_action(state, action)
-            self._device_send(command)
+            self.device_send(command)
         else:
+            # TODO this is both time-expensive and undesired, find a different logging system
             print("Device not ready yet (idling)")
 
     # signal status
@@ -87,9 +94,9 @@ class AbstractController(Generic[TState, TAction, TCommand], metaclass=ABCMeta):
             
             :param rate: control rate of the controller [Hz]
         """
-        with self._lock_controller_stop:
-            self._controller_stop = False
-        self._inner_loop(rate)
+        with self._lock_controller_stopped:
+            self._controller_stopped = False
+        self.spin(rate)
     
     # TODO @final
     def stop(self):
@@ -97,8 +104,8 @@ class AbstractController(Generic[TState, TAction, TCommand], metaclass=ABCMeta):
             directly via `self.cycle()`.
             This operation simply stops the blocking `self.start()`.
         """
-        with self._lock_controller_stop:
-            self._controller_stop = True
+        with self._lock_controller_stopped:
+            self._controller_stopped = True
     
     # TODO @final
     def ready(self):
@@ -129,8 +136,8 @@ class AbstractController(Generic[TState, TAction, TCommand], metaclass=ABCMeta):
     def is_stopped(self) -> bool:
         """ Returns the `self._controller_stop` flag
         """
-        with self._lock_controller_stop:
-            return self._controller_stop
+        with self._lock_controller_stopped:
+            return self._controller_stopped
 
     # TODO @final
     def is_ready(self) -> bool:
@@ -141,27 +148,36 @@ class AbstractController(Generic[TState, TAction, TCommand], metaclass=ABCMeta):
 
     # wrappers for pre- and post- conditions
     
-    def _device_is_ready(self) -> bool:
+    def device_reset(self) -> bool:
+        """ Logic for resetting the device.
+            This comprehends pre- and post- `self._device.reset()` logic.
+            By default, this simply calls `self._device.reset()`.
+            When overwriting this method, keep the same signature.
+        """
+        return self._device.reset()
+    
+    def device_is_ready(self) -> bool:
         """ Logic for checking if the device is ready for I/O operations.
             This comprehends pre- and post- `self._device.is_ready()` logic.
             By default, this simply calls `self._device.is_ready()`.
+            When overwriting this method, keep the same signature.
         """
         return self._device.is_ready()
     
-    def _device_read(self) -> TState:
+    def device_read(self) -> TState:
         """ Logic for reading device state.
             This comprehends pre- and post- `self._device.read()` logic. 
-            By default, this simply calls `self._device.read()`. 
-            When overwriting this function, always return a state. 
+            By default, this simply calls `self._device.read()`, storing the result.
+            When overwriting this method, keep the same signature.
         """
         self._device_last_state = self._device.read()
         return self._device_last_state
 
-    def _device_send(self, command: TCommand):
+    def device_send(self, command: TCommand) -> None:
         """ Logic for sending command to the device. 
             This comprehends pre- and post- `self._device.send()` logic. 
             By default, this simply calls `self._device.send()`. 
-            When overwriting this function, return nothing. 
+            When overwriting this method, keep the same signature.
         """
         return self._device.send(command)
 
@@ -169,8 +185,9 @@ class AbstractController(Generic[TState, TAction, TCommand], metaclass=ABCMeta):
         """ Default controller logic. 
             This comprehends pre- and post- `self.fallback()` logic. 
             By default, this simply calls `self.fallback()`. 
-            When overwriting this function, always return an action.
+            When overwriting this method, keep the same signature.
         """
+        # TODO this is both time-expensive and undesired, find a different logging system
         print("Controller not ready yet (fallback)")
         return self.fallback(state)
     
@@ -178,7 +195,7 @@ class AbstractController(Generic[TState, TAction, TCommand], metaclass=ABCMeta):
         """ Desired controller logic. 
             This comprehends pre- and post- `self.policy()` logic. 
             By default, this simply calls `self.policy()`. 
-            When overwriting this function, always return an action.
+            When overwriting this method, keep the same signature.
         """
         return self.policy(state)
     

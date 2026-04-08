@@ -7,7 +7,7 @@ from .hqp_tasks import *
 from .hqp_parameters import HQPParameters
 from .solver import IKAlgorithm
 from ..common.device import YumiDualDeviceState
-from ..common.controller_base import YumiDualDeviceAction
+from ..common.controller_base import MixedVelocityYumiAction
 
 from yumift_common.constants import YumiRobotConstants
 
@@ -68,7 +68,7 @@ class HQPIKAlgorithm(IKAlgorithm):
         self._cache_joint_state = np.zeros((YumiRobotConstants.DOF,))
         self._cache_velocities = np.zeros(12)
 
-    def solve(self, action: YumiDualDeviceAction, state: YumiDualDeviceState):
+    def solve(self, action: MixedVelocityYumiAction, state: YumiDualDeviceState):
         """ Sets up stack of tasks and solves the inverse kinematics problem for
             individual or coordinated manipulation
         """
@@ -104,7 +104,7 @@ class HQPIKAlgorithm(IKAlgorithm):
                 timestep=dt))
 
         # (4) velocity command task
-        if action["control_space"] == YumiDualDeviceAction.ControlSpace.INDIVIDUAL:
+        if action["control_space"] == MixedVelocityYumiAction.ControlSpace.INDIVIDUAL:
             # (4.0) gripper collision avoidance
             if action["gripper_collision"]:
                 SoT.append(self._tasks["end_effector_collision"].compute(
@@ -135,7 +135,7 @@ class HQPIKAlgorithm(IKAlgorithm):
                 print(f"When using individual control mode, \"velocity_right\" and/or \"velocity_left\" must be specified")
                 return np.zeros(YumiRobotConstants.DOF)
 
-        elif action["control_space"] == YumiDualDeviceAction.ControlSpace.COORDINATED:
+        elif action["control_space"] == MixedVelocityYumiAction.ControlSpace.COORDINATED:
             # (4.1) coordinated motion
             if "velocity_relative" in action and "velocity_absolute" in action:
                 self._cache_velocities[:6] = action["velocity_absolute"]
@@ -201,12 +201,12 @@ class PINVIKAlgorithm(IKAlgorithm):
         jacobian = None
         xdot = np.zeros(12)
 
-        if action["control_space"] == YumiDualDeviceAction.ControlSpace.INDIVIDUAL:
+        if action["control_space"] == MixedVelocityYumiAction.ControlSpace.INDIVIDUAL:
             xdot[0:6] = action.get("velocity_right", np.zeros(6))
             xdot[6:12] = action.get("velocity_left", np.zeros(6))
             jacobian = state.jacobian_grippers
 
-        elif action["control_space"] == YumiDualDeviceAction.ControlSpace.COORDINATED:
+        elif action["control_space"] == MixedVelocityYumiAction.ControlSpace.COORDINATED:
             xdot[0:6] = action.get("velocity_absolute", np.zeros(6))
             xdot[6:12] = action.get("velocity_relative", np.zeros(6))
             jacobian = state.jacobian_coordinated

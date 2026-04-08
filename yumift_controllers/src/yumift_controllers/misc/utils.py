@@ -25,16 +25,16 @@ def load_config(filename : str):
     return data
 
 
-def sanitize_pos(pos: PointMsg, fallback : np.ndarray = np.zeros(3)) -> np.ndarray:
-    return np.array([pos.x, pos.y, pos.z]) if pos else fallback
+def sanitize_pos(pos: PointMsg) -> np.ndarray:
+    return np.array([pos.x, pos.y, pos.z])
 
-def sanitize_rot(rot: QuaternionMsg, fallback : np.quaternion = quat.one) -> np.quaternion:
-    return quat.quaternion(rot.w, rot.x, rot.y, rot.z) if rot else fallback
+def sanitize_rot(rot: QuaternionMsg) -> np.quaternion:
+    return quat.quaternion(rot.w, rot.x, rot.y, rot.z)
 
-def sanitize_vel(vel: TwistMsg, fallback : np.ndarray = np.zeros(6)) -> np.ndarray:
+def sanitize_vel(vel: TwistMsg) -> np.ndarray:
     return np.array([
         vel.linear.x, vel.linear.y, vel.linear.z, 
-        vel.angular.x, vel.angular.y, vel.angular.z]) if vel else fallback
+        vel.angular.x, vel.angular.y, vel.angular.z])
 
 def quat_to_xyzw(q: np.quaternion) -> np.ndarray:
     return np.roll(quat.as_float_array(q), -1)

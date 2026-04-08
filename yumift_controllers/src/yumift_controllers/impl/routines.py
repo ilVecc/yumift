@@ -2,7 +2,7 @@ from typing import Tuple
 
 import numpy as np
 
-from ..common.controller_base import YumiDualDeviceAction
+from ..common.controller_base import MixedVelocityYumiAction
 from ..common.routine_sm import Routine
 
 from ..common.parameters import ControllerParameters
@@ -48,8 +48,8 @@ class JointStateRoutine(Routine):
             vel = np.zeros(YumiRobotConstants.DOF)
             done = True
 
-        action = YumiDualDeviceAction()
-        action.control_space(YumiDualDeviceAction.ControlSpace.JOINT_SPACE)
+        action = MixedVelocityYumiAction()
+        action.control_space(MixedVelocityYumiAction.ControlSpace.JOINT_SPACE)
         action.velocity_joints(vel)
         return action, done
 

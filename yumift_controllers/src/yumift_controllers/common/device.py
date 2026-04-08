@@ -1,9 +1,11 @@
+from typing_extensions import override
+
 import rospy
 import numpy as np
 
 from abb_rapid_sm_addin_msgs.srv import SetSGCommand as SetSGCommandSrv
-from abb_robot_msgs.msg import SystemState as SystemStateMsg
-from abb_robot_msgs.srv import TriggerWithResultCode as TriggerWithResultCodeSrv
+from abb_robot_msgs.msg import SystemState as SystemStateMsg, ServiceResponses as ServiceResponsesMsg
+from abb_robot_msgs.srv import TriggerWithResultCode as TriggerWithResultCodeSrv, TriggerWithResultCodeResponse
 from std_msgs.msg import Float64MultiArray as Float64MultiArrayMsg
 from yumift_msgs.msg import RobotState as RobotStateMsg
 
@@ -47,7 +49,7 @@ class YumiVelocityCommand(object):
     """ Used for storing the velocity command for yumi
     """
     def __init__(self):
-        self._pub = rospy.Publisher("/yumi/egm/joint_group_velocity_controller/command", Float64MultiArrayMsg, queue_size=1, tcp_nodelay=True)
+        self._pub = rospy.Publisher("/yumi/egm/joint_group_velocity_controller/command", Float64MultiArrayMsg, queue_size=1, tcp_nodelay=False)
 
     def send_velocity_cmd(self, joint_velocity: np.ndarray):
         """ Velocity should be an np.array() with 14 elements, [right arm, left arm]
@@ -120,11 +122,15 @@ class YumiGrippersCommand(object):
 class YumiDevice(AbstractDevice[YumiDualDeviceState, YumiDualDeviceCommand]):
 
     def __init__(self, coordinated_balance : float = 0.5):
+        """ Initialize a device for I/O interaction with Yumi.
+
+            :param coordinated_balance: asymmetry parameter when working in 
+                                        coordinated mode
+        """
         super().__init__()
         # yumi state subscriber
         self._cache_state: YumiDualDeviceState
         self._device_ready = False
-        self._device_ready_changed = False
         rospy.Subscriber("/yumi/unified/robot_state_coordinated", RobotStateMsg, self._callback_received_state, queue_size=1, tcp_nodelay=False)
         # ensure to start the controller with a real robot state 
         # (no wait means default state (all zeros), very bad)
@@ -136,40 +142,41 @@ class YumiDevice(AbstractDevice[YumiDualDeviceState, YumiDualDeviceCommand]):
 
         # EGM error handler and status updater (updates `self._device_ready`)
         self._start_rapid = rospy.ServiceProxy("/yumi/rws/start_rapid", TriggerWithResultCodeSrv)
-        rospy.Subscriber("/yumi/rws/system_states", SystemStateMsg, self._callback_received_rapid_state, queue_size=1, tcp_nodelay=False)
+        rospy.Subscriber("/yumi/rws/system_states", SystemStateMsg, self._callback_update_status, queue_size=1, tcp_nodelay=False)
         rospy.wait_for_message("/yumi/rws/system_states", SystemStateMsg)
 
-    def _callback_received_rapid_state(self, data: SystemStateMsg):
-        self._cache_rws_auto_mode = data.auto_mode
+    def _callback_update_status(self, data: SystemStateMsg):
+        # update status and set "status changed" flag
+        self._device_ready = data.auto_mode and data.motors_on and data.rapid_running
         # TODO handle other flags in the message
-        # data.motors_on
-        # data.rapid_running
+        # /yumi/egm/...
         # data.rapid_tasks
         # data.mechanical_units
-
+        
     def _callback_received_state(self, data: RobotStateMsg):
         # TODO this is broken, type mismatch
         self._cache_state = RobotStateMsg_to_YumiCoordinatedRobotState(data)
         self._cache_state.time = rospy.Time.now()
-
-    def did_status_change(self):
-        return self._device_ready_changed
-
+    
+    @override
+    def reset(self) -> bool:
+        ret : TriggerWithResultCodeResponse = self._start_rapid.call()
+        return ret.result_code == ServiceResponsesMsg.RC_SUCCESS
+    
+    @override
     def is_ready(self) -> bool:
         return self._device_ready
 
+    @override
     def read(self) -> YumiDualDeviceState:
         """ Stores the constantly updating state of Yumi inside the variables 
             actually used by the controller, effectively updating the state 
             in the controller. The data coming from Yumi might be old (because 
             of a disconnection), thus the RWS status is used as Yumi status.
         """
-        # update status and set "status changed" flag
-        current_status = self._cache_rws_auto_mode
-        self._device_ready_changed = current_status != self.is_ready()
-        self._device_ready = current_status
         return self._cache_state
 
+    @override
     def send(self, command: YumiDualDeviceCommand):
         # yumi control command and gripper control command (if any)
         # avoid sendind commands all the time to optimize bandwidth

@@ -9,7 +9,7 @@ import numpy as np, quaternion as quat
 from yumift_msgs.msg import YumiPosture as YumiPostureMsg
 
 from yumift_controllers.common.device import YumiDualDeviceState, YumiDevice
-from yumift_controllers.common.controller_base import YumiDualController, YumiDualDeviceAction
+from yumift_controllers.common.controller_base import YumiDualController, MixedVelocityYumiAction
 from yumift_controllers.common.control_laws import YumiIndividualCartesianVelocityControlLaw
 from yumift_controllers.impl.trajectory import YumiParam
 from yumift_controllers.misc.utils import load_config, YumiParam_to_YumiCoordinatedRobotState
@@ -21,7 +21,7 @@ class YumiIndividualTrackingController(YumiDualController):
         `YumiIndividualCartesianVelocityControlLaw` control law.
     """
     def __init__(self, gains):
-        super().__init__(yumi_device=YumiDevice(), iksolvers="pinv")
+        super().__init__(yumi_device=YumiDevice(), ikalgorithms="pinv")
         
         # define control law
         self.control_law = YumiIndividualCartesianVelocityControlLaw(gains)
@@ -38,8 +38,8 @@ class YumiIndividualTrackingController(YumiDualController):
         self.effective_mode = self.control_law.mode
         # read current state of Yumi
         while True:
-            self._device_read()
-            if self._device_is_ready():
+            self.device_read()
+            if self.device_is_ready():
                 self.desired_posture = YumiParam(
                     state.pose_gripper_r.pos, state.pose_gripper_r.rot, np.zeros(6), 0, 
                     state.pose_gripper_l.pos, state.pose_gripper_l.rot, np.zeros(6), 0)
@@ -61,7 +61,7 @@ class YumiIndividualTrackingController(YumiDualController):
     def _sanitize_vel(vel: Tuple[float]):
         return np.asarray(vel) if vel else np.array([0,0,0,0,0,0])
     
-    def policy(self, state: YumiDualDeviceState) -> YumiDualDeviceAction:
+    def policy(self, state: YumiDualDeviceState) -> MixedVelocityYumiAction:
         """ Calculate target velocity for the current time step.
         """
         # update the current and desired robot state in the control law class, 
@@ -71,8 +71,8 @@ class YumiIndividualTrackingController(YumiDualController):
         vel_r, vel_l = self.control_law.update_and_compute(state, yumi_desired_state, dt)
         
         # calculate new target velocities for this time step
-        action = YumiDualDeviceAction()
-        action.control_space(YumiDualDeviceAction.ControlSpace.from_str(self.control_law.mode))
+        action = MixedVelocityYumiAction()
+        action.control_space(MixedVelocityYumiAction.ControlSpace.from_str(self.control_law.mode))
         action.timestep(dt)
         action.velocity_right(vel_r) 
         action.velocity_left(vel_l)

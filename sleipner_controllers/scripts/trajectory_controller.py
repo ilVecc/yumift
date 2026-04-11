@@ -7,22 +7,15 @@ import rospy
 import numpy as np, quaternion as quat
 
 from dynamicals.utils import Frame
-from dynamicals.common.controllers import AbstractControllerAction, AbstractController
+from dynamicals.common.controllers import AbstractController
 from dynamicals.impl import CartesianVelocityControlLaw
 from pathfinder.polynomial import CubicPoseTrajectory, PoseParam
 
 from sleipner_controllers.common.device import SleipnerCartesianDeviceState, SleipnerCartesianDeviceCommand, SleipnerCartesianDevice
+from sleipner_controllers.common.controller_base import SE2TwistAction
 from sleipner_controllers.misc.utils import SleipnerCartesianDeviceState_to_PoseParam, SleipnerCartesianDeviceState_to_Frame
 
 from geometry_msgs.msg import PointStamped
-
-
-class SE2TwistAction(AbstractControllerAction):
-    
-    def __init__(self, twist_SE2: np.ndarray) -> None:
-        assert twist_SE2.shape == (3,)
-        super().__init__()
-        self.twist_SE2 = twist_SE2
 
 
 class SleipnerCartesianTrajectoryController(
@@ -35,23 +28,26 @@ class SleipnerCartesianTrajectoryController(
     def __init__(self, robot_handle : SleipnerCartesianDevice):
         self._device : SleipnerCartesianDevice
         super().__init__(robot_handle)
-        self.control_law = CartesianVelocityControlLaw(1, 1, np.array([1, 1]))
+        self.control_law = CartesianVelocityControlLaw(k_p=3, k_o=1, 
+                                                       min_actionable_error=[0.05, 0.02],
+                                                       max_allowed_deviation=[1.5, np.pi/2])
         self.trajectory = CubicPoseTrajectory()
         self.trajectory_initial_time = rospy.Time.now()
         rospy.Subscriber("/base/target", PointStamped, self._callback_received_target, queue_size=1)
-        self.target_pos = np.zeros(3)
-        self.target_ori = quat.one
+        self.target_tra = np.zeros(3)
+        self.target_rot = quat.one
         self.target_time = 0.0001
     
     @override
     def start(self):
         # TODO make this a default behaviour?
+        rospy.loginfo("Controller will start up soon")
         self.reset(self.device_read())  # init trajectory
         super().start(250) # Hz
     
     @override
     def stop(self):
-        print("Controller shutting down")
+        rospy.loginfo("Controller is shutting down")
         super().stop()
     
     @override
@@ -69,9 +65,10 @@ class SleipnerCartesianTrajectoryController(
             print(f"Sent stop command ({i+1}/{stop_commands})")
     
     def _callback_received_target(self, msg : PointStamped):
+        rospy.loginfo(f"New target received: [{msg.point.x}, {msg.point.y}, {msg.point.z}]")
         # msg.header.
-        self.target_pos = np.array([msg.point.x, msg.point.y, 0])
-        self.target_ori = quat.from_rotation_vector(np.array([0, 0, msg.point.z]))
+        self.target_tra = np.array([msg.point.x, msg.point.y, 0])
+        self.target_rot = quat.from_rotation_vector(np.array([0, 0, msg.point.z]))
         self.target_time = 5.0
         # initialize new trajectory
         self.reset(self.device_read())
@@ -81,10 +78,16 @@ class SleipnerCartesianTrajectoryController(
         self.control_law.clear()
         
         param_init = SleipnerCartesianDeviceState_to_PoseParam(state)
-        param_final = PoseParam(self.target_pos, self.target_ori, param_init.vel)
+        frame_init = SleipnerCartesianDeviceState_to_Frame(state)
+        frame_final = Frame(self.target_tra, self.target_rot) @ frame_init
+        param_final = PoseParam(frame_final.pos, frame_final.rot, np.zeros(6))
         
         self.trajectory.update(param_init, param_final, self.target_time)
         self.trajectory_initial_time = rospy.Time.now()
+        
+        with np.printoptions(precision=2):
+            rospy.loginfo(f"Initial pose: {frame_init.pos} {quat.as_float_array(frame_init.rot)}")
+            rospy.loginfo(f"Final pose:   {frame_final.pos} {quat.as_float_array(frame_final.rot)}")
     
     @override
     def fallback(self, state: SleipnerCartesianDeviceState) -> SE2TwistAction:
@@ -105,7 +108,7 @@ class SleipnerCartesianTrajectoryController(
         
         vel = self.control_law.update_and_compute(pose_now, pose_next, dt)
         vel = np.array([vel[0], vel[1], vel[5]])
-      
+        
         return SE2TwistAction(vel)
     
     @override

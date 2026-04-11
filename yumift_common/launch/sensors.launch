@@ -5,25 +5,27 @@
     <arg name="sensor_ip_left"/>
     <arg name="use_raw" default="false"/>
 
+    <arg name="WAIT_COMMAND" value="bash -c 'sleep 1; $0 $@' "/>
+
     <group ns="sensors/wrench">
         <group ns="right">
             <node pkg="netft_utils" type="netft_node" name="netft_node" output="screen" args="$(arg sensor_ip_right)"/>
-            <node pkg="netft_utils" type="netft_utils" name="netft_utils" output="screen" args="yumi_base_link ftsensor_r"/>
+            <node pkg="netft_utils" type="netft_utils" name="netft_utils" output="screen" args="yumi_base_link ftsensor_r gripper_r_tip"/>
             <!-- https://answers.ros.org/question/233353/set-delay-between-starting-nodes-within-launch-file/ -->
-            <node pkg="rosservice" type="rosservice" name="tooltip_frame" args="call set_tool_tip_frame -- true gripper_r_tip" launch-prefix="bash -c 'sleep 1; $0 $@' "/>
 
             <group unless="$(arg use_raw)">
-                <node pkg="rosservice" type="rosservice" name="grav_comp" args="call set_tool_data -- true -2.5675 0.051" launch-prefix="bash -c 'sleep 1; $0 $@' "/>
+                <node pkg="rosservice" type="rosservice" name="comp_bias" args="call set_known_bias -- true  3.02846174 -1.22705987 2.76949595 -0.0408997 -0.06467276 0.02335224" launch-prefix="$(arg WAIT_COMMAND)"/>
+                <node pkg="rosservice" type="rosservice" name="comp_grav" args="call set_known_tool_data -- true 0.29812 0.04962" launch-prefix="$(arg WAIT_COMMAND)"/>
             </group>
         </group>
 
         <group ns="left">
             <node pkg="netft_utils" type="netft_node" name="netft_node" output="screen" args="$(arg sensor_ip_left)"/>
-            <node pkg="netft_utils" type="netft_utils" name="netft_utils" output="screen" args="yumi_base_link ftsensor_l"/>
-            <node pkg="rosservice" type="rosservice" name="tooltip_frame" args="call set_tool_tip_frame -- true gripper_l_tip" launch-prefix="bash -c 'sleep 1; $0 $@' "/>
+            <node pkg="netft_utils" type="netft_utils" name="netft_utils" output="screen" args="yumi_base_link ftsensor_l gripper_l_tip"/>
 
             <group unless="$(arg use_raw)">
-                <node pkg="rosservice" type="rosservice" name="grav_comp" args="call set_tool_data -- true -2.5675 0.051" launch-prefix="bash -c 'sleep 1; $0 $@' "/>
+                <node pkg="rosservice" type="rosservice" name="comp_bias" args="call set_known_bias -- true  2.91466659 -4.71702339 14.92950971 -0.11701431 -0.03871946 -0.06354851" launch-prefix="$(arg WAIT_COMMAND)"/>
+                <node pkg="rosservice" type="rosservice" name="comp_grav" args="call set_known_tool_data -- true 0.29648 0.04946" launch-prefix="$(arg WAIT_COMMAND)"/>
             </group>
         </group>
     </group>

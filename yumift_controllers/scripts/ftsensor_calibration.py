@@ -12,7 +12,7 @@ from threading import Lock
 import pickle
 
 from geometry_msgs.msg import WrenchStamped as WrenchStampedMsg
-from yumift_msgs.msg import YumiPosture as YumiPostureMsg, YumiTrajectory as YumiTrajectoryMsg
+from yumift_msgs.msg import YumiPosture as YumiPostureMsg
 from yumift_msgs.helper import Helper as H
 
 
@@ -26,12 +26,12 @@ class MeasurementWizard():
         self.measurements_left = []
         self.measurements_right = []
         
-        rospy.Subscriber("/sensors/wrench/left/netft_data", WrenchStampedMsg, self._callback, callback_args="left", queue_size=1)
-        rospy.wait_for_message("/sensors/wrench/left/netft_data", WrenchStampedMsg, timeout=2)
-        rospy.Subscriber("/sensors/wrench/right/netft_data", WrenchStampedMsg, self._callback, callback_args="right", queue_size=1)
-        rospy.wait_for_message("/sensors/wrench/right/netft_data", WrenchStampedMsg, timeout=2)
+        rospy.Subscriber("/sensors/wrench/left/raw_sensor", WrenchStampedMsg, self._callback, callback_args="left", queue_size=1)
+        rospy.wait_for_message("/sensors/wrench/left/raw_sensor", WrenchStampedMsg, timeout=2)
+        rospy.Subscriber("/sensors/wrench/right/raw_sensor", WrenchStampedMsg, self._callback, callback_args="right", queue_size=1)
+        rospy.wait_for_message("/sensors/wrench/right/raw_sensor", WrenchStampedMsg, timeout=2)
         
-        self.pub = rospy.Publisher("/trajectory", YumiTrajectoryMsg, queue_size=1, latch=True)
+        self.pub = H.publisher("/trajectory")
         self.listener = TransformListener()
         rospy.sleep(1)
     
@@ -71,20 +71,10 @@ class MeasurementWizard():
         print("measurement performed")
 
     def goto_ready(self):
-        msg = YumiTrajectoryMsg()
-        msg.header.stamp = rospy.Time.now()
-        msg.mode = YumiTrajectoryMsg.ROUTINE
-        msg.routine_name = "ready_pose"
-        self.pub.publish(msg)
-        rospy.sleep(5)
+        H.quick_send(self.pub, routine_name="ready_pose")
     
     def goto_posture(self, posture : YumiPostureMsg):
-        msg = YumiTrajectoryMsg()
-        msg.header.stamp = rospy.Time.now()
-        msg.mode = YumiTrajectoryMsg.INDIVIDUAL
-        msg.trajectory = [posture]
-        self.pub.publish(msg)
-        rospy.sleep(posture.time_to_execute+2)
+        H.quick_send(self.pub, H.Mode.INDIVIDUAL, [posture])
         
     def measure_posture(self, posture : YumiPostureMsg):
         self.goto_posture(posture)
@@ -127,7 +117,7 @@ class CalibrationAlgorithm():
         """Result of hand-force calibration.
 
         Attributes:
-            F_b: Estimated bias force vector (3,)
+            F_b: Estimated bias force vector in world frame (3,)
             sRe: Rotation matrix from end-effector to sensor frame (3x3)
             sF_0: Force sensor bias (3,)
             sT_0: Torque sensor bias (3,)
@@ -486,11 +476,11 @@ def measurement_campaign(filename_left, filename_right):
         H.posture(4.0,
             (H.e2q(0, +30, 0, "sxyz"),),
             (H.e2q(0, +30, 0, "sxyz"),),
-            incremental = YumiPostureMsg.GLOBAL),
-        H.posture(4.0
+            incremental=H.Incr.GLOBAL),
+        H.posture(4.0,
             (H.e2q(0, -60, 0, "sxyz"),),
             (H.e2q(0, -60, 0, "sxyz"),),
-            incremental = YumiPostureMsg.GLOBAL),
+            incremental=H.Incr.GLOBAL),
         ])
 
     wizard.print_campaign("motion (2/6) : FACE INSIDE")
@@ -498,14 +488,14 @@ def measurement_campaign(filename_left, filename_right):
         H.posture(4.0,
             ([0.45, -0.1, 0.25], H.e2q(-90, 0, 0, "sxyz")),
             ([0.45,  0.1, 0.25], H.e2q(+90, 0, 0, "sxyz")),),
-        H.posture(4.0
+        H.posture(4.0,
             (H.e2q(-30, 0, 0, "sxyz"),),
             (H.e2q(+30, 0, 0, "sxyz"),),
-            incremental = YumiPostureMsg.GLOBAL),
-        H.posture(4.0
+            incremental=H.Incr.GLOBAL),
+        H.posture(4.0,
             (H.e2q(+60, 0, 0, "sxyz"),),
             (H.e2q(-60, 0, 0, "sxyz"),),
-            incremental = YumiPostureMsg.GLOBAL),
+            incremental=H.Incr.GLOBAL),
         ])
     
     wizard.print_campaign("motion (3/6) : FACE UP")
@@ -516,41 +506,41 @@ def measurement_campaign(filename_left, filename_right):
         H.posture(4.0,
             (H.e2q(0, +30, 0, "sxyz"),),
             (H.e2q(0, +30, 0, "sxyz"),),
-            incremental = YumiPostureMsg.GLOBAL),
+            incremental=H.Incr.GLOBAL),
         H.posture(4.0,
             (H.e2q(+30, 0, 0, "sxyz"),),
             (H.e2q(+30, 0, 0, "sxyz"),),
-            incremental = YumiPostureMsg.GLOBAL),
+            incremental=H.Incr.GLOBAL),
         H.posture(4.0,
             (H.e2q(-60, 0, 0, "sxyz"),),
             (H.e2q(-60, 0, 0, "sxyz"),),
-            incremental = YumiPostureMsg.GLOBAL),
+            incremental=H.Incr.GLOBAL),
         ])
     wizard.goto_posture(
         H.posture(4.0,
             (H.e2q(+30, 0, 0, "sxyz"),),
             (H.e2q(+30, 0, 0, "sxyz"),),
-            incremental = YumiPostureMsg.GLOBAL)
+            incremental=H.Incr.GLOBAL)
         )
     wizard.measure_posture_list([
         H.posture(4.0,
             (H.e2q(0, -60, 0, "sxyz"),),
             (H.e2q(0, -60, 0, "sxyz"),),
-            incremental = YumiPostureMsg.GLOBAL),
+            incremental=H.Incr.GLOBAL),
         H.posture(4.0,
             (H.e2q(+30, 0, 0, "sxyz"),),
             (H.e2q(+30, 0, 0, "sxyz"),),
-            incremental = YumiPostureMsg.GLOBAL),
+            incremental=H.Incr.GLOBAL),
         H.posture(4.0,
             (H.e2q(-60, 0, 0, "sxyz"),),
             (H.e2q(-60, 0, 0, "sxyz"),),
-            incremental = YumiPostureMsg.GLOBAL),
+            incremental=H.Incr.GLOBAL),
         ])
     wizard.goto_posture(
         H.posture(4.0,
             (H.e2q(+30, 0, 0, "sxyz"),),
             (H.e2q(+30, 0, 0, "sxyz"),),
-            incremental = YumiPostureMsg.GLOBAL),
+            incremental=H.Incr.GLOBAL),
         )
     
     # wizard.print_campaign("motion (4/6) : FACE OUTSIDE")
@@ -568,11 +558,11 @@ def measurement_campaign(filename_left, filename_right):
         H.posture(4.0,
             (H.e2q(0, 0, +30, "sxyz"),),
             (H.e2q(0, 0, +30, "sxyz"),),
-            incremental = YumiPostureMsg.GLOBAL),
+            incremental=H.Incr.GLOBAL),
         H.posture(4.0,
             (H.e2q(0, 0, -60, "sxyz"),),
             (H.e2q(0, 0, -60, "sxyz"),),
-            incremental = YumiPostureMsg.GLOBAL),
+            incremental=H.Incr.GLOBAL),
         ])
     
     wizard.print_campaign("motion (6/6) : FACE FORWARD")
@@ -605,28 +595,7 @@ def tool_calibration(filename_left, filename_right):
 
 
 if __name__ == "__main__":
-    filename_left, filename_right = "measurements_left_NEW.pkl", "measurements_right_NEW.pkl"
+    filename_left, filename_right = "measurements_left.pkl", "measurements_right.pkl"
     measurement_campaign(filename_left, filename_right)
     tool_calibration(filename_left, filename_right)
     
-    # params_left = CalibrationAlgorithm.HandForceParams(
-    #     F_b=np.array([ 0.00801393, -0.02559977, -2.90887622]), 
-    #     sRe=np.array([[-0.0070525 ,  0.99996256, -0.00501431],
-    #                   [-0.99991003, -0.00699474,  0.01144572],
-    #                   [ 0.01141021,  0.00509458,  0.99992192]]), 
-    #     sF_0=np.array([ 2.89088501, -4.67109566, 14.47926373]), 
-    #     sT_0=np.array([-0.11681798, -0.03642681, -0.06156124]), 
-    #     sP_g=np.array([ 0.00167847, -0.00138784, -0.04942799]), 
-    #     mg=2.9089999004010294, 
-    #     error=0.22607862999491082)
-
-    # params_right = CalibrationAlgorithm.HandForceParams(
-    #     F_b=np.array([ 0.02163139, -0.01541059, -2.92798025]), 
-    #     sRe=np.array([[ 1.95611104e-02,  9.99808497e-01,  5.76701171e-04],
-    #                   [-9.99562513e-01,  1.95434926e-02,  2.21998636e-02],
-    #                   [ 2.21843415e-02, -1.01070285e-03,  9.99753386e-01]]), 
-    #     sF_0=np.array([ 3.02597539, -1.16108736,  2.67611401]), 
-    #     sT_0=np.array([-0.04270462, -0.06502784,  0.02355152]), 
-    #     sP_g=np.array([ 0.0016559 , -0.00156275, -0.04968759]), 
-    #     mg=2.9281007020794036, 
-    #     error=0.1359431058769493)

@@ -3,7 +3,7 @@ from typing_extensions import override
 import rospy
 import numpy as np, quaternion as quat
 
-from geometry_msgs.msg import Twist as TwistMsg, TwistStamped as TwistStampedMsg
+from geometry_msgs.msg import Twist as TwistMsg
 from nav_msgs.msg import Odometry as OdometryMsg
 
 from .constants import SleipnerRobotConstants
@@ -115,8 +115,8 @@ class Sleipner8DOFDeviceState(AbstractDeviceState, RobotState):
 class SleipnerCartesianDeviceState(AbstractDeviceState):
     
     def __init__(self,
-        pose_SE2: np.ndarray = np.zeros(SleipnerRobotConstants.DOF_EE),
-        twist_SE2: np.ndarray = np.zeros(SleipnerRobotConstants.DOF_EE)
+        pose_SE2: np.ndarray = np.zeros(3),
+        twist_SE2: np.ndarray = np.zeros(3)
     ):
         super().__init__()
         self.pose_SE2 = pose_SE2
@@ -176,85 +176,3 @@ class SleipnerCartesianDevice(AbstractDevice[SleipnerCartesianDeviceState, Sleip
         msg.linear.y=command._pose_vel_tgt[1]
         msg.angular.z=command._pose_vel_tgt[2]
         self._pub_vel.publish(msg)
-
-
-###############################################################################
-###                       CARTESIAN STATE + OBSTACLES                       ###
-###############################################################################
-
-class IROSSleipnerCartesianDeviceState(AbstractDeviceState):
-    
-    def __init__(self,
-        pose_SE2: np.ndarray = np.zeros(SleipnerRobotConstants.DOF_EE),
-        twist_SE2: np.ndarray = np.zeros(SleipnerRobotConstants.DOF_EE)
-    ):
-        super().__init__()
-        self.pose = pose_SE2
-        self.twist = twist_SE2
-        self.obs_time = rospy.Time.now()
-        self.obs_avoid_vel = np.zeros((3,))
-
-class IROSSleipnerCartesianDevice(AbstractDevice[SleipnerCartesianDeviceState, SleipnerCartesianDeviceCommand]):
-    """ Sleipner is a 8-DOF pseudo-omnidirectional mobile robot.
-        For simplicity and control hardware restrictions, we represent it as a 
-        classical planar omnidirectional 3-DOF robot.
-    """
-
-    def __init__(self):
-        super().__init__()
-        # sleipner command publisher
-        self._pub_vel = rospy.Publisher("/base/twist_mux/command_teleop_keyboard", TwistMsg, queue_size=1, tcp_nodelay=False)
-        self._pub_vel_view = rospy.Publisher("/command", TwistStampedMsg, queue_size=1, tcp_nodelay=False)
-        # sleipner state subscriber
-        self._cache_state = SleipnerCartesianDeviceState()
-        self._device_ready = False
-        self._device_ready_changed = False
-        rospy.Subscriber("/base/odometry_controller/odometry", OdometryMsg, self._callback_received_odom, queue_size=1, tcp_nodelay=False)
-        rospy.Subscriber("/displacement", TwistStampedMsg, self._callback_received_direction, queue_size=1, tcp_nodelay=False)
-        # ensure to start the controller with a real robot state 
-        # (zero-wait-time means default state (all zeros), which is very bad)
-        rospy.wait_for_message("/base/odometry_controller/odometry", OdometryMsg)
-        rospy.wait_for_message("/displacement", TwistStampedMsg)
-
-    def _callback_received_odom(self, data: OdometryMsg):
-        th = 2*np.arctan2(data.pose.pose.orientation.z, data.pose.pose.orientation.w)
-        self._cache_state.pose_SE2 = np.array([data.pose.pose.position.x, data.pose.pose.position.y, th])
-        self._cache_state.twist_SE2 = np.array([data.twist.twist.linear.x, data.twist.twist.linear.y, data.twist.twist.angular.z])
-        self._cache_state.time = rospy.Time.now()
-
-    def _callback_received_direction(self, data: TwistStampedMsg):
-        self._cache_state.obs_time = rospy.Time.now()
-        self._cache_state.obs_avoid_vel[0] = data.twist.linear.x
-        self._cache_state.obs_avoid_vel[1] = data.twist.linear.y
-        # self._cache_state.obs_force[2] = data.twist.angular.z
-
-    @override
-    def reset(self) -> bool:
-        return True
-    
-    @override
-    def is_ready(self) -> bool:
-        return True
-
-    @override
-    def read(self) -> SleipnerCartesianDeviceState:
-        return self._cache_state
-
-    @override
-    def send(self, command: SleipnerCartesianDeviceCommand):
-        
-        msg = TwistMsg()
-        msg.linear.x=command._pose_vel_tgt[0]
-        msg.linear.y=command._pose_vel_tgt[1]
-        msg.linear.z=0
-        msg.angular.x=0
-        msg.angular.y=0
-        msg.angular.z=command._pose_vel_tgt[2]
-        self._pub_vel.publish(msg)
-        
-        # TODO visualization only, remove me
-        msg_view = TwistStampedMsg()
-        msg_view.header.stamp = rospy.Time.now()
-        msg_view.header.frame_id = "base_link"
-        msg_view.twist = msg
-        self._pub_vel_view.publish(msg_view)

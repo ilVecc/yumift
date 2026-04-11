@@ -28,8 +28,8 @@
     <include file="$(find yumift_common)/launch/unified_state_updater.launch">
       <arg name="coordinated_symmetry" value="0"/>
       <arg if="$(arg individual)" name="update_options" value="3" />
-      <arg name="topic_sensor_r" default="sensors/wrench/right/world"/>
-      <arg name="topic_sensor_l" default="sensors/wrench/left/world"/>
+      <arg name="topic_sensor_r" default="sensors/wrench/right/compensated_world"/>
+      <arg name="topic_sensor_l" default="sensors/wrench/left/compensated_world"/>
       <arg name="topic_kinematics" default="unified/kinematics"/>
       <arg name="topic_robot_state" default="unified/robot_state_coordinated"/>
     </include>

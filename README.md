@@ -73,7 +73,7 @@ vcs import . --input abb_robot_driver/pkgs.repos
 
 If force feedback is needed (e.g. for admittance/force controllers), clone the `netft_utils` repository with
 ```
-git clone https://github.com/UTNuclearRoboticsPublic/netft_utils.git -b master
+git clone https://github.com/ilVecc/netft_utils.git
 ```
 
 Next, clone this respository with

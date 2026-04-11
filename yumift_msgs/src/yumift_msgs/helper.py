@@ -1,12 +1,14 @@
+from typing import List, Union, Optional
+from enum import Enum
+
 import rospy
 import tf.transformations as trans
+
+import numpy as np
 
 from geometry_msgs.msg import Point, Quaternion, Pose, Twist
 from yumift_msgs.msg import YumiPosture, YumiTrajectory
 
-import numpy as np
-from typing import List, Union
-from enum import Enum
 
 
 class Helper():
@@ -112,9 +114,9 @@ class Helper():
     def quick_send(
         topic : Union[str, rospy.Publisher] = "/trajectory",
         mode : Mode = Mode.INDIVIDUAL,
-        postures : Union[List[YumiPosture], None] = None,
-        routine_name : Union[str, None] = None,
-        print_message : Union[str, None] = None,
+        postures : Optional[List[YumiPosture]] = None,
+        routine_name : Optional[str] = None,
+        print_message : Optional[str] = None,
         wait_completion : bool = True,
     ):
         """ Quickly send a trajectory or a routine.

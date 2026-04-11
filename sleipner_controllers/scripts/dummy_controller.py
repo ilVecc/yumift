@@ -5,19 +5,12 @@ from typing_extensions import override
 import rospy
 import numpy as np
 
-from dynamicals.common.controllers import AbstractControllerAction, AbstractController
+from dynamicals.common.controllers import AbstractController
 from dynamicals.impl import CartesianVelocityControlLaw
 
 from sleipner_controllers.common.device import SleipnerCartesianDeviceState, SleipnerCartesianDeviceCommand, SleipnerCartesianDevice
+from sleipner_controllers.common.controller_base import SE2TwistAction
 from sleipner_controllers.misc.utils import SleipnerCartesianDeviceState_to_Frame
-
-
-class SE2TwistAction(AbstractControllerAction):
-    
-    def __init__(self, twist_SE2: np.ndarray) -> None:
-        assert twist_SE2.shape == (3,)
-        super().__init__()
-        self.twist_SE2 = twist_SE2
 
 
 class DummySleipnerController(

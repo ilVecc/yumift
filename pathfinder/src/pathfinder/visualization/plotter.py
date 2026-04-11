@@ -1,7 +1,4 @@
-try:
-    from typing import Literal, Union
-except ImportError:
-    from typing_extensions import Literal, Union
+from typing import Literal, Union, Optional
 
 import numpy as np, quaternion as quat
 
@@ -109,7 +106,7 @@ def plot_quat_sphere(q):
 # Frenet frame plot for SE(3) trajectory
 #
 
-def plot_traj_pose(ax : Union[plt.Axes, None], pos: np.ndarray, rot: np.ndarray, alpha : float = 1.0, length : float = 0.1):
+def plot_traj_pose(ax : Optional[plt.Axes], pos: np.ndarray, rot: np.ndarray, alpha : float = 1.0, length : float = 0.1):
     
     rotmat = quat.as_rotation_matrix(rot)
     
@@ -128,7 +125,7 @@ def plot_traj_pose(ax : Union[plt.Axes, None], pos: np.ndarray, rot: np.ndarray,
 
     plt.show()
 
-def plot_traj_quat(ax : Union[plt.Axes, None], Q : np.ndarray, alpha : float = 1.0, length : float = 0.1):
+def plot_traj_quat(ax : Optional[plt.Axes], Q : np.ndarray, alpha : float = 1.0, length : float = 0.1):
     
     if ax is None:
         ax = plt.figure().add_subplot(projection='3d')

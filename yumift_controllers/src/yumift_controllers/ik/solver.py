@@ -1,5 +1,5 @@
 from abc import ABCMeta, abstractmethod
-from typing import Dict, List, Union
+from typing import Dict, List, Optional
 
 import numpy as np
 
@@ -36,7 +36,7 @@ class IKSolver(object):
     def __init__(self, algorithms: List[IKAlgorithm]):
         super().__init__()
         self._algorithms: Dict[str, IKAlgorithm] = dict()
-        self._selected_algo : Union[str, None] = None
+        self._selected_algo : Optional[str] = None
         for algo in algorithms:
             self.register(algo)
 

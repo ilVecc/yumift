@@ -40,19 +40,17 @@ class YumiStateUpdater(object):
         self.state = state
         
         # RobotState publisher
-        self._robot_state_publisher = rospy.Publisher("/robot_state_coordinated", RobotState, queue_size=1, tcp_nodelay=False)
+        self._robot_state_publisher = rospy.Publisher("/robot_state_coordinated", RobotState, queue_size=1)
         self.options = options
         if self.options & COORDINATED:
             self.options |= INDIVIDUAL
         
         # read force sensors
         self._wrenches = np.zeros(12)  # [fR, mR, fL, mL]
-        # rospy.Subscriber("/wrench_right", WrenchStamped, self._callback_ext_force, callback_args="right", queue_size=1, tcp_nodelay=False)
-        # rospy.Subscriber("/wrench_left", WrenchStamped, self._callback_ext_force, callback_args="left", queue_size=1, tcp_nodelay=False)
-        rospy.Subscriber("/sensors/wrench/right/world", WrenchStamped, self._callback_ext_force, callback_args="right", queue_size=1, tcp_nodelay=False)
-        rospy.Subscriber("/sensors/wrench/left/world", WrenchStamped, self._callback_ext_force, callback_args="left", queue_size=1, tcp_nodelay=False)
+        rospy.Subscriber("/wrench_right", WrenchStamped, self._callback_ext_force, callback_args="right", queue_size=1)
+        rospy.Subscriber("/wrench_left", WrenchStamped, self._callback_ext_force, callback_args="left", queue_size=1)
         
-        rospy.Subscriber("/kinematics", YumiKinematics, self._callback_yumi_kinematics, queue_size=1, tcp_nodelay=False)
+        rospy.Subscriber("/kinematics", YumiKinematics, self._callback_yumi_kinematics, queue_size=1)
         rospy.wait_for_message("/kinematics", YumiKinematics)
         
         

@@ -7,15 +7,15 @@
 
     <arg name="WAIT_COMMAND" value="bash -c 'sleep 1; $0 $@' "/>
 
-    <group ns="sensors/wrench">
+    <group ns="/yumi/sensors/wrench">
         <group ns="right">
             <node pkg="netft_utils" type="netft_node" name="netft_node" output="screen" args="$(arg sensor_ip_right)"/>
             <node pkg="netft_utils" type="netft_utils" name="netft_utils" output="screen" args="yumi_base_link ftsensor_r gripper_r_tip"/>
             <!-- https://answers.ros.org/question/233353/set-delay-between-starting-nodes-within-launch-file/ -->
 
             <group unless="$(arg use_raw)">
-                <node pkg="rosservice" type="rosservice" name="comp_bias" args="call set_known_bias -- true  3.02846174 -1.22705987 2.76949595 -0.0408997 -0.06467276 0.02335224" launch-prefix="$(arg WAIT_COMMAND)"/>
-                <node pkg="rosservice" type="rosservice" name="comp_grav" args="call set_known_tool_data -- true 0.29812 0.04962" launch-prefix="$(arg WAIT_COMMAND)"/>
+                <node pkg="rosservice" type="rosservice" name="comp_bias" args="call set_known_bias -- true 3.04658316 -1.15195323 2.91037355 -0.04131079 -0.06474778 0.02138496" launch-prefix="$(arg WAIT_COMMAND)"/>
+                <node pkg="rosservice" type="rosservice" name="comp_grav" args="call set_known_tool_data -- true 0.2977469 0.0495737" launch-prefix="$(arg WAIT_COMMAND)"/>
             </group>
         </group>
 
@@ -24,8 +24,8 @@
             <node pkg="netft_utils" type="netft_utils" name="netft_utils" output="screen" args="yumi_base_link ftsensor_l gripper_l_tip"/>
 
             <group unless="$(arg use_raw)">
-                <node pkg="rosservice" type="rosservice" name="comp_bias" args="call set_known_bias -- true  2.91466659 -4.71702339 14.92950971 -0.11701431 -0.03871946 -0.06354851" launch-prefix="$(arg WAIT_COMMAND)"/>
-                <node pkg="rosservice" type="rosservice" name="comp_grav" args="call set_known_tool_data -- true 0.29648 0.04946" launch-prefix="$(arg WAIT_COMMAND)"/>
+                <node pkg="rosservice" type="rosservice" name="comp_bias" args="call set_known_bias -- true 2.91098701 -4.69859606 15.21216751 -0.11840782 -0.03658096 -0.06470966" launch-prefix="$(arg WAIT_COMMAND)"/>
+                <node pkg="rosservice" type="rosservice" name="comp_grav" args="call set_known_tool_data -- true 0.294590 0.04948098" launch-prefix="$(arg WAIT_COMMAND)"/>
             </group>
         </group>
     </group>

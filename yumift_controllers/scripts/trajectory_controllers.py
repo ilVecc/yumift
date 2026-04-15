@@ -40,13 +40,13 @@ def main():
     rospy.init_node("trajectory_controllers", anonymous=False)
     
     if args.type == "simple":
-        yumi_controller = SimpleTrajectoryController(load_config("gains.yaml")["CLIK"])
+        yumi_controller = SimpleTrajectoryController(load_config("gains_simple.yaml"))
     elif args.type == "dual":
-        yumi_controller = DualTrajectoryController(load_config("gains.yaml")["CLIK"])
+        yumi_controller = DualTrajectoryController(load_config("gains_simple.yaml"))
     elif args.type == "wrenched":
-        yumi_controller = WrenchedTrajectoryController(load_config("gains.yaml")["DFF"])
+        yumi_controller = WrenchedTrajectoryController(load_config("gains_wrenched.yaml"))
     elif args.type == "compliant":
-        yumi_controller = CompliantTrajectoryController(load_config("gains.yaml")["ADM"])
+        yumi_controller = CompliantTrajectoryController(load_config("gains_admittance.yaml"))
     else:
         raise AttributeError(f"no such option '{parser.type}'")
     

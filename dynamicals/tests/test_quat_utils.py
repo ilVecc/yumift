@@ -1,6 +1,6 @@
 import numpy as np
 
-from src.utils.quaternions import *
+from dynamicals.utils.quaternions import *
 
 def main():
     Q1 = np.array([1., 0., 0., 0.])

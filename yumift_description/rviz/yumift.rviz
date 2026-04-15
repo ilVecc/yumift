@@ -248,7 +248,7 @@ Visualization Manager:
           History Length: 1
           Name: Wrench Right ToolTip
           Queue Size: 10
-          Topic: /sensors/wrench/right/compensated_tool
+          Topic: /yumi/sensors/wrench/right/compensated_tool
           Torque Arrow Scale: 0.25
           Torque Color: 204; 204; 51
           Unreliable: false
@@ -263,7 +263,7 @@ Visualization Manager:
           History Length: 1
           Name: Wrench Left Tooltip
           Queue Size: 10
-          Topic: /sensors/wrench/left/compensated_tool
+          Topic: /yumi/sensors/wrench/left/compensated_tool
           Torque Arrow Scale: 0.25
           Torque Color: 51; 204; 204
           Unreliable: false
@@ -278,7 +278,7 @@ Visualization Manager:
           History Length: 1
           Name: Wrench Right Sensor
           Queue Size: 10
-          Topic: /sensors/wrench/right/compensated_sensor
+          Topic: /yumi/sensors/wrench/right/compensated_sensor
           Torque Arrow Scale: 0.25
           Torque Color: 204; 204; 51
           Unreliable: false
@@ -293,7 +293,7 @@ Visualization Manager:
           History Length: 1
           Name: Wrench Left Sensor
           Queue Size: 10
-          Topic: /sensors/wrench/left/compensated_sensor
+          Topic: /yumi/sensors/wrench/left/compensated_sensor
           Torque Arrow Scale: 0.25
           Torque Color: 51; 204; 204
           Unreliable: false
@@ -301,33 +301,33 @@ Visualization Manager:
         - Alpha: 1
           Arrow Width: 0.25
           Class: rviz/WrenchStamped
-          Enabled: true
+          Enabled: false
           Force Arrow Scale: 0.25
           Force Color: 204; 51; 51
           Hide Small Values: false
           History Length: 1
           Name: Wrench Right World
           Queue Size: 10
-          Topic: /sensors/wrench/right/compensated_world
+          Topic: /yumi/sensors/wrench/right/compensated_world
           Torque Arrow Scale: 0.25
           Torque Color: 204; 204; 51
           Unreliable: false
-          Value: true
+          Value: false
         - Alpha: 1
           Arrow Width: 0.25
           Class: rviz/WrenchStamped
-          Enabled: true
+          Enabled: false
           Force Arrow Scale: 0.25
           Force Color: 51; 51; 204
           Hide Small Values: false
           History Length: 1
           Name: Wrench Left World
           Queue Size: 10
-          Topic: /sensors/wrench/left/compensated_world
+          Topic: /yumi/sensors/wrench/left/compensated_world
           Torque Arrow Scale: 0.25
           Torque Color: 51; 204; 204
           Unreliable: false
-          Value: true
+          Value: false
       Enabled: true
       Name: Wrenches
     - Class: rviz/Group
@@ -410,7 +410,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 1.361153244972229
+      Distance: 1.23337984085083
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -418,17 +418,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 0.08673890680074692
-        Y: 0.0664779469370842
-        Z: 0.23540203273296356
+        X: 0.003185323439538479
+        Y: 0.04969516396522522
+        Z: 0.24982663989067078
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.5597969889640808
+      Pitch: 0.28479698300361633
       Target Frame: <Fixed Frame>
-      Yaw: 0.35000038146972656
+      Yaw: 0.6950005292892456
     Saved: ~
 Window Geometry:
   Displays:
@@ -446,5 +446,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 948
-  X: 215
-  Y: 82
+  X: 2022
+  Y: 151

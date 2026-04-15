@@ -1,0 +1,18 @@
+# Gains for individual right admittance
+IR: &IR
+  K_P: 2.0     # Gain for positional error
+  K_O: 8.0   # Gain for angular error
+  F_M: [2.0, 2.0, 2.0]
+  F_D: [2.0, 2.0, 2.0]  # critical damping by default --> D = sqrt(M*K)
+  F_K: [0.0, 0.0, 0.0]
+  T_M: [0.5, 0.5, 1.0]
+  T_D: null
+  T_K: [0.0, 0.0, 0.0]
+# Gains for individual left admittance
+# (same as for the right admittance)
+IL:
+  <<: *IR
+# Minimum error to take action
+MIN_ACTION: [0.005, 0.017453]  # [lin, ang]  #deg2rad(1)
+# Maximum deviation in target
+MAX_DEVIATION: [0.500, 1.7453]  # [lin, ang]  #deg2rad(100)

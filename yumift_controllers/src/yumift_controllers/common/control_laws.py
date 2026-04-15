@@ -294,10 +294,12 @@ class YumiDualAdmittanceControlLaw(YumiDualCartesianVelocityControlLaw):
         def weights(side: str):
             # no shape check is performed here
             M = gains[side]["F_M"] + gains[side]["T_M"]
-            fd, td = gains[side]["F_D"], gains[side]["T_D"]
-            D = fd + td if all([fd, td]) else None
+            D = gains[side]["F_D"] + gains[side]["T_D"]
             K = gains[side]["F_K"] + gains[side]["T_K"]
             return M, D, K
+        
+        print(weights("IR"))
+        print(weights("IL"))
         
         self.admittance_right = AdmittanceWrench(*weights("IR"), ControllerParameters.dt, discretization)
         self.admittance_left = AdmittanceWrench(*weights("IL"), ControllerParameters.dt, discretization)
@@ -334,31 +336,31 @@ class YumiDualAdmittanceControlLaw(YumiDualCartesianVelocityControlLaw):
         # wrenches = [fR, mR, fL, mL] or [fA, mA, fR, mR]
         
         # compensate for external wrenches
-        (error_pos_r, error_rot_r), (error_vel_r, error_wel_r) = self.admittance_right.compute(self.wrench_right, self.dt)
-        (error_pos_l, error_rot_l), (error_vel_l, error_wel_l) = self.admittance_left.compute(self.wrench_left, self.dt)
-        (error_pos_abs, error_rot_abs), (error_vel_abs, error_wel_abs) = self.admittance_abs.compute(self.wrench_abs, self.dt)
-        (error_pos_rel, error_rot_rel), (error_vel_rel, error_wel_rel) = self.admittance_rel.compute(self.wrench_rel, self.dt)
+        (err_pos_r, err_rot_r), (err_vel_r, err_wel_r) = self.admittance_right.compute(self.wrench_right, self.dt)
+        (err_pos_l, err_rot_l), (err_vel_l, err_wel_l) = self.admittance_left.compute(self.wrench_left, self.dt)
+        (err_pos_abs, err_rot_abs), (err_vel_abs, err_wel_abs) = self.admittance_abs.compute(self.wrench_abs, self.dt)
+        (err_pos_rel, err_rot_rel), (err_vel_rel, err_wel_rel) = self.admittance_rel.compute(self.wrench_rel, self.dt)
         
         if self.mode == self.ControlMode.INDIVIDUAL:
-            error_pos_1, error_rot_1, error_vel_1, error_wel_1 = error_pos_r, error_rot_r, error_vel_r, error_wel_r
-            error_pos_2, error_rot_2, error_vel_2, error_wel_2 = error_pos_l, error_rot_l, error_vel_l, error_wel_l
+            err_pos_1, err_rot_1, err_vel_1, err_wel_1 = err_pos_r, err_rot_r, err_vel_r, err_wel_r
+            err_pos_2, err_rot_2, err_vel_2, err_wel_2 = err_pos_l, err_rot_l, err_vel_l, err_wel_l
         else:
-            error_pos_1, error_rot_1, error_vel_1, error_wel_1 = error_pos_abs, error_rot_abs, error_vel_abs, error_wel_abs
-            error_pos_2, error_rot_2, error_vel_2, error_wel_2 = error_pos_rel, error_rot_rel, error_vel_rel, error_wel_rel
+            err_pos_1, err_rot_1, err_vel_1, err_wel_1 = err_pos_abs, err_rot_abs, err_vel_abs, err_wel_abs
+            err_pos_2, err_rot_2, err_vel_2, err_wel_2 = err_pos_rel, err_rot_rel, err_vel_rel, err_wel_rel
         
         #### FORCES ####
-        target_pos_1 = target_state.pose_gripper_r.pos + error_pos_1
-        target_pos_2 = target_state.pose_gripper_l.pos + error_pos_2
+        target_pos_1 = target_state.pose_gripper_r.pos + err_pos_1
+        target_pos_2 = target_state.pose_gripper_l.pos + err_pos_2
         
-        target_vel[0:3] = target_state.pose_gripper_r.vel[0:3] + error_vel_1
-        target_vel[6:9] = target_state.pose_gripper_l.vel[0:3] + error_vel_2
+        target_vel[0:3] = target_state.pose_gripper_r.vel[0:3] + err_vel_1
+        target_vel[6:9] = target_state.pose_gripper_l.vel[0:3] + err_vel_2
         
         #### TORQUES ####
-        target_rot_1 = error_rot_1 * target_state.pose_gripper_r.rot
-        target_rot_2 = error_rot_2 * target_state.pose_gripper_l.rot
+        target_rot_1 = err_rot_1 * target_state.pose_gripper_r.rot
+        target_rot_2 = err_rot_2 * target_state.pose_gripper_l.rot
         
-        target_vel[3:6] = target_state.pose_gripper_r.vel[3:6] + error_wel_1
-        target_vel[9:12] = target_state.pose_gripper_l.vel[3:6] + error_wel_2
+        target_vel[3:6] = target_state.pose_gripper_r.vel[3:6] + err_wel_1
+        target_vel[9:12] = target_state.pose_gripper_l.vel[3:6] + err_wel_2
         
         # recompose target (fill old object with new data)
         target_state.pose_gripper_r = Frame(target_pos_1, target_rot_1, target_vel[0:6])

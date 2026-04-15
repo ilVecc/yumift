@@ -117,7 +117,7 @@ class Helper():
         postures : Optional[List[YumiPosture]] = None,
         routine_name : Optional[str] = None,
         print_message : Optional[str] = None,
-        wait_completion : bool = True,
+        wait_completion : Union[bool, float] = True,
     ):
         """ Quickly send a trajectory or a routine.
         """
@@ -144,8 +144,14 @@ class Helper():
         if print_message is not None:
             rospy.loginfo(print_message)
         
+        if isinstance(wait_completion, float):
+            extra_time = abs(wait_completion)
+            wait_completion = True
+        else:
+            extra_time = 0
+        
         if wait_completion is True:
             if postures is None:
                 rospy.sleep(5.0)  # default sleep time for a routine
             else:
-                rospy.sleep(sum([p.time_to_execute.to_sec() for p in postures]))
+                rospy.sleep(sum([p.time_to_execute.to_sec() for p in postures]) + extra_time)

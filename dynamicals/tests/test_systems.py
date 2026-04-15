@@ -3,8 +3,9 @@ import quaternion as quat
 
 import matplotlib.pyplot as plt
 
-from src.systems.discretized import AdmittanceTustin, LPFilterTustin
-from src.systems.state_space import DiscretizedStateSpaceModel, LPFilter, AdmittanceForce, AdmittanceTorque, AdmittanceWrench
+from dynamicals.systems.discretized import AdmittanceTustin, LPFilterTustin
+from dynamicals.systems.state_space import DiscretizedStateSpaceModel, LPFilter, AdmittanceForce, AdmittanceTorque, AdmittanceWrench
+
 
 def make_noisy_step(vals: dict, dims: int = 3, h: float = 0.001, T: float = 2.5, mu: float = 0, sigma: float = 0.025):
     t = np.linspace(0, T, int(1/h), endpoint=True)
@@ -164,7 +165,7 @@ def test_admittance_torque_anim():
     """ Test for a 3D torque admittance with Tustin discretization of the state 
         space representation. The plot is an animation in matplotlib.
     """
-    from trajectory.visualization.plotter import animate_quaternion
+    from pathfinder.visualization.plotter import animate_quaternion
     
     h = 1/1000  # sampling step [s]
     adm = AdmittanceTorque(M=0.001, D=0.02, K=0.0, h=h, method="forward")
@@ -315,9 +316,37 @@ def test_lpfilter():
     plt.show()
 
 
+def test_admittance_lead():
+    """ Test for a 3D force admittance with Tustin discretization of the state 
+        space representation. 
+    """
+    
+    m = 0.1
+    d = 1
+    k = 0
+    h = 1/1000  # sampling step [s]
+    adm = AdmittanceForce(m, k, d, h, method="forward")
+    
+    # three noisy box signals sampled with step h
+    # each will pass through a different admittance
+    t, force = make_noisy_step({0.5: [50, 0, 0], 3.5: 0}, h=h)
+    
+    # calculate the output signal
+    p, dp = adm.compute_signal(force)
+    
+    # plot the result
+    fig, ax = plt.subplots(2, 1)
+    ax[0].plot(t, force, label=r"$u$")
+    ax[0].legend()
+    ax[1].plot(t, p, linestyle="-", label=r"$y$")
+    ax[1].plot(t, dp, linestyle="--", label=r"$\dot{y}$")
+    ax[1].legend()
+    plt.show()
+
+
 if __name__ == "__main__":
     # https://stackoverflow.com/questions/39528736/
-    # python3 -m dynamics.tests.test_systems
+    # python3 -m dynamicals.tests.test_systems
     #
     # test_admittance_tustin_old()
     # test_lpfilter_old()
@@ -325,4 +354,5 @@ if __name__ == "__main__":
     # test_admittance_force()
     # test_admittance_torque()
     # test_admittance_timing()
-    test_lpfilter()
+    # test_lpfilter()
+    test_admittance_lead()

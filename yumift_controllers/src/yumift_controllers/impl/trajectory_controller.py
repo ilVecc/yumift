@@ -1,3 +1,5 @@
+from typing_extensions import override
+
 import rospy, tf
 import numpy as np, quaternion as quat
 
@@ -71,6 +73,7 @@ class YumiTrajectoryController(RoutinableYumiController):
         #     # self._broadcaster = tf.TransformBroadcaster()
         #     #######################################################################
 
+    @override
     def reset(self, state: YumiDualDeviceState):
         """ Initialize the controller setting the current point as desired trajectory. 
             This method is called automatically every time EGM reconnects or after a 
@@ -136,9 +139,7 @@ class YumiTrajectoryController(RoutinableYumiController):
         
         # append trajectory points from msg
         for posture in traj_msg.trajectory:
-            # TODO use point.mode
             posture: YumiPostureMsg
-            
             pos_1 = sanitize_pos(posture.pose_primary.position)
             rot_1 = sanitize_rot(posture.pose_primary.orientation)
             vel_1 = sanitize_vel(posture.twist_primary)
@@ -148,6 +149,7 @@ class YumiTrajectoryController(RoutinableYumiController):
             grip_r = posture.gripper_right
             grip_l = posture.gripper_left
             duration = posture.time_to_execute.to_sec()
+            # posture.mode  # TODO use me
             
             # convert everything to GLOBAL COORDINATES
             if posture.incremental != YumiPostureMsg.OFF:
@@ -192,8 +194,8 @@ class YumiTrajectoryController(RoutinableYumiController):
         # msg.poses = [posture.pose_primary for posture in traj_msg.trajectory]
         # print(msg.poses)
         # self._pub_path_1.publish(msg)
-        
-        
+    
+    @override
     def policy(self, state: YumiDualDeviceState) -> MixedVelocityYumiAction:
         """ Calculate target velocity for the current time step.
         """

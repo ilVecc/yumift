@@ -18,7 +18,7 @@ from yumift_msgs.helper import Helper as H
 
 class MeasurementWizard():
     
-    def __init__(self):
+    def __init__(self, prefix):
         self.lock_reading_left = Lock()
         self.lock_reading_right = Lock()
         self.wrench_left = np.zeros(6)
@@ -26,10 +26,10 @@ class MeasurementWizard():
         self.measurements_left = []
         self.measurements_right = []
         
-        rospy.Subscriber("/sensors/wrench/left/raw_sensor", WrenchStampedMsg, self._callback, callback_args="left", queue_size=1)
-        rospy.wait_for_message("/sensors/wrench/left/raw_sensor", WrenchStampedMsg, timeout=2)
-        rospy.Subscriber("/sensors/wrench/right/raw_sensor", WrenchStampedMsg, self._callback, callback_args="right", queue_size=1)
-        rospy.wait_for_message("/sensors/wrench/right/raw_sensor", WrenchStampedMsg, timeout=2)
+        rospy.wait_for_message(prefix+"/left/raw_sensor", WrenchStampedMsg, timeout=2)
+        rospy.wait_for_message(prefix+"/right/raw_sensor", WrenchStampedMsg, timeout=2)
+        rospy.Subscriber(prefix+"/left/raw_sensor", WrenchStampedMsg, self._callback, callback_args="left", queue_size=1)
+        rospy.Subscriber(prefix+"/right/raw_sensor", WrenchStampedMsg, self._callback, callback_args="right", queue_size=1)
         
         self.pub = H.publisher("/trajectory")
         self.listener = TransformListener()
@@ -74,7 +74,7 @@ class MeasurementWizard():
         H.quick_send(self.pub, routine_name="ready_pose")
     
     def goto_posture(self, posture : YumiPostureMsg):
-        H.quick_send(self.pub, H.Mode.INDIVIDUAL, [posture])
+        H.quick_send(self.pub, H.Mode.INDIVIDUAL, [posture], wait_completion=0.5)
         
     def measure_posture(self, posture : YumiPostureMsg):
         self.goto_posture(posture)
@@ -89,7 +89,7 @@ class MeasurementWizard():
             pickle.dump(self.measurements_left, f)
         with open(filename_right, "wb") as f:
             pickle.dump(self.measurements_right, f)
-        print(f"data saved in files \"{filename_left}\" and \"{filename_right}\"")
+        print(f"data saved in files \"{filename_left}\" and \"{filename_right}\"\n")
 
     @staticmethod
     def _pad_at_center(text, window_size=80, padding=" "):
@@ -456,12 +456,12 @@ class CalibrationAlgorithm():
         return CalibrationAlgorithm.HandForceData(sF=sF, sT=sT, eRb=eRb)
 
 
-def measurement_campaign(filename_left, filename_right):
+def measurement_campaign(prefix: str, filename_left: str, filename_right: str):
 
     # starting ROS node and subscribers
     rospy.init_node("ftsensor_calibration_wizard", anonymous=True)
     
-    wizard = MeasurementWizard()
+    wizard = MeasurementWizard(prefix)
     wizard.print_title()
     
     wizard.print_campaign("resetting to READY")
@@ -580,7 +580,19 @@ def measurement_campaign(filename_left, filename_right):
     
     wizard.store_data(filename_left, filename_right)
 
-def tool_calibration(filename_left, filename_right):
+def tool_calibration(filename_left: str, filename_right: str):
+    
+    def extract_dict(params: CalibrationAlgorithm.HandForceParams):
+        return {
+            "tool_mass": params.mg / 9.81,
+            "tool_COM": np.linalg.norm(params.sP_g),
+            "bias": np.concatenate([params.sF_0, params.sT_0])
+        }
+    
+    def pretty_print(params: dict, title: str):
+        print(title)
+        print(f"  tool [mass CoM]:  [ {params['tool_mass']:.6f} {params['tool_COM']:.6f}]")
+        print(f"  bias [sF_0 sT_0]: {np.array2string(params['bias'], precision=6, separator=' ')}")
     
     data_left = CalibrationAlgorithm.load_data(filename_left)
     data_right = CalibrationAlgorithm.load_data(filename_right)
@@ -588,14 +600,41 @@ def tool_calibration(filename_left, filename_right):
     params_left = CalibrationAlgorithm.hand_force_calibration(data_left)
     params_right = CalibrationAlgorithm.hand_force_calibration(data_right)
     
-    print("\nPARAMS LEFT")
-    print(params_left)
-    print("\nPARAMS RIGHT")
-    print(params_right)
+    params_dict_left = extract_dict(params_left)
+    params_dict_right = extract_dict(params_right)
+    
+    pretty_print(params_dict_left, "PARAMS LEFT")
+    pretty_print(params_dict_right, "PARAMS RIGHT")
+    
+    return params_dict_left, params_dict_right
 
+def call_rosservices(prefix: str, params_left: dict, params_right: dict):
+    
+    from netft_utils.srv import SetKnownBias, SetKnownToolData
+    
+    def call_services(params: dict, side: str):
+        bias = params["bias"]
+        proxy1 = rospy.ServiceProxy(prefix+f"/{side}/set_known_bias", SetKnownBias)
+        res1 = proxy1.call(enable=True, fx=bias[0], fy=bias[1], fz=bias[2], tx=bias[3], ty=bias[4], tz=bias[5])
+        if not res1.success:
+            print(f"Service \"set_known_bias\" for \"{side}\" failed")
+            
+        proxy2 = rospy.ServiceProxy(prefix+f"/{side}/set_known_tool_data", SetKnownToolData)
+        res2 = proxy2.call(enable=True, mass=params["tool_mass"], COM=params["tool_COM"])
+        if not res2.success:
+            print(f"Service \"set_known_tool_data\" for \"{side}\" failed")
+        
+        if res1.success and res2.success:
+            print(f"Compensation paramers set for \"{side}\"")
+    
+    call_services(params_left, "left")
+    call_services(params_right, "right")
+    
 
 if __name__ == "__main__":
+    prefix = "/yumi/sensors/wrench"
     filename_left, filename_right = "measurements_left.pkl", "measurements_right.pkl"
-    measurement_campaign(filename_left, filename_right)
-    tool_calibration(filename_left, filename_right)
+    measurement_campaign(prefix, filename_left, filename_right)
+    params_left, params_right = tool_calibration(filename_left, filename_right)
+    call_rosservices(prefix, params_left, params_right)
     

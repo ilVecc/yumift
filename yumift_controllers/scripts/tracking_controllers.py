@@ -2,6 +2,7 @@
 import argparse
 
 from typing import Tuple
+from typing_extensions import override
 
 import rospy
 import numpy as np, quaternion as quat
@@ -28,7 +29,13 @@ class YumiIndividualTrackingController(YumiDualController):
         
         # prepare trajectory buffer
         self.desired_posture = YumiParam()
-        
+    
+    @override
+    def stop(self):
+        rospy.loginfo("Controller shutting down")
+        super().stop()
+    
+    @override
     def reset(self, state: YumiDualDeviceState):
         """ Reinitialize the controller setting the current posture as desired posture. 
             This happens after EGM (re)connects
@@ -61,6 +68,7 @@ class YumiIndividualTrackingController(YumiDualController):
     def _sanitize_vel(vel: Tuple[float]):
         return np.asarray(vel) if vel else np.array([0,0,0,0,0,0])
     
+    @override
     def policy(self, state: YumiDualDeviceState) -> MixedVelocityYumiAction:
         """ Calculate target velocity for the current time step.
         """
@@ -117,8 +125,7 @@ class WholeTrackingController(YumiIndividualTrackingController):
         self.desired_posture.grip_left = posture.gripper_right
 
 
-def main():
-    
+if __name__ == "__main__":
     parser = argparse.ArgumentParser("Various tracking controllers")
     parser.add_argument("type", nargs="?", choices=["single", "whole"], default="single", type=str)
     args = parser.parse_args()
@@ -126,24 +133,14 @@ def main():
     # starting ROS node
     rospy.init_node("tracking_controllers", anonymous=False)
     
-    gains = load_config("gains.yaml")
-    
     if args.type == "single":
-        yumi_controller = SingleTrackingController(gains["CLIK"])
+        yumi_controller = SingleTrackingController(load_config("gains_simple.yaml"))
     elif args.type == "whole":
-        yumi_controller = WholeTrackingController(gains["CLIK"])
+        yumi_controller = WholeTrackingController(load_config("gains_simple.yaml"))
     else:
         raise AttributeError(f"no such option '{parser.type}'")
     
-    def shutdown_callback():
-        print("Controller shutting down")
-        yumi_controller.stop()
-    
-    rospy.on_shutdown(shutdown_callback)
+    rospy.on_shutdown(yumi_controller.stop)
     
     yumi_controller.ready()
     yumi_controller.start()  # locking
-
-
-if __name__ == "__main__":
-    main()

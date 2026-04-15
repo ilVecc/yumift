@@ -1,0 +1,59 @@
+# Gains for individual right admittances
+# IR:
+#   K_P: 2.0     # Gain for positional error
+#   K_O: 8.0   # Gain for angular error
+#   F_M: [2.0, 2.0, 2.0]
+#   F_D: null  # critical damping by default --> D = sqrt(M*K)
+#   F_K: [50, 50, 50]
+#   T_M: [0.5, 0.5, 1.0]
+#   T_D: null
+#   T_K: [10, 10, 10]
+IR:
+  K_P: 3.0     # Gain for positional error
+  K_O: 6.0   # Gain for angular error
+  # Force admittance
+  F_M: [2.5, 2.5, 2.5]
+  F_D: [75, 75, 75]
+  F_K: [0, 0, 0]
+  # Torque admittance
+  # T_M: [1, 1, 1]
+  T_M: [1000, 1000, 1000]
+  T_D: [5, 5, 5]
+  T_K: [0, 0, 0]
+# Gains for individual left admittances
+IL:
+  K_P: 3.0   # Gain for positional error
+  K_O: 6.0   # Gain for angular error
+  # Force admittance
+  # F_M: [200, 200, 200]
+  F_M: [2, 2, 2]
+  F_D: null  # critical damping --> D = sqrt(M*K)
+  F_K: [50, 50, 50]
+  # Torque admittance
+  T_M: [5, 5, 5]
+  T_D: [null]
+  T_K: [10, 10, 10]
+# Gains for coordinated absolute admittances
+CA:
+  K_P: 2.0
+  K_O: 4.0
+  F_M: [3, 3, 3]
+  F_D: null
+  F_K: [30, 30, 30]
+  T_M: [10, 10, 2]
+  T_D: null
+  T_K: [20000, 20000, 2000]
+# Gains for coordinated relative admittances
+CR:
+  K_P: 2.0
+  K_O: 4.0
+  F_M: [1000, 1000, 1000]
+  F_D: null
+  F_K: [10000, 10000, 10000]
+  T_M: [10, 10, 2]
+  T_D: null
+  T_K: [20000, 20000, 2000]
+# Minimum error to take action
+MIN_ACTION: [0.005, 0.017453]  # [lin, ang]  #deg2rad(1)
+# Maximum deviation in target
+MAX_DEVIATION: [0.500, 1.7453]  # [lin, ang]  #deg2rad(100)

@@ -1,5 +1,6 @@
 from abc import abstractmethod
 from typing import List
+from typing_extensions import override
 
 from threading import Lock
 
@@ -20,7 +21,8 @@ class RoutinableYumiController(YumiDualController):
         self._routine_machine = RoutineStateMachine()
         for routine in routines:
             self._routine_machine.register(routine)
-        
+    
+    @override
     @abstractmethod
     def reset(self, state: YumiDualDeviceState):
         """ Method called when EGM stops.
@@ -55,6 +57,7 @@ class RoutinableYumiController(YumiDualController):
         
         return self.policy(state)
     
+    @override
     @abstractmethod
     def policy(self, state: YumiDualDeviceState) -> YumiDualDeviceCommand: 
         raise NotImplementedError()

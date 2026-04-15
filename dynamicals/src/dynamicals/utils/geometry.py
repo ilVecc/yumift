@@ -171,12 +171,9 @@ class Frame(object):
         self._wrc = wrench
 
     def adjoint(self):
-        rot = quat.as_rotation_matrix(self._quat)
-        adj = np.zeros((6,6))
-        adj[0:3,0:3] = rot
-        adj[3:6,3:6] = rot
-        adj[0:3,3:6] = skew_matrix(self._pos) @ rot
-        return adj
+        """ Return the adjoint (action) matrix for this transformation.
+        """
+        return Frame.action(self)
 
     def partial(self, alpha: float):
         # `quat.as_rotation_vector()` === `2*np.log().vec` and since `quat_diff` is 
@@ -201,8 +198,70 @@ class Frame(object):
         mat[:3,:3] = quat.as_rotation_matrix(self._quat)
         mat[:3, 3] = self._pos
         return mat
+    
+    def apply(self, vector: np.ndarray):
+        """ Apply this transformation to the given vector.
+        """
+        return quat.as_rotation_matrix(self.rot) @ vector + self.pos
+    
+    def actOn(self, twist: np.ndarray):
+        """ Move the input twist from the source to the target frame of this transformation.
+        
+                bT = Act(bXa) aT
+        """
+        # TODO can be optimized to avoid 6x6 matrix creation
+        return Frame.action(self) @ twist
+
+    def reactTo(self, wrench: np.ndarray):
+        """ Move the input wrench from the target to the source frame of this transformation.
+        
+                aW = React(bXa) bW
+        """
+        # TODO can be optimized to avoid 6x6 matrix creation
+        return Frame.reaction(self) @ wrench
 
     def __repr__(self) -> str:
-        return f"pos: {np.array_str(self.pos, precision=2, suppress_small=True)}" \
-             + f"rot: {np.array_str(quat.as_float_array(self.rot), precision=2, suppress_small=True)}" \
-             + f"vel: {np.array_str(self.vel, precision=2, suppress_small=True)}"
+        return f"{np.array_str(self.pos, precision=2, suppress_small=True)} " \
+             + f"{np.array_str(quat.as_float_array(self.rot), precision=2, suppress_small=True)} " \
+             + f"{np.array_str(self.vel, precision=2, suppress_small=True)}"
+
+    @staticmethod
+    def action(frame: "Frame"):
+        """ Return the action matrix for this frame.
+            For a transformation bXa = (bRa, bP_a), its action matrix Act(bXa) 
+            is the linear map that brings twists from frame A to frame B,
+            
+                bT = Act(bXa) aT
+            
+            where aT = [aV aW], aV and aW are the linear and angular velocities
+            in A (same goes for B) and
+            
+                Act(bXa) = [bRa [bP_a]^bRa] = [I [bP_a]^] [bRa  0 ]
+                           [ 0       bRa  ]   [0    I   ] [ 0  bRa]
+            
+            and [v]^ is the cross-product matrix of vector v.
+        """
+        R = quat.as_rotation_matrix(frame._quat)
+        A = np.zeros((6,6))
+        A[:3,:3] = R
+        A[:3,3:] = skew_matrix(frame._pos) @ R
+        A[3:,3:] = R
+        return A
+        
+    @staticmethod
+    def reaction(frame: "Frame"):
+        """ Return the reaction matrix for this frame.
+            For a transformation bXa = (bRa, bP_a), its reaction matrix React(bXa) 
+            is the linear map that brings wrenches from frame B to frame A,
+            
+                aW = React(bXa) bW
+            
+            where aW = [aF aM], aF and aM are the linear and angular forces (the 
+            angular force is the torque or moment) in A (same goes for B) and
+
+                React(bXa) = Act(bXa)' = [    aRb      0 ]
+                                         [-aRb[bP_a]^ aRb]
+
+            and [v]x is the cross-product matrix of vector v.    
+        """
+        return Frame.action(frame).transpose()

@@ -1,0 +1,28 @@
+# Gains for individual right feedback
+IR:
+  K_P: 2.0     # Gain for positional error
+  K_O: 8.0   # Gain for angular error
+  K_F: 0.5  # Gain for force feedback
+  K_T: 1.5   # Gain for torque feedback
+# Gains for individual right feedback
+IL:
+  K_P: 2.0
+  K_O: 8.0
+  K_F: 0.5
+  K_T: 1.5
+# Gains for coordinated absolute feedback
+CA:
+  K_P: 2.0
+  K_O: 4.0
+  K_F: 0.02
+  K_T: 0.4
+# Gains for coordinated relative feedback
+CR:
+  K_P: 2.0
+  K_O: 4.0
+  K_F: 0.02
+  K_T: 0.4
+# Minimum error to take action
+MIN_ACTION: [0.005, 0.017453]  # [lin, ang]  #deg2rad(1)
+# Maximum deviation in target
+MAX_DEVIATION: [0.500, 1.7453]  # [lin, ang]  #deg2rad(100)

@@ -22,8 +22,8 @@ if __name__ == "__main__":
         wait_completion=True,
         postures=[
             H.posture( 8.0,
-                primary=([0.35, -0.2, 0.2], H.e2q(-90, 0, 0)),
-                secondary=([0.35, +0.2, 0.2], H.e2q(+90, 0, 0)),
+                primary=(H.cm(35, -20, 20), H.e2q(-90, 0, 0)),
+                secondary=(H.cm(35, +20, 20), H.e2q(+90, 0, 0)),
                 incremental=H.Incr.OFF),
             # These three points are expressed as an increment to their previous 
             # point, w.r.t. the (global) world frame, i.e. Yumi's base.
@@ -31,16 +31,25 @@ if __name__ == "__main__":
             # rotation) instead of a pose (position and orientation).
             H.posture( 5.0,
                 # [0.35, -0.2, 0.2]_WORLD + [0, +0.10, 0]_WORLD
-                primary=([0, +0.10, 0], H.e2q(0, 0, -45, "rxyz")),
-                # no explicit secondary pose provided, this defaults to "do nothing"
+                primary=(H.cm(0, +10, 0), H.e2q(0, 0, -45, "rxyz")),
+                # No explicit secondary pose provided, this defaults to "do nothing"
+                # and can also be omitted entirely.
                 secondary=tuple(),
-                # the increment is expressed in the world frame
+                # The increment is expressed in the world frame
                 incremental=H.Incr.GLOBAL),
             H.posture( 5.0,
-                primary=([0, 0, -0.10], H.e2q(0, 45, 0, "rxyz")),
+                # To simplify even further the commands, you can avoid writing 
+                # the coordinates you do not care about, and default them to 0.
+                # For orientations, the default behaviour is `rxyz`, so "rotate 
+                # around the x-axis first, then on the new y-axis, and finally 
+                # on the new new z-axis", and the argument names are `ai`, `aj`, 
+                # `ak` (i,j,k are generic placeholder names for the chosen axes), 
+                # so the setting below performs a 45 degress rotation around 
+                # (unmodified, since `ai=0` by default) y-axis.
+                primary=(H.cm(z=-10), H.e2q(aj=45)),
                 incremental=H.Incr.GLOBAL),
             H.posture( 5.0,
-                primary=([+0.1, 0, 0], H.e2q(45, 0, 0, "rxyz")),
+                primary=(H.cm(x=+10), H.e2q(ai=45)),
                 incremental=H.Incr.GLOBAL),
             # Handy method for "keep previous posture for X seconds" message
             H.pause(2.0),
@@ -50,16 +59,17 @@ if __name__ == "__main__":
             # applied to the previous point's global coordinates. 
             H.posture( 5.0,
                 # [x y z]_WORLD + [0, +0.10, 0]_LOCAL
-                secondary=([0, +0.10, 0], H.e2q(0, 0, -45, "rxyz")),
+                secondary=(H.cm(y=+10), H.e2q(ak=-45)),
                 incremental=H.Incr.LOCAL),
             H.posture( 5.0,
-                # the rotation is computed along the gripper's y-axis
-                secondary=([0, 0, -0.10], H.e2q(0, 45, 0, "rxyz")),
+                # The rotation is computed along the gripper's y-axis
+                secondary=(H.cm(z=-10), H.e2q(aj=45)),
                 incremental=H.Incr.LOCAL),
             H.posture( 5.0,
-                # a "skrew-like" motion (a true skrew motion cannot be achieved, 
-                # as here we are just defining orientations, not trajectories; 
-                # the "skew-like" effect is thus simply a cool byproduct)
-                secondary=([0, 0, +0.20], H.e2q(0, 0, -180, "rxyz")),
+                # A "screw-like" motion (a true screw motion cannot be achieved
+                # using this helper class, as here we are just defining orientations, 
+                # not trajectories; the "screw-like" effect is thus simply a cool 
+                # byproduct)
+                secondary=(H.cm(z=+20), H.e2q(ak=-180)),
                 incremental=H.Incr.LOCAL),
     ])

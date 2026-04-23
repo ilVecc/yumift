@@ -272,6 +272,93 @@ class YumiDualWrenchFeedbackControlLaw(YumiDualCartesianVelocityControlLaw):
         return super().compute_coordinated_relative_target_velocity() + self._gains_rel * self.wrench_rel
 
 
+class YumiIndividualAdmittanceControlLaw(YumiIndividualCartesianVelocityControlLaw):
+    """
+    Generates velocity commands in cartesian space with the law
+            dx := dx_tgt + k * (x_tgt - x)
+    and
+             x_tgt :=  x_des +  e
+            dx_tgt := dx_des + de
+            M * dde + D * de + K * e = f
+    where
+        x, dx           state and speed of the YuMi (either linear or angular)
+        x_des, dx_des   desired (ex target) state and speed for the YuMi (either linear or angular)
+        f               external forces at the end effector
+        M, D, K         admittance coefficients
+        e, de, dde      error (and derivatives) on the desired point due to external forces
+    in individual motion.
+    """
+    def __init__(self, gains, discretization="forward"):
+        super().__init__(gains)
+        
+        def weights(side: str):
+            # no shape check is performed here
+            M = gains[side]["F_M"] + gains[side]["T_M"]
+            D = gains[side]["F_D"] + gains[side]["T_D"]
+            K = gains[side]["F_K"] + gains[side]["T_K"]
+            return M, D, K
+        
+        self.admittance_right = AdmittanceWrench(*weights("IR"), ControllerParameters.dt, discretization)
+        self.admittance_left = AdmittanceWrench(*weights("IL"), ControllerParameters.dt, discretization)
+        self.wrench_right = np.zeros((6,))
+        self.wrench_left = np.zeros((6,))
+    
+    def clear(self):
+        super().clear()
+        self.admittance_right.reset()
+        self.admittance_left.reset()
+    
+    def update_current_state(self, yumi_state: YumiCoordinatedRobotState):
+        super().update_current_state(yumi_state)
+        self.wrench_right = yumi_state.pose_wrench_r
+        self.wrench_left = yumi_state.pose_wrench_l
+    
+    def update_desired_state(self, target_state: YumiCoordinatedRobotState):
+        # here we inject the wrenches into the trajectory
+        # "target" is renamed to "desired", so that "target" can now be repurposed 
+        # include both the "desired" trajectory and the effect of external forces 
+        # at the individual/coordinated frames (obtained by admittances)
+        target_vel = np.zeros(12)
+        # des_pos = [pR, pL]
+        # des_rot = [oR, oL]
+        # des_vel = [vR, wR, vL, wL]
+        # wrenches = [fR, mR, fL, mL]
+        
+        yW_r = self.wrench_right
+        yW_l = self.wrench_left
+        
+        if np.linalg.norm(yW_r) < 0.1:
+            yW_r *= 0
+        if np.linalg.norm(yW_l) < 0.1:
+            yW_l *= 0
+        
+        # compensate for external wrenches
+        (err_pos_r, err_rot_r), (err_vel_r, err_wel_r) = self.admittance_right.compute(yW_r, self.dt)
+        (err_pos_l, err_rot_l), (err_vel_l, err_wel_l) = self.admittance_left.compute(yW_l, self.dt)
+        
+        err_pos_1, err_rot_1, err_vel_1, err_wel_1 = err_pos_r, err_rot_r, err_vel_r, err_wel_r
+        err_pos_2, err_rot_2, err_vel_2, err_wel_2 = err_pos_l, err_rot_l, err_vel_l, err_wel_l
+
+        #### FORCES ####
+        target_pos_1 = target_state.pose_gripper_r.pos + err_pos_1
+        target_pos_2 = target_state.pose_gripper_l.pos + err_pos_2
+        
+        target_vel[0:3] = target_state.pose_gripper_r.vel[0:3] + err_vel_1
+        target_vel[6:9] = target_state.pose_gripper_l.vel[0:3] + err_vel_2
+        
+        #### TORQUES ####
+        target_rot_1 = err_rot_1 * target_state.pose_gripper_r.rot
+        target_rot_2 = err_rot_2 * target_state.pose_gripper_l.rot
+        
+        target_vel[3:6] = target_state.pose_gripper_r.vel[3:6] + err_wel_1
+        target_vel[9:12] = target_state.pose_gripper_l.vel[3:6] + err_wel_2
+        
+        # recompose target (fill old object with new data)
+        target_state.pose_gripper_r = Frame(target_pos_1, target_rot_1, target_vel[0:6])
+        target_state.pose_gripper_l = Frame(target_pos_2, target_rot_2, target_vel[6:12])
+        return super().update_desired_state(target_state)
+
+
 class YumiDualAdmittanceControlLaw(YumiDualCartesianVelocityControlLaw):
     """
     Generates velocity commands in cartesian space with the law
@@ -297,9 +384,6 @@ class YumiDualAdmittanceControlLaw(YumiDualCartesianVelocityControlLaw):
             D = gains[side]["F_D"] + gains[side]["T_D"]
             K = gains[side]["F_K"] + gains[side]["T_K"]
             return M, D, K
-        
-        print(weights("IR"))
-        print(weights("IL"))
         
         self.admittance_right = AdmittanceWrench(*weights("IR"), ControllerParameters.dt, discretization)
         self.admittance_left = AdmittanceWrench(*weights("IL"), ControllerParameters.dt, discretization)
@@ -335,9 +419,17 @@ class YumiDualAdmittanceControlLaw(YumiDualCartesianVelocityControlLaw):
         # des_vel = [vR, wR, vL, wL] or [vA, wA, vR, wR]
         # wrenches = [fR, mR, fL, mL] or [fA, mA, fR, mR]
         
+        yW_r = self.wrench_right
+        yW_l = self.wrench_left
+        
+        if np.linalg.norm(yW_r) < 0.1:
+            yW_r *= 0
+        if np.linalg.norm(yW_l) < 0.1:
+            yW_l *= 0
+        
         # compensate for external wrenches
-        (err_pos_r, err_rot_r), (err_vel_r, err_wel_r) = self.admittance_right.compute(self.wrench_right, self.dt)
-        (err_pos_l, err_rot_l), (err_vel_l, err_wel_l) = self.admittance_left.compute(self.wrench_left, self.dt)
+        (err_pos_r, err_rot_r), (err_vel_r, err_wel_r) = self.admittance_right.compute(yW_r, self.dt)
+        (err_pos_l, err_rot_l), (err_vel_l, err_wel_l) = self.admittance_left.compute(yW_l, self.dt)
         (err_pos_abs, err_rot_abs), (err_vel_abs, err_wel_abs) = self.admittance_abs.compute(self.wrench_abs, self.dt)
         (err_pos_rel, err_rot_rel), (err_vel_rel, err_wel_rel) = self.admittance_rel.compute(self.wrench_rel, self.dt)
         

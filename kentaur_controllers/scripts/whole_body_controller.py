@@ -9,7 +9,7 @@ from dynamicals.common.controllers import AbstractController
 
 from pathfinder import PoseParam, CubicPoseTrajectory
 
-from yumift_controllers.common.control_laws import YumiDualAdmittanceControlLaw
+from yumift_controllers.common.control_laws import YumiIndividualAdmittanceControlLaw
 from yumift_controllers.impl.trajectory import YumiParam
 from yumift_controllers.misc.utils import YumiParam_to_YumiCoordinatedRobotState
 
@@ -28,7 +28,7 @@ class KentaurController(AbstractController[KentaurDeviceState, KentaurDeviceActi
     def __init__(self, kentaur_device : KentaurDevice):
         self._device : KentaurDevice
         super().__init__(kentaur_device)
-        self.control_law = YumiDualAdmittanceControlLaw(load_config("gains_whole_body.yaml"))
+        self.control_law = YumiIndividualAdmittanceControlLaw(load_config("gains_whole_body.yaml"))
         self.trajectory_r = CubicPoseTrajectory()
         self.trajectory_l = CubicPoseTrajectory()
         self.trajectory_initial_time = rospy.Time.now()

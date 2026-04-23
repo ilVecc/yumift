@@ -106,7 +106,7 @@ def plot_quat_sphere(q):
 # Frenet frame plot for SE(3) trajectory
 #
 
-def plot_traj_pose(ax : Optional[plt.Axes], pos: np.ndarray, rot: np.ndarray, alpha : float = 1.0, length : float = 0.1):
+def plot_traj_pose(ax : Optional[plt.Axes], pos: np.ndarray, rot: np.ndarray, alpha : float = 1.0, scale : float = 0.1):
     
     rotmat = quat.as_rotation_matrix(rot)
     
@@ -114,18 +114,20 @@ def plot_traj_pose(ax : Optional[plt.Axes], pos: np.ndarray, rot: np.ndarray, al
         ax = plt.figure().add_subplot(projection='3d')
     
     ax.plot(pos[:, 0], pos[:, 1], pos[:, 2], c="k", lw=10)
-    ax.quiver(pos[:, 0], pos[:, 1], pos[:, 2], rotmat[:, 0, 0], rotmat[:, 1, 0], rotmat[:, 2, 0], length=0.1, colors="r")
-    ax.quiver(pos[:, 0], pos[:, 1], pos[:, 2], rotmat[:, 0, 1], rotmat[:, 1, 1], rotmat[:, 2, 1], length=0.1, colors="g")
-    ax.quiver(pos[:, 0], pos[:, 1], pos[:, 2], rotmat[:, 0, 2], rotmat[:, 1, 2], rotmat[:, 2, 2], length=0.1, colors="b")
+    ax.quiver(pos[:, 0], pos[:, 1], pos[:, 2], rotmat[:, 0, 0], rotmat[:, 1, 0], rotmat[:, 2, 0], length=scale, colors="r", alpha=alpha)
+    ax.quiver(pos[:, 0], pos[:, 1], pos[:, 2], rotmat[:, 0, 1], rotmat[:, 1, 1], rotmat[:, 2, 1], length=scale, colors="g", alpha=alpha)
+    ax.quiver(pos[:, 0], pos[:, 1], pos[:, 2], rotmat[:, 0, 2], rotmat[:, 1, 2], rotmat[:, 2, 2], length=scale, colors="b", alpha=alpha)
     
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
     ax.view_init(elev=20., azim=-35)
+    ax.set_aspect('equal')
 
     plt.show()
 
-def plot_traj_quat(ax : Optional[plt.Axes], Q : np.ndarray, alpha : float = 1.0, length : float = 0.1):
+
+def plot_traj_quat(ax : Optional[plt.Axes], Q : np.ndarray, alpha : float = 1.0, scale : float = 0.1):
     
     if ax is None:
         ax = plt.figure().add_subplot(projection='3d')
@@ -133,9 +135,9 @@ def plot_traj_quat(ax : Optional[plt.Axes], Q : np.ndarray, alpha : float = 1.0,
     rotmat = quat.as_rotation_matrix(Q)
     pos, _ = normalize(quat.as_rotation_vector(Q), return_norm=True)
     
-    ax.quiver(pos[:, 0], pos[:, 1], pos[:, 2], rotmat[:, 0, 0], rotmat[:, 1, 0], rotmat[:, 2, 0], length=length, colors="r", alpha=alpha)
-    ax.quiver(pos[:, 0], pos[:, 1], pos[:, 2], rotmat[:, 0, 1], rotmat[:, 1, 1], rotmat[:, 2, 1], length=length, colors="g", alpha=alpha)
-    ax.quiver(pos[:, 0], pos[:, 1], pos[:, 2], rotmat[:, 0, 2], rotmat[:, 1, 2], rotmat[:, 2, 2], length=length, colors="b", alpha=alpha)
+    ax.quiver(pos[:, 0], pos[:, 1], pos[:, 2], rotmat[:, 0, 0], rotmat[:, 1, 0], rotmat[:, 2, 0], length=scale, colors="r", alpha=alpha)
+    ax.quiver(pos[:, 0], pos[:, 1], pos[:, 2], rotmat[:, 0, 1], rotmat[:, 1, 1], rotmat[:, 2, 1], length=scale, colors="g", alpha=alpha)
+    ax.quiver(pos[:, 0], pos[:, 1], pos[:, 2], rotmat[:, 0, 2], rotmat[:, 1, 2], rotmat[:, 2, 2], length=scale, colors="b", alpha=alpha)
     
 
 #

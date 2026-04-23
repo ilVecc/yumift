@@ -27,9 +27,17 @@ class Helper():
         GLOBAL  = YumiPosture.GLOBAL
 
     @staticmethod
-    def e2q(ai : float, aj : float, ak : float, axes : str = "rxyz"):
+    def e2q(ai : float = 0, aj : float = 0, ak : float = 0, axes : str = "rxyz"):
         return np.roll(trans.quaternion_from_euler(np.radians(ai), np.radians(aj), np.radians(ak), axes), 1)
-
+    
+    @staticmethod
+    def mm(x: float = 0, y: float = 0, z: float = 0):
+        return np.array([x,y,z]) * 0.001
+    
+    @staticmethod
+    def cm(x: float = 0, y: float = 0, z: float = 0):
+        return np.array([x,y,z]) * 0.01
+    
     @staticmethod
     def _parse_input(point : tuple):
         sizes = np.array([np.size(o) for o in point])

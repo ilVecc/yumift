@@ -13,12 +13,6 @@ IR: &IR
 # Gains for individual left feedback
 IL:
   <<: *IR
-# Gains for coordinated absolute feedback
-CA:
-  <<: *IR
-# Gains for coordinated relative feedback
-CR:
-  <<: *IR
 # Minimum error to take action
 MIN_ACTION: [0.005, 0.017453]  # [lin, ang]  #deg2rad(1)
 # Maximum deviation in target

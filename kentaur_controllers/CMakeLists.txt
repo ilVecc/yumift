@@ -11,5 +11,6 @@ catkin_package()
 
 catkin_install_python(PROGRAMS
   scripts/whole_body_controller.py
+  scripts/trajectory.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )

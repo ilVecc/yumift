@@ -21,7 +21,7 @@ def main():
     # is the (optional) gripper width. Everything is expesssed with respect to 
     # the `yumi_base_link` reference frame.
     right_arm = (
-        # End-effector position, as vector [x, y, z]
+        # End-effector position, as vector [x, y, z] in meters
         [0.35, -0.2, 0.2],
         # End-effector orientation, as quaterniorn [w, x, y, z]
         # Instead of a quaternion, you can use this handy function, which converts
@@ -40,7 +40,9 @@ def main():
         # The pose defined above
         right_arm,
         # The compact version of the definition above, for the left arm this time
-        ([0.35, +0.2, 0.2], H.e2q(+90, 0, 0), 0.0)
+        # Notice the use of the `H.cm` function, which uses centimeters instead of
+        # meters; alternatively, you can use `H.mm` for millimeters. 
+        (H.cm(35, 20, 20), H.e2q(+90, 0, 0), 0.0)
     )
 
     # Finally, use this function to immediately create and send a list of postures
@@ -52,11 +54,11 @@ def main():
         postures=[
             first_posture,
             H.posture( 5.0,
-                ([0.35, -0.10, 0.04], H.e2q(0, 45, -135, "rzyx"), 20.0),
-                ([0.35, +0.10, 0.04], H.e2q(0, 45, +135, "rzyx"), 20.0)),
+                (H.cm(35, -10, 4), H.e2q(0, 45, -135, "rzyx"), 20.0),
+                (H.cm(35, +10, 4), H.e2q(0, 45, +135, "rzyx"), 20.0)),
             H.posture( 5.0,
-                ([0.45, -0.15, 0.15], H.e2q(0, 180, 0), ),  # no gripper value needed
-                ([0.45, +0.15, 0.15], H.e2q(0, 180, 0), )),
+                (H.cm(45, -15, 15), H.e2q(0, 180, 0)),  # no gripper value needed
+                (H.cm(45, +15, 15), H.e2q(0, 180, 0))),
     ])
 
 

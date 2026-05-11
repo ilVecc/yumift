@@ -10,6 +10,7 @@ from .constants import SleipnerRobotConstants
 
 from dynamicals.common.devices import AbstractDevice, AbstractDeviceCommand, AbstractDeviceState
 from dynamicals.common.robotics import RobotState
+from dynamicals.utils import Frame
 
 
 ###############################################################################
@@ -121,6 +122,20 @@ class SleipnerCartesianDeviceState(AbstractDeviceState):
         super().__init__()
         self.pose_SE2 = pose_SE2
         self.twist_SE2 = twist_SE2
+        # jacobians are in local frame for convenience, i.e. sJ_s
+        self.jacobian_SE3 = np.eye(3)
+        self.jacobian_SE3 = np.array([[1, 0, 0],
+                                      [0, 1, 0],
+                                      [0, 0, 0],
+                                      [0, 0, 0],
+                                      [0, 0, 0],
+                                      [0, 0, 1]])
+
+    def to_Frame(self):
+        pos = np.array([self.pose_SE2[0], self.pose_SE2[1], 0], copy=False)
+        ori = quat.from_rotation_vector([0, 0, self.pose_SE2[2]])
+        twist = np.array([self.twist_SE2[0], self.twist_SE2[1], 0, 0, 0, self.twist_SE2[2]], copy=False)
+        return Frame(pos, ori, twist)
 
 class SleipnerCartesianDeviceCommand(AbstractDeviceCommand):
 
@@ -148,7 +163,16 @@ class SleipnerCartesianDevice(AbstractDevice[SleipnerCartesianDeviceState, Sleip
         # ensure to start the controller with a real robot state 
         # (zero-wait-time means default state (all zeros), which is very bad)
         rospy.wait_for_message("/base/odometry_controller/odometry", OdometryMsg)
-
+    
+        # initial pose in world (avoids recurrent use of the "world" frame, 
+        # relying on old odometry and thus possibly very biased)
+        self.wXhome = self._cache_state.to_Frame()
+        self.homeXw = self.wXhome.inv()
+    
+    def state_wrt_home(self, state : SleipnerCartesianDeviceState) -> Frame:
+        # base transform in home (i.e. sleipner's pose at startup, based on odometry)
+        return self.homeXw @ state.to_Frame()
+    
     def _callback_received_odom(self, data: OdometryMsg):
         pose, twist = data.pose.pose, data.twist.twist
         theta = 2*np.arctan2(pose.orientation.z, pose.orientation.w)  # quick quaterion-to-angle conversion

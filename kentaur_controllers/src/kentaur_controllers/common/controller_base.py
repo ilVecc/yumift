@@ -10,4 +10,4 @@ class KentaurDeviceAction(AbstractControllerAction, dict):
     def __init__(self) -> None:
         super().__init__()
         self.action_yumi = MixedVelocityYumiAction()
-        self.action_sleipner = SE2TwistAction(np.zeros(3))
+        self.action_sleipner = SE2TwistAction()

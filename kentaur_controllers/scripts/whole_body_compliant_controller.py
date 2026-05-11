@@ -4,12 +4,13 @@ from typing_extensions import override
 import rospy
 import numpy as np, quaternion as quat
 
-from dynamicals.utils import Frame, jacobian_change_base_frame
+from dynamicals.utils import Frame, jacobian_change_base_frame, floor_mag
 from dynamicals.impl import AbstractROSController
 from pathfinder import PoseParam, CubicPoseTrajectory
 
 from yumift_common.constants import YumiRobotConstants
-from yumift_controllers.common.control_laws import YumiIndividualCartesianVelocityControlLaw
+from yumift_controllers.common.control_laws import YumiIndividualAdmittanceControlLaw
+from yumift_controllers.ik.pinv_tasks import secondary_neutral
 from yumift_controllers.impl.trajectory import YumiParam
 from yumift_controllers.misc.utils import YumiCoordinatedRobotState_from_YumiParam
 
@@ -26,17 +27,17 @@ class KentaurController(AbstractROSController[KentaurDeviceState, KentaurDeviceA
     def __init__(self, kentaur_device : KentaurDevice):
         self._device : KentaurDevice
         super().__init__(kentaur_device)
-        self.control_law = YumiIndividualCartesianVelocityControlLaw(load_config("gains_whole_body.yaml"))
+        self.control_law = YumiIndividualAdmittanceControlLaw(load_config("gains_whole_body_compliant.yaml"))
         self.trajectory_r = CubicPoseTrajectory()
         self.trajectory_l = CubicPoseTrajectory()
         self.trajectory_initial_time = rospy.Time.now()
         
         # reset gripper position difference, in home frame
-        # self.target_r = Frame(np.array([-0.2, -0.2, 0]))
-        # self.target_l = Frame(np.array([-0.3, +0.1, 0]))
-        self.target_r = Frame(np.array([-0.2, +0.2, 0]))
-        self.target_l = Frame(np.array([-0.2, -0.2, 0]))
-        self.target_time = 5.0
+        # self.target_r = Frame(np.array([-0.2, +0.2, 0]))
+        # self.target_l = Frame(np.array([-0.2, -0.2, 0]))
+        self.target_r = Frame(np.array([0, 0, 0]))
+        self.target_l = Frame(np.array([0, 0, 0]))
+        self.target_time = 1.0
     
     @override
     def reset(self, state: KentaurDeviceState):
@@ -73,6 +74,13 @@ class KentaurController(AbstractROSController[KentaurDeviceState, KentaurDeviceA
         curr_param = YumiParam.from_PoseParams(curr_homeX_r, curr_homeX_l)
         curr_state = YumiCoordinatedRobotState_from_YumiParam(curr_param)
         
+        curr_yW_r = floor_mag(state.state_yumi.pose_wrench_r, 0.75, 0)
+        curr_yW_l = floor_mag(state.state_yumi.pose_wrench_l, 0.75, 0)
+        curr_homeW_r = homeXy.inv().reactTo(curr_yW_r)
+        curr_homeW_l = homeXy.inv().reactTo(curr_yW_l)
+        curr_state._right.effector_wrc = curr_homeW_r
+        curr_state._left.effector_wrc = curr_homeW_l
+        
         # gripper poses are already in home
         des_homeX_r = self.trajectory_r.compute(traj_dt)
         des_homeX_l = self.trajectory_l.compute(traj_dt)
@@ -104,7 +112,7 @@ class KentaurController(AbstractROSController[KentaurDeviceState, KentaurDeviceA
         homeJs_l = homeJs_r
         
         
-        alpha = 2.5  # 1> is more yumi, 1< is more sleipner
+        alpha = 2.75  # 1> is more yumi, 1< is more sleipner
         beta = 1/alpha
         
         homeJ = np.zeros((6+6,7+7+3))
@@ -120,7 +128,9 @@ class KentaurController(AbstractROSController[KentaurDeviceState, KentaurDeviceA
         vel_l = action.action_yumi["velocity_left"]
         vel_tgt = np.concatenate([vel_r, vel_l])  # cartesian, in home frame
         
-        dq_target = np.linalg.pinv(homeJ) @ vel_tgt
+        homeJ_pinv = np.linalg.pinv(homeJ)
+        dq_target = homeJ_pinv @ vel_tgt
+        dq_target[:14] += (np.eye(14) - (homeJ_pinv @ homeJ)[:14,:14]) @ secondary_neutral(state.state_yumi.joint_pos, None, k=30)
         
         # log joints with clipping velocities
         dq_r_clip = np.abs(dq_target[0:7]) > YumiRobotConstants.JOINT_VEL_AB
@@ -144,7 +154,7 @@ class KentaurController(AbstractROSController[KentaurDeviceState, KentaurDeviceA
 
 if __name__ == "__main__":
     # starting ROS node
-    rospy.init_node("kentaur_whole_body_controller", anonymous=False)
+    rospy.init_node("kentaur_whole_body_compliant_controller", anonymous=False)
     
     device = KentaurDevice()
     controller = KentaurController(device)

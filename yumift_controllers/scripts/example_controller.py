@@ -7,7 +7,7 @@ from yumift_controllers.common.controller_base import YumiDualController, MixedV
 from yumift_controllers.common.control_laws import YumiIndividualCartesianVelocityControlLaw
 from yumift_controllers.ik.algorithms import PINVIKAlgorithm
 from yumift_controllers.impl.trajectory import YumiParam
-from yumift_controllers.misc.utils import load_config, YumiParam_to_YumiCoordinatedRobotState
+from yumift_controllers.misc.utils import load_config, YumiCoordinatedRobotState_from_YumiParam
 
 
 class YumiDummyController(YumiDualController):
@@ -50,7 +50,7 @@ class YumiDummyController(YumiDualController):
         
         # First, we translate the desired `YumiParam` posture in a `RobotState` 
         # object for the control law. Then, we pass it to the control law.
-        yumi_desired_state = YumiParam_to_YumiCoordinatedRobotState(self.desired_posture)
+        yumi_desired_state = YumiCoordinatedRobotState_from_YumiParam(self.desired_posture)
         self.control_law.update_desired_state(yumi_desired_state)
         
         # Then, timestep is updated. This uses the internal `self.yumi_time` 

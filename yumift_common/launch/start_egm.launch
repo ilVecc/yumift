@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<launch>
+
+  <arg name="resilient" default="false"/>
+
+  <node name="egm_link" pkg="yumift_common" type="egm_link.py" respawn="$(arg resilient)" respawn_delay="2" output="screen">
+    <param name="egm_settings" type="yaml" textfile="$(find yumift_common)/config/egm_settings.yaml" />
+  </node>
+
+</launch>

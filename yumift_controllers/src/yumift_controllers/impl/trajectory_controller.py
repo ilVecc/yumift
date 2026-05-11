@@ -17,7 +17,7 @@ from ..common.control_laws import YumiDualCartesianVelocityControlLaw
 from ..ik.algorithms import HQPIKAlgorithm, PINVIKAlgorithm
 from ..misc.utils import (
     sanitize_pos, sanitize_rot, sanitize_vel, quat_to_xyzw,
-    Frame_to_PoseStampedMsg, YumiParam_to_YumiCoordinatedRobotState
+    Frame_to_PoseStampedMsg, YumiCoordinatedRobotState_from_YumiParam
 )
 
 from .routines import ReadyPoseRoutine, CalibPoseRoutine
@@ -214,7 +214,7 @@ class YumiTrajectoryController(RoutinableYumiController):
         # calculate new desired velocities and positions for this time step
         traj_time = (real_now - self.trajectory_initial_time).to_sec()
         yumi_desired_param : YumiParam = self.trajectory.compute(traj_time)
-        yumi_desired_state = YumiParam_to_YumiCoordinatedRobotState(yumi_desired_param)
+        yumi_desired_state = YumiCoordinatedRobotState_from_YumiParam(yumi_desired_param)
         self.control_law.update_desired_state(yumi_desired_state)
         
         # CALCULATE VELOCITIES

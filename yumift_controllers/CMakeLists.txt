@@ -10,7 +10,7 @@ catkin_python_setup()
 catkin_package()
 
 catkin_install_python(PROGRAMS
-  scripts/dummy_controller.py
+  scripts/example_controller.py
   scripts/tracking_controllers.py
   scripts/trajectory_controllers.py
   scripts/routines/routine_calib.py

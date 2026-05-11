@@ -2,21 +2,33 @@
 <launch>
 
   <!-- Using an nickname/identifier for the robot controller is good practice -->
-  <arg name="robot_ip" default=""/>  <!-- 192.168.125.1 for service port -->
+  <arg name="use_real" default="false"/>
+  <arg name="robot_ip" default="192.168.131.65"/>  <!-- 192.168.125.1 for service port -->
   <arg name="robot_nickname" default="yumi"/>
+  <arg name="start_egm_link" default="false"/>
+  <arg name="resilient_egm_link" default="false"/>
   <arg name="rviz" default="true"/>
   <arg name="individual" default="true"/>
 
   <group ns="$(arg robot_nickname)">
 
-    <!-- start the real robot -->
-    <include if="$(eval robot_ip != '')" file="$(find yumift_common)/launch/setup_rws_egm.launch">
-      <arg name="robot_ip" value="$(arg robot_ip)"/>
-      <arg name="robot_nickname" value="$(arg robot_nickname)"/>
-    </include>
-    <!-- start the simulator -->
-    <node unless="$(eval robot_ip != '')" pkg="yumift_simulation" type="simulator.py" name="simulator" output="screen" />
+    <!-- start the real robot ... -->
+    <group if="$(eval use_real)">
+      <include file="$(find yumift_common)/launch/setup_rws_egm.launch">
+        <arg name="robot_ip" value="$(arg robot_ip)"/>
+        <arg name="robot_nickname" value="$(arg robot_nickname)"/>
+      </include>
+      <include if="$(eval start_egm_link or resilient_egm_link)" file="$(find yumift_common)/launch/start_egm.launch">
+        <arg name="resilient" value="$(arg resilient_egm_link)" />
+      </include>
+    </group>
+    <!-- ... or the simulator -->
+    <group unless="$(eval use_real)">
+      <node pkg="yumift_simulation" type="simulator.py" name="simulator" output="screen" />
+    </group>
 
+    <!-- load URDF -->
+    <include file="$(find yumift_description)/launch/load.launch" />
     <!-- start the kinematics computation -->    
     <node pkg="yumift_common" type="kdl_kinematics" name="unified_kinematics">
       <remap from="/egm_joint_states" to="egm/joint_states"/>
@@ -24,8 +36,9 @@
       <remap from="/kinematics"       to="unified/kinematics"/>
       <remap from="/joint_states"     to="unified/joint_states"/>
     </node>
-    <!-- include Python node for computation of unified robot state (and possibily coordinated task space) -->
+    <!-- include Python node for computation of unified (aka with sensors) robot state (and possibily coordinated task space) -->
     <include file="$(find yumift_common)/launch/unified_state_updater.launch">
+      <!-- TODO remove this line and dynamically load it -->
       <arg name="coordinated_symmetry" value="0"/>
       <arg if="$(arg individual)" name="update_options" value="3" />
       <arg name="topic_sensor_r" default="sensors/wrench/right/compensated_world"/>
@@ -34,8 +47,6 @@
       <arg name="topic_robot_state" default="unified/robot_state_coordinated"/>
     </include>
 
-    <!-- load URDF -->
-    <include file="$(find yumift_description)/launch/load.launch" />
     <!-- start robot state publisher (i.e. publish ~joint_states to /tf) -->
     <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher">
       <remap from="joint_states" to="unified/joint_states"/>

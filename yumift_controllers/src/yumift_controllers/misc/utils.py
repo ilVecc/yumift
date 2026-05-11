@@ -118,7 +118,7 @@ def Frame_to_PoseStampedMsg(pose: Frame, parent: str = "yumi_base_link"):
 
 ### interal object representation convertion
 
-def YumiParam_to_YumiCoordinatedRobotState(yumi_param: YumiParam, yumi_state = YumiCoordinatedRobotState()):
+def YumiCoordinatedRobotState_from_YumiParam(yumi_param: YumiParam, yumi_state = YumiCoordinatedRobotState()):
     """ Transforms a desired Yumi parameter into a Yumi state.
     """
     yumi_state.grip_r=yumi_param.grip_right

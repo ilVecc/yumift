@@ -34,6 +34,11 @@ class YumiParam(Param):
         self.grip_right = grip_r
         self.grip_left = grip_l
     
+    @staticmethod
+    def from_PoseParams(frame_r : PoseParam, frame_l : PoseParam, grip_r : float = 0.0, grip_l : float = 0.0) -> "YumiParam":
+        return YumiParam(frame_r.pos, frame_r.rot, frame_r.vel, grip_r, 
+                         frame_l.pos, frame_l.rot, frame_l.vel, grip_l)
+    
     @property
     def position(self):
         return np.concatenate([self.pose_right.pos, self.pose_left.pos])

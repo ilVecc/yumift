@@ -13,7 +13,7 @@ from yumift_controllers.common.device import YumiDualDeviceState, YumiDevice
 from yumift_controllers.common.controller_base import YumiDualController, MixedVelocityYumiAction
 from yumift_controllers.common.control_laws import YumiIndividualCartesianVelocityControlLaw
 from yumift_controllers.impl.trajectory import YumiParam
-from yumift_controllers.misc.utils import load_config, YumiParam_to_YumiCoordinatedRobotState
+from yumift_controllers.misc.utils import load_config, YumiCoordinatedRobotState_from_YumiParam
 
 
 class YumiIndividualTrackingController(YumiDualController):
@@ -75,7 +75,7 @@ class YumiIndividualTrackingController(YumiDualController):
         # update the current and desired robot state in the control law class, 
         # then compute the required command
         dt = (rospy.Time.now() - state.time).to_sec()
-        yumi_desired_state = YumiParam_to_YumiCoordinatedRobotState(self.desired_posture)
+        yumi_desired_state = YumiCoordinatedRobotState_from_YumiParam(self.desired_posture)
         vel_r, vel_l = self.control_law.update_and_compute(state, yumi_desired_state, dt)
         
         # calculate new target velocities for this time step

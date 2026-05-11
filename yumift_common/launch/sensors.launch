@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <launch>
 
-    <arg name="sensor_ip_right"/>
-    <arg name="sensor_ip_left"/>
-    <arg name="use_raw" default="false"/>
+    <arg name="sensor_ip_left" default="192.168.131.66"/>
+    <arg name="sensor_ip_right" default="192.168.131.67"/>
+    <arg name="use_raw" default="true"/>
 
     <arg name="WAIT_COMMAND" value="bash -c 'sleep 1; $0 $@' "/>
 
@@ -13,6 +13,7 @@
             <node pkg="netft_utils" type="netft_utils" name="netft_utils" output="screen" args="yumi_base_link ftsensor_r gripper_r_tip"/>
             <!-- https://answers.ros.org/question/233353/set-delay-between-starting-nodes-within-launch-file/ -->
 
+            <!-- TODO instead of this, start the calibration procedure -->
             <group unless="$(arg use_raw)">
                 <node pkg="rosservice" type="rosservice" name="comp_bias" args="call set_known_bias -- true 3.04658316 -1.15195323 2.91037355 -0.04131079 -0.06474778 0.02138496" launch-prefix="$(arg WAIT_COMMAND)"/>
                 <node pkg="rosservice" type="rosservice" name="comp_grav" args="call set_known_tool_data -- true 0.2977469 0.0495737" launch-prefix="$(arg WAIT_COMMAND)"/>

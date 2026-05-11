@@ -464,6 +464,8 @@ def measurement_campaign(prefix: str, filename_left: str, filename_right: str):
     wizard = MeasurementWizard(prefix)
     wizard.print_title()
     
+    rospy.sleep(3)
+    
     wizard.print_campaign("resetting to READY")
     wizard.goto_ready()
     wizard.take_measurement()
@@ -605,6 +607,7 @@ def tool_calibration(filename_left: str, filename_right: str):
     
     pretty_print(params_dict_left, "PARAMS LEFT")
     pretty_print(params_dict_right, "PARAMS RIGHT")
+    print()
     
     return params_dict_left, params_dict_right
 
@@ -618,14 +621,18 @@ def call_rosservices(prefix: str, params_left: dict, params_right: dict):
         res1 = proxy1.call(enable=True, fx=bias[0], fy=bias[1], fz=bias[2], tx=bias[3], ty=bias[4], tz=bias[5])
         if not res1.success:
             print(f"Service \"set_known_bias\" for \"{side}\" failed")
+        print(f"rosservice call {prefix+f'/{side}/set_known_bias'} \"{{enable: true, fx: {bias[0]:.6f}, fy: {bias[1]:.6f}, fz: {bias[2]:.6f}, tx: {bias[3]:.6f}, ty: {bias[4]:.6f}, tz: {bias[5]:.6f}}}\"")
             
         proxy2 = rospy.ServiceProxy(prefix+f"/{side}/set_known_tool_data", SetKnownToolData)
         res2 = proxy2.call(enable=True, mass=params["tool_mass"], COM=params["tool_COM"])
         if not res2.success:
             print(f"Service \"set_known_tool_data\" for \"{side}\" failed")
+        print(f"rosservice call {prefix+f'/{side}/set_known_tool_data'} \"{{enable: true, mass: {params['tool_mass']:.6f}, COM: {params['tool_COM']:.6f}}}\"")
         
         if res1.success and res2.success:
             print(f"Compensation paramers set for \"{side}\"")
+        
+        print()
     
     call_services(params_left, "left")
     call_services(params_right, "right")

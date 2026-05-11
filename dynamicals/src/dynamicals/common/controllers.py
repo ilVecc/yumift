@@ -96,6 +96,7 @@ class AbstractController(Generic[TState, TAction, TCommand], metaclass=ABCMeta):
         """
         with self._lock_controller_stopped:
             self._controller_stopped = False
+        self.reset(self.device_read())
         self.spin(rate)
     
     # TODO @final
@@ -206,8 +207,8 @@ class AbstractController(Generic[TState, TAction, TCommand], metaclass=ABCMeta):
         """ Reset the interal logic of the controller.
             A good example might be setting the initial target to the current 
             state of the device, so the reading the device's status can be 
-            quite useful here. Do not call this function during the 
-            initialization of your controller.
+            quite useful here. Do not call this function during the initialization 
+            of your controller, this is done automatically inside `self.start()`.
         """
         raise NotImplementedError()
 

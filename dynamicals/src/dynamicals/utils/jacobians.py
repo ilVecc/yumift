@@ -6,17 +6,17 @@ import quaternion as quat
 from .geometry import skew_matrix
 
 def jacobian_change_end_frame(dist_vec: np.ndarray, jacobian: Optional[np.ndarray] = None) -> np.ndarray:
-    """ Extends the Jacobian with a new frame (changes end-effector)
-        :param dist_vec: relative vector from initial frame to desired frame wrt initial frame
+    """ Extends the Jacobian into a new frame (changes end-effector)
+        :param dist_vec: relative vector from initial frame to desired frame wrt the base frame
         :param jacobian: the initial jacobian matrix
     """
     #
-    # J_BD = [[ I  -S(d_B_ED) ]  * J_BE
-    #         [ 0          I  ]]
+    # bJ_d = [[ I  -S(bT_ed) ]  * bJ_e
+    #         [ 0         I  ]]
     # where
-    #   J_BE    jacobian from  base B frame     to  effector E frame  expressed in  base B frame
-    #   J_BD    jacobian from  base B frame     to  desired D frame   expressed in  base B frame
-    #   d_B_ED  vector   from  effector E frame to  desired D frame   expressed in  base B frame
+    #   bJ_e    jacobian of current frame E expressed in frame B
+    #   bJ_d    jacobian of desired frame D expressed in frame B
+    #   bT_ed   translation from frame E to frame D expressed in frame B
     #   S(.)    cross-product matrix
     #
     
@@ -34,12 +34,12 @@ def jacobian_change_base_frame(rot_quat: np.quaternion, jacobian: Optional[np.nd
         :param jacobian: the initial jacobian matrix
     """
     #
-    # J_FE = [[ R_FB     0 ]  * J_BE
-    #         [    0  R_FB ]]
+    # fJ_e = [[ fRb     0 ]  * bJ_e
+    #         [    0  fRb ]]
     # where
-    #   J_BE    jacobian from  base B frame     to  effector E frame  expressed in  base B frame
-    #   J_FE    jacobian from  generic F frame  to  effector E frame  expressed in  generic F frame  
-    #   R_FB    rotation from  generic F frame  to  Base frame
+    #   bJ_e    jacobian of frame E expressed in current frame B
+    #   fJ_e    jacobian of frame E expressed in desired frame F  
+    #   fRb     rotation from frame B to frame F
     #
     
     rot = quat.as_rotation_matrix(rot_quat)

@@ -30,6 +30,28 @@ def normalize3(v: np.ndarray, return_norm=False) -> np.ndarray:
         return w, norm
     return w
 
+def ceil_mag(v: np.ndarray, threshold: float, value: float = np.inf, return_decomposed=False):
+    """ Set the given value if the magnitude of the vector is more than the threshold
+    """
+    mag = np.linalg.norm(v)
+    dir = v / (mag or 1)
+    if mag >= threshold:
+        mag = value
+    if return_decomposed:
+        return dir, mag
+    return dir * mag
+
+def floor_mag(v: np.ndarray, threshold: float, value: float = 0.0, return_decomposed=False):
+    """ Set the given value if the magnitude of the vector is less than the threshold
+    """
+    mag = np.linalg.norm(v)
+    dir = v / (mag or 1)
+    if mag <= threshold:
+        mag = value
+    if return_decomposed:
+        return dir, mag
+    return dir * mag
+
 
 from .quaternions import quat_avg
 from .jacobians import jacobian_change_end_frame, skew_matrix
@@ -170,6 +192,11 @@ class Frame(object):
         assert wrench.shape == (6,)
         self._wrc = wrench
 
+    def motionless(self):
+        """ Return the frame without moments (i.e. velocity and acceleration)
+        """
+        return Frame(self.pos, self.rot, wrench=self.wrc)
+    
     def adjoint(self):
         """ Return the adjoint (action) matrix for this transformation.
         """
@@ -222,8 +249,8 @@ class Frame(object):
 
     def __repr__(self) -> str:
         return f"{np.array_str(self.pos, precision=2, suppress_small=True)} " \
-             + f"{np.array_str(quat.as_float_array(self.rot), precision=2, suppress_small=True)} " \
-             + f"{np.array_str(self.vel, precision=2, suppress_small=True)}"
+             + f"{np.array_str(quat.as_float_array(self.rot), precision=2, suppress_small=True)} " #\
+             #+ f"{np.array_str(self.vel, precision=2, suppress_small=True)}"
 
     @staticmethod
     def action(frame: "Frame"):

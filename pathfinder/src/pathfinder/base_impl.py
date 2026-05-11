@@ -3,6 +3,8 @@ import quaternion as quat
 
 from .base import Param
 
+from dynamicals.utils import Frame
+
 
 class JointParam(Param):
     def __init__(self, q: np.ndarray, dq: np.ndarray, ddq: np.ndarray) -> None:
@@ -40,6 +42,14 @@ class PoseParam(Param):
         assert velocity is None or velocity.shape == (6,)
         assert acceleration is None or acceleration.shape == (6,)
         super().__init__([position, rotation], velocity, acceleration)
+
+    @staticmethod
+    def from_Frame(frame : Frame) -> "PoseParam":
+        return PoseParam(frame.pos, frame.rot, frame.vel, frame.acc)
+
+    @staticmethod
+    def to_Frame(param : "PoseParam") -> Frame:
+        return Frame(param.pos, param.rot, param.vel, param.acc)
 
     @property
     def pos(self) -> np.ndarray:

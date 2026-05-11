@@ -2,6 +2,7 @@ from .geometry import (
     norm3, norm4,
     normalize3,
     skew_matrix,
+    ceil_mag, floor_mag, 
     Frame
 )
 

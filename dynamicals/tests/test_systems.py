@@ -8,10 +8,12 @@ from dynamicals.systems.state_space import DiscretizedStateSpaceModel, LPFilter,
 
 
 def make_noisy_step(vals: dict, dims: int = 3, h: float = 0.001, T: float = 2.5, mu: float = 0, sigma: float = 0.025):
-    t = np.linspace(0, T, int(1/h), endpoint=True)
+    t = np.linspace(0, T, int(T/h), endpoint=True)
     s = np.zeros((t.shape[0], dims))
     for ti, vi in vals.items():
         s[t >= ti, ...] = vi
+    lp = LPFilter(10, n=dims, h=h)
+    s = lp.compute_signal(s)
     s += np.random.normal(mu, sigma, size=s.shape)
     return t, s
 
@@ -321,26 +323,29 @@ def test_admittance_lead():
         space representation. 
     """
     
-    m = 0.1
-    d = 1
+    m = 2.5
+    d = 75
     k = 0
     h = 1/1000  # sampling step [s]
-    adm = AdmittanceForce(m, k, d, h, method="forward")
+    adm = AdmittanceForce(m, d, k, h, method="forward")
     
     # three noisy box signals sampled with step h
     # each will pass through a different admittance
-    t, force = make_noisy_step({0.5: [50, 0, 0], 3.5: 0}, h=h)
+    # t, force = make_noisy_step({0.5: [8, 0, 0], 3.5: 0}, T=10, h=h)
+    # t, force = make_noisy_step({0.5: [8, 0, 0], 30.5: 0}, T=40, h=h)
+    t, force = make_noisy_step({0.5: [10, 0, 0], 3.5: 0, 6.5: [-10, 0, 0], 9.5: 0}, T=15, h=h)
     
     # calculate the output signal
     p, dp = adm.compute_signal(force)
     
     # plot the result
-    fig, ax = plt.subplots(2, 1)
-    ax[0].plot(t, force, label=r"$u$")
+    fig, ax = plt.subplots(3, 1)
+    ax[0].plot(t, force, label=[r"$u_1$", r"$u_2$", r"$u_3$"])
     ax[0].legend()
-    ax[1].plot(t, p, linestyle="-", label=r"$y$")
-    ax[1].plot(t, dp, linestyle="--", label=r"$\dot{y}$")
+    ax[1].plot(t, p, linestyle="-", label=[r"$y_1$", r"$y_2$", r"$y_3$"])
     ax[1].legend()
+    ax[2].plot(t, dp, linestyle="-", label=[r"$\dot{y}_1$", r"$\dot{y}_2$", r"$\dot{y}_3$"])
+    ax[2].legend()
     plt.show()
 
 

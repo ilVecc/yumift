@@ -20,6 +20,7 @@
       </include>
       <include if="$(eval start_egm_link or resilient_egm_link)" file="$(find yumift_common)/launch/start_egm.launch">
         <arg name="resilient" value="$(arg resilient_egm_link)" />
+        <arg name="robot_nickname" value="" />
       </include>
     </group>
     <!-- ... or the simulator -->

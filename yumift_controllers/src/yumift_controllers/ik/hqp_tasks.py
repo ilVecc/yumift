@@ -109,7 +109,6 @@ class JointPositionPotential(EqualTask):
 
 #
 # Mode control (jacobian-based)
-# TODO these are yumi specific, move to a different file
 #
 
 class IndividualControl(JacobianControlTask):

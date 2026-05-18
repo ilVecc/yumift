@@ -1,5 +1,5 @@
 from abc import ABCMeta
-from typing_extensions import override, Optional
+from typing_extensions import override
 
 from ..common.devices import TState, TCommand, AbstractDevice
 from ..common.controllers import TAction, AbstractController
@@ -17,12 +17,18 @@ class AbstractROSController(AbstractController[TState, TAction, TCommand], metac
 
     def __init__(self, device : AbstractDevice[TState, TCommand]):
         super().__init__(device)
-        self._default_command = device.__orig_bases__[0].__args__[1]()
+        self._default_action : TAction = self.__orig_bases__[0].__args__[1]()
+        self._default_command : TCommand = self.__orig_bases__[0].__args__[2]()
         rospy.on_shutdown(self.stop)
 
     def dt(self, from_time : rospy.Time):
         return (rospy.Time.now() - from_time).to_sec()
         
+    @override
+    def start(self, control_rate : float):
+        rospy.loginfo("Controller will start up soon")
+        super().start(control_rate) # Hz
+    
     @override
     def spin(self, control_rate: float):
         """ ROS implementation of the original function.
@@ -33,13 +39,9 @@ class AbstractROSController(AbstractController[TState, TAction, TCommand], metac
             rate.sleep()
     
     @override
-    def start(self):
-        rospy.loginfo("Controller will start up soon")
-        super().start(250) # Hz
-    
-    @override
     def stop(self, stop_commands: int = 5):
         rospy.loginfo("Controller is stopping")
+        # TODO move me down?
         super().stop()
         # send a stop command
         for i in range(stop_commands):
@@ -47,6 +49,6 @@ class AbstractROSController(AbstractController[TState, TAction, TCommand], metac
             rospy.loginfo(f"Sent default command ({i+1}/{stop_commands})")
     
     @override
-    def fallback(self, state: TState) -> TCommand:
-        return self._default_command
+    def fallback(self, state: TState) -> TAction:
+        return self._default_action
     

@@ -77,7 +77,6 @@ class HQPIKAlgorithm(IKAlgorithm):
             if key not in action:
                 action[key] = value
 
-        # TODO i am ugly
         self._cache_joint_state[0:7] = state.joint_pos_r
         self._cache_joint_state[7:14] = state.joint_pos_l
 
@@ -172,12 +171,6 @@ class HQPIKAlgorithm(IKAlgorithm):
             vel = self._hqp_solver.solve(SoT=SoT)
         except HQPTaskError as ex:
             print(f"Stopping. Error in the HQP solver: {ex}")
-            # TODO what to do with this?
-            # print("Stopping EGM for safety")
-            # try:
-            #     self._stop_egm.call()
-            # except Exception:
-            #     print("Failed to stop EGM (ignore if simulation does not support EGM)")
             vel = np.zeros(YumiRobotConstants.DOF)
 
         return vel

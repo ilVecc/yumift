@@ -47,4 +47,4 @@ if __name__ == "__main__":
     controller = DummySleipnerController(sleipner)
     
     controller.ready()
-    controller.start()  # locking
+    controller.start(250)  # locking

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import rospy
+import numpy as np
 
 # This first example demostrates how to send trajectories to a Yumi trajectory
 # controller accepting `yumift_msgs/YumiTrajectory` messages. 
@@ -24,24 +25,25 @@ def main():
         # End-effector position, as vector [x, y, z] in meters
         [0.35, -0.2, 0.2],
         # End-effector orientation, as quaterniorn [w, x, y, z]
-        # Instead of a quaternion, you can use this handy function, which converts
-        # Euler angles (with relative X-Y-Z convention by default) to quaternions.
-        H.e2q(-90, 0, 0),
+        # (more info here https://wikipedia.org/wiki/Quaternion)
+        [1/np.sqrt(2), -1/np.sqrt(2), 0, 0],
         # Gripper fingers width, in [mm]
         0.0
     )
     
     # Now, use the pose just created to create a posture message using the following
-    # helper function. A posture is ideally a tuple composed of a right arm pose, a
-    # left arm pose, and the time required to achieve them. 
+    # helper function. A posture is a tuple composed of a right arm pose, a left arm 
+    # pose, and the time required to achieve them. 
     first_posture = H.posture(
         # time to get to this posture, in [s]
         5.0,
         # The pose defined above
         right_arm,
-        # The compact version of the definition above, for the left arm this time
+        # The compact version of the definition above, for the left arm this time.
         # Notice the use of the `H.cm` function, which uses centimeters instead of
         # meters; alternatively, you can use `H.mm` for millimeters. 
+        # Also, notice the use of the `H.e2q` function, which converts Euler angles 
+        # to quaternions (using the "Relative X-Y-Z" convention by default).
         (H.cm(35, 20, 20), H.e2q(+90, 0, 0), 0.0)
     )
 

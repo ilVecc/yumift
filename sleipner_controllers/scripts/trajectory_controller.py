@@ -84,4 +84,4 @@ if __name__ == "__main__":
     controller = SleipnerCartesianTrajectoryController(sleipner)
     
     controller.ready()
-    controller.start()  # locking
+    controller.start(250)  # locking

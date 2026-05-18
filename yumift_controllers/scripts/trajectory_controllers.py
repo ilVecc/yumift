@@ -50,9 +50,6 @@ def main():
     else:
         raise AttributeError(f"no such option '{parser.type}'")
     
-    rospy.on_shutdown(yumi_controller.stop)
-    rospy.sleep(3)
-    
     yumi_controller.ready()
     yumi_controller.start()  # locking
 

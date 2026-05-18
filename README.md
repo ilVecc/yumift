@@ -297,7 +297,9 @@ In each controller, a `YumiPosture` message can be set to represent six differen
 - `relative`, i.e. interpret the left arm fields ase relative pose;
 - `coordinated`, i.e. `absolute` and `relative` simultaneously.
 
-Checkout `yumift_controllers/config/gains.yaml` to tune the gains of the various controllers. For trajectory controllers, a set of example trajectories is also provided (see following subsections for more info).
+> [!IMPORTANT]
+> Checkout `yumift_controllers/config/gains.yaml` to tune the gains of the various controllers. 
+> For trajectory controllers, a set of example trajectories is also provided (see following subsections for more info).
 
 ### Example controller:
 This controller only serves as a tutorial on how to build controllers. This controller simply commands to achieve a pre-defined pose.
@@ -306,7 +308,8 @@ For safety/educational purpose, only run this file in simulation. To start the c
 rosrun yumift_controllers example_controller.py
 ```
 
-Checkout `yumift_controllers/common/parameters.py` for some useful generic controller parameters and `yumift_controllers/ik/` for IK solvers and routines.
+> [!IMPORTANT]
+> Checkout `yumift_controllers/common/parameters.py` for some useful generic controller parameters and `yumift_controllers/ik/` for IK solvers and routines.
 
 ### Trajectory controllers
 To start a trajectory controller use

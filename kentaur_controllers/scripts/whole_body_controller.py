@@ -150,4 +150,4 @@ if __name__ == "__main__":
     controller = KentaurController(device)
     
     controller.ready()
-    controller.start()  # locking
+    controller.start(250)  # locking

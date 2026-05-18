@@ -164,34 +164,16 @@ class Admittance(DiscretizedStateSpaceModel):
             :param n: size of the input (int or None)
             :param method: approximation method {exact, forward, backward, tustin}
         """
-        def reshape(v, n):
-            v: np.ndarray = np.asarray(v)
-            if v.ndim == 0:
-                v = v * np.eye(n)
-            elif v.ndim == 1 and v.shape == (n,):
-                v = np.diag(v)
-            elif v.ndim == 2 and v.shape == (n,n):
-                pass
-            else:
-                raise ValueError(f"shape {v.shape} is not consistent with size n={n}")
-            return v
-
-        def matrix_sqrt(V):
-            # Computing diagonalization
-            E, V = np.linalg.eig(V)  # TODO this assumes V is diagonalizable
-            # Ensuring square root matrix exists
-            assert np.all(E >= 0)
-            sqrt_matrix = V * np.sqrt(E) @ np.linalg.inv(V)
-            return sqrt_matrix
-        
         if n is None:
             # the first tuple is to ensure at least one dimension
             n = np.max(np.concatenate([(1,), np.shape(M), np.shape(K), np.shape(D) if D is not None else ()])).astype(int)
         
         # store admittance parameters
-        self.M = reshape(M, n)
-        self.K = reshape(K, n)
-        self.D = reshape(D, n) if D is not None else 2*matrix_sqrt((self.M @ self.K))
+        self.M = self._reshape(M, n)
+        self.K = self._reshape(K, n)
+        self.D = self._reshape(D, n) if D is not None else np.diag([None]*n)
+        self.D[self.D == None] = 2*self._matrix_sqrt((self.M[self.D == None] @ self.K[self.D == None]))
+        self.D = self.D.astype(float)
         self.dims = n
         
         # prepare blocks for linear system
@@ -203,12 +185,32 @@ class Admittance(DiscretizedStateSpaceModel):
         
         super().__init__(A, B, None, None, h, None, method)
     
+    @staticmethod
+    def _reshape(v, n):
+        v: np.ndarray = np.asarray(v)
+        if v.ndim == 0:
+            v = v * np.eye(n)
+        elif v.ndim == 1 and v.shape == (n,):
+            v = np.diag(v)
+        elif v.ndim == 2 and v.shape == (n,n):
+            pass
+        else:
+            raise ValueError(f"shape {v.shape} is not consistent with size n={n}")
+        return v
+
+    @staticmethod
+    def _matrix_sqrt(V):
+        # Computing diagonalization
+        E, V = np.linalg.eig(V)  # TODO this assumes V is diagonalizable
+        # Ensuring square root matrix exists
+        assert np.all(E >= 0)
+        return V * np.sqrt(E) @ np.linalg.inv(V)
+    
     def compute(self, u: np.ndarray, h_new: float = None):  
         """ Returns "position" and "velocity" for given input.
         """
         x = super().compute(u, h_new)
-        y, dy = x[:self.dims], x[self.dims:]
-        return y, dy
+        return x[:self.dims], x[self.dims:]  # y, dy
     
     def compute_signal(self, U: np.ndarray):
         T = U.shape[0]

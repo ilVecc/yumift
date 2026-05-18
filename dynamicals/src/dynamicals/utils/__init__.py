@@ -6,7 +6,9 @@ from .geometry import (
     Frame
 )
 
-# from . import quaternions as quats
+from .quaternions import (
+    quat_diff
+)
 
 from .jacobians import (
     jacobian_change_base_frame,

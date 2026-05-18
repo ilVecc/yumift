@@ -1,3 +1,5 @@
+from typing import Optional
+
 import rospy, rospkg
 import numpy as np, quaternion as quat
 import yaml
@@ -25,16 +27,24 @@ def load_config(filename : str):
     return data
 
 
-def sanitize_pos(pos: PointMsg) -> np.ndarray:
-    return np.array([pos.x, pos.y, pos.z])
+def sanitize_pos(pos: PointMsg) -> Optional[np.ndarray]:
+    pos = np.array([pos.x, pos.y, pos.z])
+    if np.any(np.isnan(pos)):
+        return None
+    return pos
 
-def sanitize_rot(rot: QuaternionMsg) -> np.quaternion:
-    return quat.quaternion(rot.w, rot.x, rot.y, rot.z)
+def sanitize_rot(ori: QuaternionMsg) -> Optional[np.quaternion]:
+    ori = quat.quaternion(ori.w, ori.x, ori.y, ori.z)
+    if ori == quat.zero or ori.isnan():
+        return None
+    return ori
 
-def sanitize_vel(vel: TwistMsg) -> np.ndarray:
-    return np.array([
-        vel.linear.x, vel.linear.y, vel.linear.z, 
-        vel.angular.x, vel.angular.y, vel.angular.z])
+def sanitize_vel(vel: TwistMsg) -> Optional[np.ndarray]:
+    vel = np.array([vel.linear.x, vel.linear.y, vel.linear.z, 
+                    vel.angular.x, vel.angular.y, vel.angular.z])
+    if np.any(np.isnan(vel)):
+        return None
+    return vel
 
 def quat_to_xyzw(q: np.quaternion) -> np.ndarray:
     return np.roll(quat.as_float_array(q), -1)

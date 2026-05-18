@@ -1,11 +1,9 @@
-from abc import abstractmethod
 from typing import List
-from typing_extensions import override
 
 from threading import Lock
 
 from yumift_controllers.common.device import YumiDualDeviceState, YumiDevice
-from yumift_controllers.common.controller_base import YumiDualController, YumiDualDeviceCommand
+from yumift_controllers.common.controller_base import YumiDualController, MixedVelocityYumiAction
 from .routine_sm import RoutineStateMachine, Routine
 from ..ik.solver import IKAlgorithm
 
@@ -22,13 +20,6 @@ class RoutinableYumiController(YumiDualController):
         for routine in routines:
             self._routine_machine.register(routine)
     
-    @override
-    @abstractmethod
-    def reset(self, state: YumiDualDeviceState):
-        """ Method called when EGM stops.
-        """
-        raise NotImplementedError()
-    
     def request_routine(self, name: str):
         """ Set the routine to run. This can be done either internally in
             the `self.policy()` function or externally in another thread. 
@@ -37,7 +28,7 @@ class RoutinableYumiController(YumiDualController):
         with self._lock_routine_request:
             self._routine_request = name
     
-    def _desired_policy(self, state: YumiDualDeviceState) -> YumiDualDeviceCommand:
+    def _desired_policy(self, state: YumiDualDeviceState) -> MixedVelocityYumiAction:
         """ New internal policy for the controller. Now, before computing the 
             policy, run the requested rountine, if any is requested or already
             running. Otherwise, run the policy.
@@ -46,6 +37,7 @@ class RoutinableYumiController(YumiDualController):
         with self._lock_routine_request:
             request = self._routine_request
             self._routine_request = None
+        
         # execute the request (if exists)
         action, done = self._routine_machine.run(state, request)
         if done is True:
@@ -57,8 +49,3 @@ class RoutinableYumiController(YumiDualController):
         
         return self.policy(state)
     
-    @override
-    @abstractmethod
-    def policy(self, state: YumiDualDeviceState) -> YumiDualDeviceCommand: 
-        raise NotImplementedError()
-

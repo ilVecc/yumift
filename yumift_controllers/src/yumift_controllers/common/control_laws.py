@@ -294,7 +294,12 @@ class YumiIndividualAdmittanceControlLaw(YumiIndividualCartesianVelocityControlL
         def weights(side: str):
             # no shape check is performed here
             M = gains[side]["F_M"] + gains[side]["T_M"]
-            D = gains[side]["F_D"] + gains[side]["T_D"]
+            F_D, T_D = gains[side]["F_D"], gains[side]["T_D"]
+            if  F_D is None:
+                F_D = [None]*3
+            if T_D is None:
+                T_D = [None]*3
+            D = F_D + T_D
             K = gains[side]["F_K"] + gains[side]["T_K"]
             return M, D, K
         

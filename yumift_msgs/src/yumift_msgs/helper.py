@@ -27,15 +27,18 @@ class Helper():
         GLOBAL  = YumiPosture.GLOBAL
 
     @staticmethod
-    def e2q(ai : float = 0, aj : float = 0, ak : float = 0, axes : str = "rxyz"):
+    def e2q(ai : float = 0, aj : float = 0, ak : float = 0, axes : str = "rxyz") -> np.ndarray:
+        """ Create quaternions from Euler angles, in either relative or static base. """
         return np.roll(trans.quaternion_from_euler(np.radians(ai), np.radians(aj), np.radians(ak), axes), 1)
     
     @staticmethod
-    def mm(x: float = 0, y: float = 0, z: float = 0):
+    def mm(x: float = 0, y: float = 0, z: float = 0) -> np.ndarray:
+        """ Create positions from millimeters. """
         return np.array([x,y,z]) * 0.001
     
     @staticmethod
-    def cm(x: float = 0, y: float = 0, z: float = 0):
+    def cm(x: float = 0, y: float = 0, z: float = 0) -> np.ndarray:
+        """ Create positions from centimeters. """
         return np.array([x,y,z]) * 0.01
     
     @staticmethod
@@ -45,16 +48,16 @@ class Helper():
             raise Exception("Too many parameters")
 
         idx = np.where(sizes == 1)[0]
-        grip = np.array(point[idx[0]]) if len(idx) == 1 else 0.0
+        grip = np.array(point[idx[0]]) if len(idx) == 1 else np.nan
 
         idx = np.where(sizes == 3)[0]
-        pos = np.array(point[idx[0]]) if len(idx) == 1 else np.zeros(3)
+        pos = np.array(point[idx[0]]) if len(idx) == 1 else np.nan*np.ones(3)
 
         idx = np.where(sizes == 4)[0]
-        rot = np.array(point[idx[0]]) if len(idx) == 1 else np.array([1,0,0,0])
+        rot = np.array(point[idx[0]]) if len(idx) == 1 else np.nan*np.ones(4)
 
         idx = np.where(sizes == 6)[0]
-        vel = np.array(point[idx[0]]) if len(idx) == 1 else np.zeros(6)
+        vel = np.array(point[idx[0]]) if len(idx) == 1 else np.nan*np.ones(6)
 
         return grip, pos, rot, vel
 

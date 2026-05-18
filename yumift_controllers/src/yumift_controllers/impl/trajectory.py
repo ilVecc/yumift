@@ -6,7 +6,7 @@ from pathfinder.base import Param, MultiParam, MultiTrajectory, FakeTrajectory
 from pathfinder.base_impl import PoseParam
 from pathfinder.polynomial import CubicPosePath
 
-from dynamicals.utils.quaternions import quat_diff
+from dynamicals.utils import Frame, quat_diff
 
 
 class YumiParam(Param):
@@ -35,7 +35,12 @@ class YumiParam(Param):
         self.grip_left = grip_l
     
     @staticmethod
-    def from_PoseParams(frame_r : PoseParam, frame_l : PoseParam, grip_r : float = 0.0, grip_l : float = 0.0) -> "YumiParam":
+    def from_PoseParams(poseparam_r : PoseParam, poseparam_l : PoseParam, grip_r : float = 0.0, grip_l : float = 0.0) -> "YumiParam":
+        return YumiParam(poseparam_r.pos, poseparam_r.rot, poseparam_r.vel, grip_r, 
+                         poseparam_l.pos, poseparam_l.rot, poseparam_l.vel, grip_l)
+    
+    @staticmethod
+    def from_Frames(frame_r : Frame, frame_l : Frame, grip_r : float = 0.0, grip_l : float = 0.0) -> "YumiParam":
         return YumiParam(frame_r.pos, frame_r.rot, frame_r.vel, grip_r, 
                          frame_l.pos, frame_l.rot, frame_l.vel, grip_l)
     

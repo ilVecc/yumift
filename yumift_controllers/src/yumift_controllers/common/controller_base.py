@@ -10,7 +10,8 @@ from .parameters import ControllerParameters
 from .device import YumiDualDeviceState, YumiDualDeviceCommand, YumiDevice
 from yumift_common.constants import YumiRobotConstants
 
-from dynamicals.common.controllers import AbstractController, AbstractControllerAction
+from dynamicals.common.controllers import AbstractControllerAction
+from dynamicals.impl import AbstractROSController
 
 
 class MixedVelocityYumiAction(AbstractControllerAction, dict):
@@ -48,6 +49,8 @@ class MixedVelocityYumiAction(AbstractControllerAction, dict):
     
     def __init__(self) -> None:
         super().__init__()
+        self.control_space(MixedVelocityYumiAction.ControlSpace.JOINT_SPACE)
+        self.velocity_joints(np.zeros(YumiRobotConstants.DOF))
     
     def control_space(self, space : "MixedVelocityYumiAction.ControlSpace"):
         self["control_space"] = space
@@ -86,7 +89,7 @@ from ..ik.solver import IKSolver, IKAlgorithm
 
 # TODO why dual?
 class YumiDualController(
-    AbstractController[YumiDualDeviceState, MixedVelocityYumiAction, YumiDualDeviceCommand], 
+    AbstractROSController[YumiDualDeviceState, MixedVelocityYumiAction, YumiDualDeviceCommand], 
     metaclass=ABCMeta
 ):
     """ Class for controlling YuMi, inherit this class and create your own 
@@ -111,26 +114,6 @@ class YumiDualController(
     def start(self):
         super().start(ControllerParameters.update_rate)
 
-    @override
-    def stop(self):
-        print("Controller shutting down")
-        super().stop()
-    
-    @override
-    def spin(self, control_rate: float):
-        """ ROS implementation of the original function.
-        """
-        rate = rospy.Rate(control_rate)
-        while not rospy.is_shutdown():
-            self.spin_once()
-            rate.sleep()
-        # when the controller is shut down, send a stop command
-        stop_commands = 3
-        for i in range(stop_commands):
-            command = YumiDualDeviceCommand(np.zeros(YumiRobotConstants.DOF), None, None)
-            self._device.send(command)
-            print(f"Sent stop command ({i+1}/{stop_commands})")
-            
     def _on_device_lost(self):
         """ Decides what happens when e.g. control mode goes from "auto" to "manual".
         """
@@ -171,13 +154,6 @@ class YumiDualController(
         """ Method called when EGM stops.
         """
         raise NotImplementedError()
-    
-    @override
-    def fallback(self, state: YumiDualDeviceState) -> MixedVelocityYumiAction:
-        action = MixedVelocityYumiAction()
-        action.control_space(MixedVelocityYumiAction.ControlSpace.JOINT_SPACE)
-        action.velocity_joints(np.zeros(YumiRobotConstants.DOF))
-        return action
         
     @abstractmethod
     @override

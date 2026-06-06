@@ -4,7 +4,10 @@ import quaternion as quat
 import matplotlib.pyplot as plt
 
 from dynamicals.systems.discretized import AdmittanceTustin, LPFilterTustin
-from dynamicals.systems.state_space import DiscretizedStateSpaceModel, LPFilter, AdmittanceForce, AdmittanceTorque, AdmittanceWrench
+from dynamicals.systems.state_space import (
+    DiscretizationMethod, DiscretizedStateSpaceModel, 
+    LPFilter, AdmittanceForce, AdmittanceTorque, AdmittanceWrenchDecoupled
+)
 
 
 def make_noisy_step(vals: dict, dims: int = 3, h: float = 0.001, T: float = 2.5, mu: float = 0, sigma: float = 0.025):
@@ -91,7 +94,7 @@ def test_system():
     D = 0
     x0 = np.array([0, 1])
     h = 1/1000
-    sys = DiscretizedStateSpaceModel(A, B, C, D, h, x0, method="tustin")
+    sys = DiscretizedStateSpaceModel(A, B, C, D, h, x0, method=DiscretizationMethod.TUSTIN)
     
     # input is a cosine wave for both the systems
     f = 3
@@ -119,7 +122,7 @@ def test_admittance_force():
     k = 500  # or `np.diag([800, 1000, 1200])` for different values
     d = None
     h = 1/1000  # sampling step [s]
-    adm = AdmittanceForce(m, k, d, h, method="tustin")
+    adm = AdmittanceForce(m, k, d, h, method=DiscretizationMethod.TUSTIN)
     
     # three noisy box signals sampled with step h
     # each will pass through a different admittance
@@ -143,7 +146,7 @@ def test_admittance_torque():
     """
     
     h = 1/1000  # sampling step [s]
-    adm = AdmittanceTorque(M=0.001, D=None, K=0.2, h=h, method="forward")
+    adm = AdmittanceTorque(M=0.001, D=None, K=0.2, h=h, method=DiscretizationMethod.FORWARD)
     
     # three noisy signals sampled with step h
     # each will pass through a different admittance
@@ -170,7 +173,7 @@ def test_admittance_torque_anim():
     from pathfinder.visualization.plotter import animate_quaternion
     
     h = 1/1000  # sampling step [s]
-    adm = AdmittanceTorque(M=0.001, D=0.02, K=0.0, h=h, method="forward")
+    adm = AdmittanceTorque(M=0.001, D=0.02, K=0.0, h=h, method=DiscretizationMethod.FORWARD)
     
     # three noisy box signals sampled with step h
     # each will pass through a different admittance
@@ -200,9 +203,9 @@ def test_admittance_timing():
     import time
     
     h = 1/1000  # sampling step [s]
-    adm_f = AdmittanceForce(M=1, D=None, K=100, h=h, method="tustin")
-    adm_t = AdmittanceTorque(M=0.001, D=None, K=0.2, h=h, method="tustin")
-    adm_w = AdmittanceWrench(M=np.diag(3*[1] + 3*[0.001]), D=None, K=np.diag(3*[100] + 3*[0.2]), h=h, method="tustin")
+    adm_f = AdmittanceForce(M=1, D=None, K=100, h=h, method=DiscretizationMethod.TUSTIN)
+    adm_t = AdmittanceTorque(M=0.001, D=None, K=0.2, h=h, method=DiscretizationMethod.TUSTIN)
+    adm_w = AdmittanceWrenchDecoupled(M=np.diag(3*[1] + 3*[0.001]), D=None, K=np.diag(3*[100] + 3*[0.2]), h=h, method=DiscretizationMethod.FORWARD)
     
     # three noisy box signals
     t, force = make_noisy_step({0.5: [20, 0, 0], 1.5: 0}, h=h)
@@ -302,7 +305,7 @@ def test_lpfilter():
     gain = 1
     freq = 25
     h = 1/1000  # sampling step [s]
-    fil = LPFilter(freq, gain, 3, h, method="tustin")
+    fil = LPFilter(freq, gain, 3, h, method=DiscretizationMethod.TUSTIN)
     
     # three noisy box signals sampled with step h
     # each will pass through a different admittance
@@ -327,7 +330,7 @@ def test_admittance_lead():
     d = 75
     k = 0
     h = 1/1000  # sampling step [s]
-    adm = AdmittanceForce(m, d, k, h, method="forward")
+    adm = AdmittanceForce(m, d, k, h, method=DiscretizationMethod.FORWARD)
     
     # three noisy box signals sampled with step h
     # each will pass through a different admittance

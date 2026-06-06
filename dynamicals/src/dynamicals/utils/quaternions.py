@@ -164,14 +164,14 @@ def quat_is_closest(qi: np.quaternion, qf: np.quaternion) -> np.quaternion:
         :param qf: final quaternion
         :param shortest: whether to force using the shorthest path on the great circle or not
     """
-    # this seemingly random equation directly from the geodesic distance between 
-    # two quaternions, which we want to be less than 180 deg, meaning:
+    # This seemingly random equation comes directly from the geodesic distance 
+    # between two quaternions, which we want to be less than 180 deg, meaning:
     #    np.arccos(2 * (p @ q) ** 2 - 1) < np.pi
-    # with some algebra, this can be simplified to 
+    # With some algebra, this can be simplified to 
     #    p @ q < 0
     # where @ is the quaternion dot product
     #    p @ q = p.w * q.w + p.x * q.x + p.y * q.y + p.z * q.z
-    # here we could have used 
+    # Here we could have used 
     #    quat.as_float_array(qi) @ quat.as_float_array(qf)
     # but the conversion to array takes too much time
     return (qi.w * qf.w + qi.x * qf.x + qi.y * qf.y + qi.z * qf.z) >= 0

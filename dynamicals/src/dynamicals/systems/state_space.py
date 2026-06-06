@@ -1,7 +1,17 @@
+from enum import Enum
 import numpy as np
 import quaternion as quat
 
-
+class DiscretizationMethod(Enum):
+    EXACT = "exact"
+    FORWARD = "forward"
+    BACKWARD = "backward"
+    TUSTIN = "tustin"
+    
+    @staticmethod
+    def from_str(value : str):
+        return DiscretizationMethod[value.upper()]
+        
 class DiscretizedStateSpaceModel(object):
     """ Implementation of a discretized time-invariant state-space model.
         Discretization can be either forward/backward Euler or Tustin.
@@ -11,7 +21,7 @@ class DiscretizedStateSpaceModel(object):
     def __init__(self, 
         A: np.ndarray, B: np.ndarray, C: np.ndarray, D: np.ndarray, h: float, 
         x0: np.ndarray = None, 
-        method="forward"
+        method: DiscretizationMethod = DiscretizationMethod.FORWARD
     ) -> None:
         """ Create a n-dof dimensional state-space model
             :param A: state commutation matrix
@@ -20,12 +30,8 @@ class DiscretizedStateSpaceModel(object):
             :param D: input-output matrix (can be None)
             :param h: step size
             :param x0: initial state of the system (assumed zeros if None)
-            :param method: approximation method {exact, forward, backward, tustin}
+            :param method: approximation method
         """
-        ALLOWED_METHODS = ["exact", "forward", "backward", "tustin"]
-        
-        # check method
-        assert method in ALLOWED_METHODS, f"method must be one of {{ {', '.join(ALLOWED_METHODS)} }}"
         self.method = method
         
         # check A dimensions
@@ -83,20 +89,20 @@ class DiscretizedStateSpaceModel(object):
     def _setup_coeffs(self, h: float) -> None:
         self.h = h
         # actual coefficient used for computation
-        if self.method == "exact":
+        if self.method == DiscretizationMethod.EXACT:
             # TODO here we suppose `A` is diagonalizable, add jordanization
             L, V = np.linalg.eig(self.A)  # A = V @ diag(L)*h @ inv(V)
             eAh = V @ np.exp(np.diag(L*h)) @ np.linalg.inv(V)
             G = np.linalg.inv(self.A) @ (eAh - self._eye_n) @ self.B
             # FIXME wtf happened here?
             raise RuntimeError("exact method is currently broken")
-        elif self.method == "forward":
+        elif self.method == DiscretizationMethod.FORWARD:
             eAh = self._eye_n + self.A * h
             G = self.B * h
-        elif self.method == "backward":
+        elif self.method == DiscretizationMethod.BACKWARD:
             eAh = np.linalg.inv(self._eye_n - self.A * h)
             G = eAh @ self.B * h
-        elif self.method == "tustin":
+        elif self.method == DiscretizationMethod.TUSTIN:
             eAh = (self._eye_n + 0.5 * self.A * h) @ np.linalg.inv(self._eye_n - 0.5 * self.A * h)
             G = np.linalg.inv(self.A) @ (eAh - self._eye_n) @ self.B
         else:
@@ -147,7 +153,7 @@ class DiscretizedStateSpaceModel(object):
 
 class LPFilter(DiscretizedStateSpaceModel):
     
-    def __init__(self, freq, gain=1, n=1, h=0.001, method="forward") -> None:
+    def __init__(self, freq, gain=1, n=1, h=0.001, method=DiscretizationMethod.FORWARD) -> None:
         A = -freq * np.eye(n)
         B = gain * freq * np.eye(n)
         super().__init__(A, B, None, None, h, None, method)
@@ -155,7 +161,7 @@ class LPFilter(DiscretizedStateSpaceModel):
 
 class Admittance(DiscretizedStateSpaceModel):
     
-    def __init__(self, M, D, K, h, n=None, method="forward") -> None:
+    def __init__(self, M, D, K, h, n=None, method=DiscretizationMethod.FORWARD) -> None:
         """ Create a n-dof dimensional admittance
             :param m: mass of the admittance (float, 1-d, or 2-d ndarray)
             :param d: damping of the admittance (float, 1-d, 2-d ndarray, or None for critically damped system)
@@ -221,7 +227,7 @@ class Admittance(DiscretizedStateSpaceModel):
         return X, dX
 
 class AdmittanceForce(Admittance):
-    def __init__(self, M, D, K, h, method="forward") -> None:
+    def __init__(self, M, D, K, h, method=DiscretizationMethod.FORWARD) -> None:
         super().__init__(M, D, K, h, 3, method)
     
     def compute(self, f: np.ndarray, h_new: float = None):    
@@ -232,7 +238,7 @@ class AdmittanceForce(Admittance):
 
 class AdmittanceTorque(Admittance):
     
-    def __init__(self, M, D, K, h, method="forward") -> None:
+    def __init__(self, M, D, K, h, method=DiscretizationMethod.FORWARD) -> None:
         super().__init__(M, D, K, h, 3, method)
     
     def compute(self, m: np.ndarray, h_new: float = None):    
@@ -255,9 +261,10 @@ class AdmittanceTorque(Admittance):
         for t in range(T):
             X[t, ...], dX[t, ...] = self.compute(U[t, ...])
         return X, dX
-    
-class AdmittanceWrench(Admittance):
-    def __init__(self, M, D, K, h, method="forward") -> None:
+
+# TODO implement an `AdmittanceWrenchScrew`
+class AdmittanceWrenchDecoupled(Admittance):
+    def __init__(self, M, D, K, h, method=DiscretizationMethod.FORWARD) -> None:
         super().__init__(M, D, K, h, 6, method)
     
     def compute(self, w: np.ndarray, h_new: float = None):    

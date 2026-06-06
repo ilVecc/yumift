@@ -128,6 +128,10 @@ class YumiTrajectory(MultiTrajectory[YumiParam]):
         vel = ( 0.5 * (vm1 + vm2) ) * ( (np.abs(vm1) >= eps) * (np.abs(vm2) >= eps) * (np.sign(vm1) == np.sign(vm2)) )
         return vel
     
+    def restart(self) -> None:
+        self.traj_right.restart()
+        self.traj_left.restart()
+    
     def update(self, path_parameters: List[MultiParam[YumiParam]]) -> None:
         """ Updates the inner trajectory when new path parameterns are been received
             :param path_parameters: list of path parameters

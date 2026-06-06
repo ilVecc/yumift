@@ -101,6 +101,13 @@ class MultiTrajectory(Trajectory[TParam]):
         self._segment_idx_curr = -1
         super().clear()
     
+    def restart(self) -> None:
+        """ Method to restart the Path from the beginning after a computation 
+            round (i.e. needed when the Path is computed more than once).
+        """
+        self._segment_new = True
+        self._segment_idx_curr = -1
+    
     def update(self, path_parameters: List[MultiParam[TParam]]) -> None:
         assert path_parameters[0].duration == 0, "First path parameter must have no duration"
         timemarks = np.cumsum([p.duration for p in path_parameters])
@@ -191,9 +198,12 @@ class FakeTrajectory(Trajectory[Any]):
     """ Trajectory useful when constructing a complex path which does not use
         an underlying Trajectory object (i.e. in a double path, two objects
         are needed instead of one). Remember to avoid using methods `.compute()` 
-        and `.update()` if not necessary. """
+        and `.update()` if not necessary. 
+    """
+    
     def __init__(self) -> None:
         super().__init__()
+    
     def compute(self, t) -> Any:
         return None
     

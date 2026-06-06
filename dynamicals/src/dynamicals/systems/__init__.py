@@ -1,5 +1,5 @@
 from .state_space import (
-    DiscretizedStateSpaceModel,
+    DiscretizationMethod, DiscretizedStateSpaceModel,
     LPFilter, Admittance, 
-    AdmittanceForce, AdmittanceTorque, AdmittanceWrench
+    AdmittanceForce, AdmittanceTorque, AdmittanceWrenchDecoupled
 )

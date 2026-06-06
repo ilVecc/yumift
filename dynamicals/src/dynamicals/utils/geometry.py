@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.typing import ArrayLike
 import quaternion as quat
 
 
@@ -30,27 +31,22 @@ def normalize3(v: np.ndarray, return_norm=False) -> np.ndarray:
         return w, norm
     return w
 
-def ceil_mag(v: np.ndarray, threshold: float, value: float = np.inf, return_decomposed=False):
+def ceil_mag(v: np.ndarray, threshold: float, value: float = +np.inf):
     """ Set the given value if the magnitude of the vector is more than the threshold
     """
     mag = np.linalg.norm(v)
-    dir = v / (mag or 1)
-    if mag >= threshold:
-        mag = value
-    if return_decomposed:
-        return dir, mag
-    return dir * mag
+    if mag != 0 and mag >= threshold:
+        return value * (v / mag)
+    return v
 
-def floor_mag(v: np.ndarray, threshold: float, value: float = 0.0, return_decomposed=False):
+def floor_mag(v: np.ndarray, threshold: float, value: float = -np.inf):
     """ Set the given value if the magnitude of the vector is less than the threshold
     """
     mag = np.linalg.norm(v)
-    dir = v / (mag or 1)
-    if mag <= threshold:
-        mag = value
-    if return_decomposed:
-        return dir, mag
-    return dir * mag
+    if mag != 0 and mag <= threshold:
+        return value * (v / mag)
+    return v
+    
 
 
 from .quaternions import quat_avg
@@ -61,22 +57,22 @@ class Frame(object):
     """
     def __init__(
         self,
-        position: np.ndarray = np.zeros(3),
+        position: ArrayLike = np.zeros(3),
         rotation: np.quaternion = quat.one,
-        velocity: np.ndarray = np.zeros(6),
-        acceleration: np.ndarray = np.zeros(6),
-        wrench: np.ndarray = np.zeros(6)
+        velocity: ArrayLike = np.zeros(6),
+        acceleration: ArrayLike = np.zeros(6),
+        wrench: ArrayLike = np.zeros(6)
     ):
         """ Initialize a frame with position, rotation, and velocity
             :param position: np.array([x,y,z]) position [m]
             :param rotation: np.quaternion([w,x,y,z]) orientation [unit quaternion]
         """
-        self._pos = position
+        self._pos = np.asarray(position)
         self._quat = rotation
-        self._vel = velocity
+        self._vel = np.asarray(velocity)
         # TODO i don't know, implement me...
-        self._acc = acceleration
-        self._wrc = wrench
+        self._acc = np.asarray(acceleration)
+        self._wrc = np.asarray(wrench)
 
     def __add__(self, other: "Frame") -> "Frame":
         """ Component-wise addition of this frame to the other.
@@ -100,9 +96,9 @@ class Frame(object):
 
     def __matmul__(self, frame: "Frame") -> "Frame":
         """ Perform this transformation on the other transformation/frame. 
-            This operation makes sense when `self` is a transformation wrt `frame`.
-            Being a transformation, `self.vel` should be `0`, but can actually 
-            be anything to be added to `frame`'s transformed velocity.
+            This operation makes sense when `self` is a transformation of `frame`,
+            but can be also interpreted as expressing `frame` in `self`.
+            Thus, `self.vel` is added to `frame`'s transformed velocity.
         """
         return Frame(
             # t := q1 * t2 * ~q1 + t1

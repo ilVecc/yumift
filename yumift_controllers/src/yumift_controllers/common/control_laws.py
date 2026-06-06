@@ -5,10 +5,10 @@ import numpy as np, quaternion as quat
 from .parameters import ControllerParameters
 from yumift_common.robot_state import YumiCoordinatedRobotState
 
-from dynamicals.utils import Frame
+from dynamicals.utils import Frame, floor_mag
 from dynamicals.common.control_laws import AbstractControlLaw
 from dynamicals.impl import CartesianVelocityControlLaw
-from dynamicals.systems import AdmittanceWrench
+from dynamicals.systems import DiscretizationMethod, AdmittanceWrenchDecoupled
 
 
 class YumiIndividualCartesianVelocityControlLaw(AbstractControlLaw):
@@ -288,7 +288,7 @@ class YumiIndividualAdmittanceControlLaw(YumiIndividualCartesianVelocityControlL
         e, de, dde      error (and derivatives) on the desired point due to external forces
     in individual motion.
     """
-    def __init__(self, gains, discretization="forward"):
+    def __init__(self, gains, discretization="forward", initial_timestep=ControllerParameters.dt):
         super().__init__(gains)
         
         def weights(side: str):
@@ -303,8 +303,9 @@ class YumiIndividualAdmittanceControlLaw(YumiIndividualCartesianVelocityControlL
             K = gains[side]["F_K"] + gains[side]["T_K"]
             return M, D, K
         
-        self.admittance_right = AdmittanceWrench(*weights("IR"), ControllerParameters.dt, discretization)
-        self.admittance_left = AdmittanceWrench(*weights("IL"), ControllerParameters.dt, discretization)
+        discretization = DiscretizationMethod.from_str(discretization)
+        self.admittance_right = AdmittanceWrenchDecoupled(*weights("IR"), initial_timestep, discretization)
+        self.admittance_left = AdmittanceWrenchDecoupled(*weights("IL"), initial_timestep, discretization)
         self.wrench_right = np.zeros((6,))
         self.wrench_left = np.zeros((6,))
     
@@ -329,13 +330,8 @@ class YumiIndividualAdmittanceControlLaw(YumiIndividualCartesianVelocityControlL
         # des_vel = [vR, wR, vL, wL]
         # wrenches = [fR, mR, fL, mL]
         
-        yW_r = self.wrench_right
-        yW_l = self.wrench_left
-        
-        if np.linalg.norm(yW_r) < 0.1:
-            yW_r *= 0
-        if np.linalg.norm(yW_l) < 0.1:
-            yW_l *= 0
+        yW_r = floor_mag(self.wrench_right, 0.1, 0)
+        yW_l = floor_mag(self.wrench_left, 0.1, 0)
         
         # compensate for external wrenches
         (err_pos_r, err_rot_r), (err_vel_r, err_wel_r) = self.admittance_right.compute(yW_r, self.dt)
@@ -380,7 +376,7 @@ class YumiDualAdmittanceControlLaw(YumiDualCartesianVelocityControlLaw):
         e, de, dde      error (and derivatives) on the desired point due to external forces
     in either individual or coordinated motion.
     """
-    def __init__(self, gains, discretization="forward"):
+    def __init__(self, gains, discretization="forward", initial_timestep=ControllerParameters.dt):
         super().__init__(gains)
         
         def weights(side: str):
@@ -390,10 +386,11 @@ class YumiDualAdmittanceControlLaw(YumiDualCartesianVelocityControlLaw):
             K = gains[side]["F_K"] + gains[side]["T_K"]
             return M, D, K
         
-        self.admittance_right = AdmittanceWrench(*weights("IR"), ControllerParameters.dt, discretization)
-        self.admittance_left = AdmittanceWrench(*weights("IL"), ControllerParameters.dt, discretization)
-        self.admittance_abs = AdmittanceWrench(*weights("CA"), ControllerParameters.dt, discretization)
-        self.admittance_rel = AdmittanceWrench(*weights("CR"), ControllerParameters.dt, discretization)
+        discretization = DiscretizationMethod.from_str(discretization)
+        self.admittance_right = AdmittanceWrenchDecoupled(*weights("IR"), initial_timestep, discretization)
+        self.admittance_left = AdmittanceWrenchDecoupled(*weights("IL"), initial_timestep, discretization)
+        self.admittance_abs = AdmittanceWrenchDecoupled(*weights("CA"), initial_timestep, discretization)
+        self.admittance_rel = AdmittanceWrenchDecoupled(*weights("CR"), initial_timestep, discretization)
         self.wrench_right = np.zeros((6,))
         self.wrench_left = np.zeros((6,))
         self.wrench_abs = np.zeros((6,))
@@ -424,13 +421,8 @@ class YumiDualAdmittanceControlLaw(YumiDualCartesianVelocityControlLaw):
         # des_vel = [vR, wR, vL, wL] or [vA, wA, vR, wR]
         # wrenches = [fR, mR, fL, mL] or [fA, mA, fR, mR]
         
-        yW_r = self.wrench_right
-        yW_l = self.wrench_left
-        
-        if np.linalg.norm(yW_r) < 0.1:
-            yW_r *= 0
-        if np.linalg.norm(yW_l) < 0.1:
-            yW_l *= 0
+        yW_r = floor_mag(self.wrench_right, 0.1, 0)
+        yW_l = floor_mag(self.wrench_left, 0.1, 0)
         
         # compensate for external wrenches
         (err_pos_r, err_rot_r), (err_vel_r, err_wel_r) = self.admittance_right.compute(yW_r, self.dt)

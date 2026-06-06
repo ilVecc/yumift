@@ -12,6 +12,7 @@ catkin_install_python(PROGRAMS
   scripts/examples/example_2_incremental_postures.py
   # scripts/examples/example_3_coordinated_mode.py
   # scripts/examples/example_4_incremental_postures.py
+  scripts/examples/example_wiggle.py
   scripts/postures/face_back.py
   scripts/postures/face_down.py
   scripts/postures/face_front.py

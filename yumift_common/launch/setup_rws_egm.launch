@@ -13,12 +13,15 @@
   <!-- =========================================================================================================== -->
 
   <!-- RWS state publisher (i.e. general states about the robot controller) -->
+  <!-- (wraps the ROS-agnostic `abb_librws` under the hood in a ROS node) -->
   <include file="$(find abb_rws_state_publisher)/launch/rws_state_publisher.launch">
     <arg name="robot_ip" value="$(arg robot_ip)"/>
     <arg name="robot_nickname" value="$(arg robot_nickname)"/>
+    <!-- <arg name="polling_rate" value="5"/> -->
   </include>
 
-  <!-- RWS service provider (i.a. starting/stopping the robot controller's RAPID execution) -->
+  <!-- RWS service provider (i.e. start/stop RAPID execution in the robot controller and EGM via the State Machine Add-In) -->
+  <!-- (wraps the ROS-agnostic `abb_librws` and `abb_libegm` under the hood in ROS node/services) -->
   <include file="$(find abb_rws_service_provider)/launch/rws_service_provider.launch">
     <arg name="robot_ip" value="$(arg robot_ip)"/>
     <arg name="robot_nickname" value="$(arg robot_nickname)"/>
@@ -33,6 +36,7 @@
 
   <!-- EGM hardware interface (i.e. 'ros_control'-based interface for interacting with mechanical units) -->
   <!-- this starts the EGM communication with the robot -->
+  <!-- (wraps the ROS-agnostic `abb_libegm` under the hood in a ROS node) -->
   <include file="$(find abb_egm_hardware_interface)/launch/egm_hardware_interface.launch">
     <arg name="base_config_file" value="$(find yumift_common)/config/config_hardware_base.yaml"/>
     <arg name="egm_config_file" value="$(find yumift_common)/config/config_hardware_egm.yaml"/>
@@ -42,7 +46,6 @@
   <group ns="egm">
     <!-- Load configurations for 'ros_control' controllers on the parameter server -->
     <rosparam file="$(find yumift_common)/config/config_controllers.yaml" command="load"/>
-
     <!-- Two 'ros_control' controller spawners (stopped for the controller that command motions) -->
     <node pkg="controller_manager" type="spawner" name="started" args="egm_state_controller joint_state_controller"/>
     <node pkg="controller_manager" type="spawner" name="stopped" args="--stopped joint_group_velocity_controller"/>

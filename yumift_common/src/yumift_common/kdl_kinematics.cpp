@@ -58,17 +58,11 @@ void jacobian_data(int dof, KDL::Jacobian jacobian_right, KDL::Jacobian jacobian
 void pose_data(KDL::Frame frame, geometry_msgs::Pose* pose)
 {
     // function geting geometry_msgs::Pose message from KDL::Frame
-    double Qw;
-    double Qx;
-    double Qy;
-    double Qz;
-
-    frame.M.GetQuaternion(Qx,Qy,Qz,Qw);
-
-    pose->orientation.w = Qw;
-    pose->orientation.x = Qx;
-    pose->orientation.y = Qy;
-    pose->orientation.z = Qz;
+    frame.M.GetQuaternion(
+        pose->orientation.x,
+        pose->orientation.y,
+        pose->orientation.z,
+        pose->orientation.w);
 
     pose->position.x = frame.p.data[0];
     pose->position.y = frame.p.data[1];

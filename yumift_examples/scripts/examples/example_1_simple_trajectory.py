@@ -43,7 +43,13 @@ def main():
         # Notice the use of the `H.cm` function, which uses centimeters instead of
         # meters; alternatively, you can use `H.mm` for millimeters. 
         # Also, notice the use of the `H.e2q` function, which converts Euler angles 
-        # to quaternions (using the "Relative X-Y-Z" convention by default).
+        # to quaternions (using the "Relative X-Y-Z" convention by default, meaning 
+        # the rotation is defined as:
+        #  1) start from the unity rotation, generating the first frame
+        #  2) rotate around the x-axis of the first frame, generating the second frame
+        #  3) rotate around the y-axis of the second frame, generating the third frame
+        #  4) rotate around the z-axis of the third frame, generating the final frame
+        # and finally convert it to a quaternion).
         (H.cm(35, 20, 20), H.e2q(+90, 0, 0), 0.0)
     )
 
@@ -59,8 +65,8 @@ def main():
                 (H.cm(35, -10, 4), H.e2q(0, 45, -135, "rzyx"), 20.0),
                 (H.cm(35, +10, 4), H.e2q(0, 45, +135, "rzyx"), 20.0)),
             H.posture( 5.0,
-                (H.cm(45, -15, 15), H.e2q(0, 180, 0)),  # no gripper value needed
-                (H.cm(45, +15, 15), H.e2q(0, 180, 0))),
+                (H.cm(45, -15, 15), H.e2q(180, -45, -30, "ryzx")),  # no gripper value needed, the previous one will be used
+                (H.cm(45, +15, 15), H.e2q(180, +45, +30, "ryzx"))),
     ])
 
 

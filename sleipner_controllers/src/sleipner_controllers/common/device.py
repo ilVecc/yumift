@@ -157,9 +157,9 @@ class SleipnerCartesianDevice(AbstractDevice[SleipnerCartesianDeviceState, Sleip
         super().__init__()
         self._cache_state = SleipnerCartesianDeviceState()
         # sleipner command publisher
-        self._pub_vel = rospy.Publisher("/base/twist_mux/command_teleop_keyboard", TwistMsg, queue_size=1, tcp_nodelay=False)
+        self._pub_vel = rospy.Publisher("/base/twist_mux/command_teleop_keyboard", TwistMsg, queue_size=1)
         # sleipner state subscriber
-        rospy.Subscriber("/base/odometry_controller/odometry", OdometryMsg, self._callback_received_odom, queue_size=1, tcp_nodelay=False)
+        rospy.Subscriber("/base/odometry_controller/odometry", OdometryMsg, self._callback_received_odom, queue_size=1)
         # ensure to start the controller with a real robot state 
         # (zero-wait-time means default state (all zeros), which is very bad)
         rospy.wait_for_message("/base/odometry_controller/odometry", OdometryMsg)

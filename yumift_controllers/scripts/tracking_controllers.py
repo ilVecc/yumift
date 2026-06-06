@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 import argparse
-
-from typing import Tuple
 from typing_extensions import override
 
 import rospy
@@ -11,9 +9,12 @@ from yumift_msgs.msg import YumiPosture as YumiPostureMsg
 
 from yumift_controllers.common.device import YumiDualDeviceState, YumiDevice
 from yumift_controllers.common.controller_base import YumiDualController, MixedVelocityYumiAction
-from yumift_controllers.common.control_laws import YumiIndividualCartesianVelocityControlLaw
+from yumift_controllers.common.control_laws import YumiIndividualCartesianVelocityControlLaw, YumiDualCartesianVelocityControlLaw
 from yumift_controllers.impl.trajectory import YumiParam
-from yumift_controllers.misc.utils import load_config, YumiCoordinatedRobotState_from_YumiParam
+from yumift_controllers.misc.utils import (
+    load_config, sanitize_pos, sanitize_rot, sanitize_vel, sanitize_grip,
+    YumiCoordinatedRobotState_from_YumiParam
+)
 
 
 class YumiIndividualTrackingController(YumiDualController):
@@ -23,50 +24,25 @@ class YumiIndividualTrackingController(YumiDualController):
     """
     def __init__(self, gains):
         super().__init__(yumi_device=YumiDevice(), ikalgorithms="pinv")
-        
         # define control law
         self.control_law = YumiIndividualCartesianVelocityControlLaw(gains)
-        
         # prepare trajectory buffer
         self.desired_posture = YumiParam()
-    
-    @override
-    def stop(self):
-        rospy.loginfo("Controller shutting down")
-        super().stop()
     
     @override
     def reset(self, state: YumiDualDeviceState):
         """ Reinitialize the controller setting the current posture as desired posture. 
             This happens after EGM (re)connects
         """
-        # BUG must be changed to correct Enum
-        self.control_law.mode = "individual"
+        # HACK must be changed to correct Enum
+        self.control_law.mode = YumiDualCartesianVelocityControlLaw.ControlMode.INDIVIDUAL
         self.effective_mode = self.control_law.mode
         # read current state of Yumi
-        while True:
-            self.device_read()
-            if self.device_is_ready():
-                self.desired_posture = YumiParam(
-                    state.pose_gripper_r.pos, state.pose_gripper_r.rot, np.zeros(6), 0, 
-                    state.pose_gripper_l.pos, state.pose_gripper_l.rot, np.zeros(6), 0)
-                print("Controller reset (previous posture has been discarded)")
-                break
-            else:
-                print("Controller cannot be reset (Yumi is not ready, retrying in 5 seconds)")
-                rospy.sleep(5)
-    
-    @staticmethod
-    def _sanitize_pos(pos: Tuple[float]):
-        return np.asarray(pos) if pos else np.array([0,0,0])
-    
-    @staticmethod
-    def _sanitize_rot(rot: Tuple[float]):
-        return quat.quaternion(*rot) if rot else quat.one
-    
-    @staticmethod
-    def _sanitize_vel(vel: Tuple[float]):
-        return np.asarray(vel) if vel else np.array([0,0,0,0,0,0])
+        while not self.device_is_ready():
+            rospy.logwarn("Controller cannot be reset (Yumi is not ready, retrying in 5 seconds)")
+            rospy.sleep(5)
+        self.desired_posture = YumiParam.from_Frames(state.pose_gripper_r.motionless(), state.pose_gripper_l.motionless(), 0, 0)
+        rospy.loginfo("Controller reset (previous posture has been discarded)")
     
     @override
     def policy(self, state: YumiDualDeviceState) -> MixedVelocityYumiAction:
@@ -74,7 +50,7 @@ class YumiIndividualTrackingController(YumiDualController):
         """
         # update the current and desired robot state in the control law class, 
         # then compute the required command
-        dt = (rospy.Time.now() - state.time).to_sec()
+        dt = self.dt(state.time)
         yumi_desired_state = YumiCoordinatedRobotState_from_YumiParam(self.desired_posture)
         vel_r, vel_l = self.control_law.update_and_compute(state, yumi_desired_state, dt)
         
@@ -91,41 +67,46 @@ class SingleTrackingController(YumiIndividualTrackingController):
     def __init__(self, gains):
         super().__init__(gains)
         # listen for posture commands
-        rospy.Subscriber("/posture_r", YumiPostureMsg, self._callback_posture, "right", queue_size=1, tcp_nodelay=False)
-        rospy.Subscriber("/posture_l", YumiPostureMsg, self._callback_posture, "left", queue_size=1, tcp_nodelay=False)
+        rospy.Subscriber("/posture_r", YumiPostureMsg, self._callback_posture, "right", queue_size=1)
+        rospy.Subscriber("/posture_l", YumiPostureMsg, self._callback_posture, "left", queue_size=1)
     
-    def _callback_posture(self, posture: YumiPostureMsg):
+    def _callback_posture(self, posture: YumiPostureMsg, side: str):
         """ Gets called when a posture is received.  
         """
-        self.desired_posture.pose_right.pos = self._sanitize_pos(posture.pose_primary.position)
-        self.desired_posture.pose_right.rot = self._sanitize_rot(posture.pose_primary.orientation)
-        self.desired_posture.pose_right.vel = self._sanitize_vel(posture.twist_primary)
-        self.desired_posture.grip_right = posture.gripper_right
-        self.desired_posture.pose_left.pos = self._sanitize_pos(posture.pose_secondary.position)
-        self.desired_posture.pose_left.rot = self._sanitize_rot(posture.pose_secondary.orientation)
-        self.desired_posture.pose_left.vel = self._sanitize_vel(posture.twist_secondary)
-        self.desired_posture.grip_left = posture.gripper_right
+        if side == "right":
+            self.desired_posture.pose_right.pos = sanitize_pos(posture.pose_primary.position)
+            self.desired_posture.pose_right.rot = sanitize_rot(posture.pose_primary.orientation)
+            self.desired_posture.pose_right.vel = sanitize_vel(posture.twist_primary)
+            self.desired_posture.grip_right = sanitize_grip(posture.gripper_right)
+        elif side == "left":
+            self.desired_posture.pose_left.pos = sanitize_pos(posture.pose_secondary.position)
+            self.desired_posture.pose_left.rot = sanitize_rot(posture.pose_secondary.orientation)
+            self.desired_posture.pose_left.vel = sanitize_vel(posture.twist_secondary)
+            self.desired_posture.grip_left = sanitize_grip(posture.gripper_left)
+        else:
+            raise Exception(f"No such side {side}")
 
 class WholeTrackingController(YumiIndividualTrackingController):
     def __init__(self, gains):
         super().__init__(gains)
         # listen for posture command for the overall robot
-        rospy.Subscriber("/posture", YumiPostureMsg, self._callback_posture, queue_size=1, tcp_nodelay=False)
+        rospy.Subscriber("/posture", YumiPostureMsg, self._callback_posture, queue_size=1)
 
     def _callback_posture(self, posture: YumiPostureMsg):
         """ Gets called when a posture is received.  
         """
-        self.desired_posture.pose_right.pos = self._sanitize_pos(posture.pose_primary.position)
-        self.desired_posture.pose_right.rot = self._sanitize_rot(posture.pose_primary.orientation)
-        self.desired_posture.pose_right.vel = self._sanitize_vel(posture.twist_primary)
-        self.desired_posture.grip_right = posture.gripper_right
-        self.desired_posture.pose_left.pos = self._sanitize_pos(posture.pose_secondary.position)
-        self.desired_posture.pose_left.rot = self._sanitize_rot(posture.pose_secondary.orientation)
-        self.desired_posture.pose_left.vel = self._sanitize_vel(posture.twist_secondary)
-        self.desired_posture.grip_left = posture.gripper_right
+        self.desired_posture.pose_right.pos = sanitize_pos(posture.pose_primary.position)
+        self.desired_posture.pose_right.rot = sanitize_rot(posture.pose_primary.orientation)
+        self.desired_posture.pose_right.vel = sanitize_vel(posture.twist_primary)
+        self.desired_posture.grip_right = sanitize_grip(posture.gripper_right)
+        self.desired_posture.pose_left.pos = sanitize_pos(posture.pose_secondary.position)
+        self.desired_posture.pose_left.rot = sanitize_rot(posture.pose_secondary.orientation)
+        self.desired_posture.pose_left.vel = sanitize_vel(posture.twist_secondary)
+        self.desired_posture.grip_left = sanitize_grip(posture.gripper_left)
 
 
 if __name__ == "__main__":
+    
     parser = argparse.ArgumentParser("Various tracking controllers")
     parser.add_argument("type", nargs="?", choices=["single", "whole"], default="single", type=str)
     args = parser.parse_args()
@@ -139,8 +120,6 @@ if __name__ == "__main__":
         yumi_controller = WholeTrackingController(load_config("gains_simple.yaml"))
     else:
         raise AttributeError(f"no such option '{parser.type}'")
-    
-    rospy.on_shutdown(yumi_controller.stop)
     
     yumi_controller.ready()
     yumi_controller.start()  # locking

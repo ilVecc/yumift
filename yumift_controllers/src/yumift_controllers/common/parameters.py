@@ -13,7 +13,6 @@ class ControllerParameters():
     # initial configuration
     CONFIG_INIT_POS = np.array([ 1.0, -2.0, -1.2, 0.6, -2.0, 1.0, 0.0,   # right arm
                                 -1.0, -2.0,  1.2, 0.6,  2.0, 1.0, 0.0])  # left arm
-    CONFIG_INIT_VEL = np.zeros(14)
 
     # reset configuration 
     CONFIG_READY_POS = np.array([ 0.7, -1.7, -0.8, 1.0, -2.2, 1.0, 0.0, 

@@ -4,10 +4,8 @@
   <arg name="robot_nickname" default="yumi"/>
   <arg name="resilient" default="false"/>
   
-  <group ns="$(arg robot_nickname)">
-    <node name="egm_link" pkg="yumift_common" type="egm_link.py" respawn="$(arg resilient)" respawn_delay="2" output="screen">
-      <param name="egm_settings" type="yaml" textfile="$(find yumift_common)/config/egm_settings.yaml" />
-    </node>
-  </group>
-
+  <node name="egm_link" pkg="yumift_common" type="egm_link.py" respawn="$(arg resilient)" respawn_delay="2" output="screen" ns="$(arg robot_nickname)">
+    <param name="egm_settings" type="yaml" textfile="$(find yumift_common)/config/egm_settings.yaml" />
+  </node>
+  
 </launch>

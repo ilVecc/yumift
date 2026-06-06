@@ -8,7 +8,7 @@
   <arg name="start_egm_link" default="false"/>
   <arg name="resilient_egm_link" default="false"/>
   <arg name="rviz" default="true"/>
-  <arg name="individual" default="true"/>
+  <arg name="coordinated" default="false"/>
 
   <group ns="$(arg robot_nickname)">
 
@@ -20,7 +20,7 @@
       </include>
       <include if="$(eval start_egm_link or resilient_egm_link)" file="$(find yumift_common)/launch/start_egm.launch">
         <arg name="resilient" value="$(arg resilient_egm_link)" />
-        <arg name="robot_nickname" value="" />
+        <arg name="robot_nickname" value="" />  <!-- the namespace is already defined above -->
       </include>
     </group>
     <!-- ... or the simulator -->
@@ -41,7 +41,7 @@
     <include file="$(find yumift_common)/launch/unified_state_updater.launch">
       <!-- TODO remove this line and dynamically load it -->
       <arg name="coordinated_symmetry" value="0"/>
-      <arg if="$(arg individual)" name="update_options" value="3" />
+      <arg unless="$(arg coordinated)" name="update_options" value="3" />
       <arg name="topic_sensor_r" default="sensors/wrench/right/compensated_world"/>
       <arg name="topic_sensor_l" default="sensors/wrench/left/compensated_world"/>
       <arg name="topic_kinematics" default="unified/kinematics"/>

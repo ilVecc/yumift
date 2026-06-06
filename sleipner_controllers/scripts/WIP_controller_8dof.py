@@ -58,13 +58,13 @@ class SleipnerDevice(AbstractDevice[SleipnerDeviceState, SleipnerDeviceCommand])
     def __init__(self):
         super().__init__()
         # sleipner command publisher
-        self._pub_vel = rospy.Publisher("/base/twist_mux/command_teleop_keyboard", TwistMsg, queue_size=1, tcp_nodelay=False)
+        self._pub_vel = rospy.Publisher("/base/twist_mux/command_teleop_keyboard", TwistMsg, queue_size=1)
         # sleipner state subscriber
         self._cache_state = SleipnerDeviceState()
         self._device_ready = False
         self._device_ready_changed = False
-        rospy.Subscriber("/base/joint_states", JointStateMsg, self._callback_received_joints, queue_size=1, tcp_nodelay=False)
-        rospy.Subscriber("/base/odometry_controller/odometry", OdometryMsg, self._callback_received_odom, queue_size=1, tcp_nodelay=False)
+        rospy.Subscriber("/base/joint_states", JointStateMsg, self._callback_received_joints, queue_size=1)
+        rospy.Subscriber("/base/odometry_controller/odometry", OdometryMsg, self._callback_received_odom, queue_size=1)
         # ensure to start the controller with a real robot state 
         # (no wait means default state (all zeros), very bad)
         # TODO use me

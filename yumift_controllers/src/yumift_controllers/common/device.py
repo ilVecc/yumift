@@ -49,7 +49,7 @@ class YumiVelocityCommand(object):
     """ Used for storing the velocity command for yumi
     """
     def __init__(self):
-        self._pub = rospy.Publisher("/yumi/egm/joint_group_velocity_controller/command", Float64MultiArrayMsg, queue_size=1, tcp_nodelay=False)
+        self._pub = rospy.Publisher("/yumi/egm/joint_group_velocity_controller/command", Float64MultiArrayMsg, queue_size=1)
 
     def send_velocity_cmd(self, joint_velocity: np.ndarray):
         """ Velocity should be an np.array() with 14 elements, [right arm, left arm]
@@ -131,7 +131,7 @@ class YumiDevice(AbstractDevice[YumiDualDeviceState, YumiDualDeviceCommand]):
         # yumi state subscriber
         self._cache_state: YumiDualDeviceState
         self._device_ready = False
-        rospy.Subscriber("/yumi/unified/robot_state_coordinated", RobotStateMsg, self._callback_received_state, queue_size=1, tcp_nodelay=False)
+        rospy.Subscriber("/yumi/unified/robot_state_coordinated", RobotStateMsg, self._callback_received_state, queue_size=1)
         # ensure to start the controller with a real robot state 
         # (no wait means default state (all zeros), very bad)
         rospy.wait_for_message("/yumi/unified/robot_state_coordinated", RobotStateMsg)
@@ -142,7 +142,7 @@ class YumiDevice(AbstractDevice[YumiDualDeviceState, YumiDualDeviceCommand]):
 
         # EGM error handler and status updater (updates `self._device_ready`)
         self._start_rapid = rospy.ServiceProxy("/yumi/rws/start_rapid", TriggerWithResultCodeSrv)
-        rospy.Subscriber("/yumi/rws/system_states", SystemStateMsg, self._callback_update_status, queue_size=1, tcp_nodelay=False)
+        rospy.Subscriber("/yumi/rws/system_states", SystemStateMsg, self._callback_update_status, queue_size=1)
         rospy.wait_for_message("/yumi/rws/system_states", SystemStateMsg)
 
     def _callback_update_status(self, data: SystemStateMsg):

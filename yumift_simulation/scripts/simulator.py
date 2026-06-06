@@ -141,7 +141,7 @@ def main():
 
     simulator = Simulator()
 
-    rospy.Subscriber("/yumi/egm/joint_group_velocity_controller/command", Float64MultiArrayMsg, simulator.callback, queue_size=1, tcp_nodelay=False)
+    rospy.Subscriber("/yumi/egm/joint_group_velocity_controller/command", Float64MultiArrayMsg, simulator.callback, queue_size=1)
     srv_start_rapid = rospy.Service("/yumi/rws/start_rapid", TriggerWithResultCodeSrv, simulator.rapid_service)
 
     msg = JointState(

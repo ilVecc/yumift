@@ -139,9 +139,26 @@ class Helper():
         
         if postures is None and routine_name is None:
             raise Exception("No trajectory/routine specified")
-
-        msg = YumiTrajectory()
         
+        # if wait_time == False, then T = 0  (no sleep)
+        if not (isinstance(wait_completion, bool) and not wait_completion):
+            if postures is None:
+                # TODO assuming all routines take 5 seconds is bad
+                time = 5.0
+            else:
+                # if wait_time <  0.0,   then T = |wait_time|
+                if isinstance(wait_completion, float) and wait_completion < 0:
+                    time = abs(wait_completion)
+                else:
+                    # if wait_time == True,  then T = sum(durations) 
+                    time = sum([p.time_to_execute.to_sec() for p in postures])
+                    # if wait_time >= 0.0,   then T = sum(durations) + wait_time
+                    if isinstance(wait_completion, float) and wait_completion > 0:
+                        time += abs(wait_completion)
+            wait_completion = True  # ensure bool type
+        
+        # prepare the message
+        msg = YumiTrajectory()
         if postures is None:
             msg.mode = YumiTrajectory.ROUTINE
             msg.routine_name = routine_name
@@ -149,20 +166,14 @@ class Helper():
             msg.mode = mode.value[0]
             msg.trajectory = postures
         
+        # send the message
         msg.header.stamp = rospy.Time.now()
         pub.publish(msg)
         
+        # print if required
         if print_message is not None:
             rospy.loginfo(print_message)
         
-        if isinstance(wait_completion, float):
-            extra_time = abs(wait_completion)
-            wait_completion = True
-        else:
-            extra_time = 0
-        
-        if wait_completion is True:
-            if postures is None:
-                rospy.sleep(5.0)  # default sleep time for a routine
-            else:
-                rospy.sleep(sum([p.time_to_execute.to_sec() for p in postures]) + extra_time)
+        # wait if required
+        if wait_completion:    
+            rospy.sleep(time)

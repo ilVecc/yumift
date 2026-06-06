@@ -14,6 +14,7 @@ tframe: &tframe
   trans: *xyz_origin
   rot: *quat_one
 
+
 # Gripper info page 21-22 in https://abb.sluzba.cz/Pages/Public/IRC5UserDocumentationRW6/en/3HC054949%20PM%20IRB%2014000%20Gripper-en.pdf
 # mass [kg], center_of_gravity [mm], inertia [kgm^2]
 total_load_R: &total_load_R
@@ -47,7 +48,8 @@ tool_L: &tool_L
   robhold: True
   tframe: *tframe
   tload: *total_load_L
-  
+
+
 work_obj: &work_obj
   robhold: False
   ufprog: True
@@ -66,6 +68,7 @@ correction_frame: &correction_frame
 sensor_frame: &sensor_frame
   trans: *xyz_origin
   rot: *quat_one
+
 
 activate_R: &activate_R
   tool: *tool_R

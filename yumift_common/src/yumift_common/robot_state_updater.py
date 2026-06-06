@@ -9,7 +9,7 @@ from yumift_msgs.msg import YumiKinematics, RobotState, Jacobian
 from yumift_common.robot_state import YumiCoordinatedRobotState
 import yumift_common.msg_utils as msg_utils
 
-from dynamicals.utils import Frame, jacobian_change_frames, jacobian_combine
+from dynamicals.utils import Frame, jacobian_change_frames, jacobian_combine, quat_diff
 
 
 RIGHT        = 0b00000001
@@ -38,6 +38,10 @@ class YumiStateUpdater(object):
         
         # values to be updated by reference
         self.state = state
+        
+        # coordinated jacobian
+        self.link_mat = np.zeros((12,12))
+        self._cache_eye = np.eye(6)
         
         # RobotState publisher
         self._robot_state_publisher = rospy.Publisher("/robot_state_coordinated", RobotState, queue_size=1)
@@ -105,82 +109,53 @@ class YumiStateUpdater(object):
         state.effector_wrc = self._wrenches
         state.joint_tau = state.jacobian_grippers.T @ state.effector_wrc
     
-    
     def _update_coordinated(self):
         state = self.state
+        link = self.link_mat
         
         alpha = state.alpha
         alpha_ = 1 - state.alpha
         beta = alpha / (alpha**2 + alpha_**2)
         beta_ = alpha_ / (alpha**2 + alpha_**2)
         
-        state.pose_abs = Frame.from_matrix(np.linalg.inv(state.pose_gripper_r.matrix()) @ state.pose_gripper_l.matrix()).partial(alpha_)
-        state.pose_rel = Frame.from_matrix(np.linalg.inv(state.pose_gripper_r.partial(beta_).matrix()) @ state.pose_gripper_l.partial(beta).matrix())
+        # if np.isclose(quat_diff(rot_abs, state.pose_abs.rot).w, 0):
+        #     rot_abs = -rot_abs
         
-        # coordinated jacobian
-        link_mat = np.zeros((12,12)) 
+        # state.pose_abs = state.pose_gripper_r @ (state.pose_gripper_r.inv() @ state.pose_gripper_l).partial(alpha_)
+        # state.pose_rel = state.pose_gripper_r.partial(beta_).inv() @ state.pose_gripper_l.partial(beta)
+        
+        # absolute pose, average of the grippers wrt base frame
+        pos_abs = alpha_ * state.pose_gripper_r.pos + alpha * state.pose_gripper_l.pos
+        rot_diff = quat_diff(state.pose_gripper_l.rot, state.pose_gripper_r.rot)
+        rot_diff_asym = np.exp(alpha_ * np.log(rot_diff))
+        rot_abs = rot_diff_asym * state.pose_gripper_l.rot
+        state.pose_abs = Frame(pos_abs, rot_abs)
+        # relative pose, difference of the grippers wrt absolute frame
+        pose_abs_inv = state.pose_abs.inv()
+        pose_r_wrt_abs = pose_abs_inv @ state.pose_gripper_r
+        pose_l_wrt_abs = pose_abs_inv @ state.pose_gripper_l        
+        pos_rel = beta * pose_r_wrt_abs.pos - beta_ * pose_l_wrt_abs.pos
+        rot_r_rel = np.exp(beta * np.log(pose_r_wrt_abs.rot))  # see above the explanation
+        rot_l_rel = np.exp(beta_ * np.log(pose_l_wrt_abs.rot))
+        rot_rel = quat_diff(rot_l_rel, rot_r_rel)
+        state.pose_rel = Frame(pos_rel, rot_rel)
+        
         # absolute linking matrix: maps gripper velocities to the velocity average
-        link_mat[:6,:6] = alpha_ * np.eye(6)
-        link_mat[:6,6:] = alpha  * np.eye(6)
+        link[:6,:6] = alpha_ * self._cache_eye
+        link[:6,6:] = alpha  * self._cache_eye
         # relative linking matrix: maps gripper velocities to the velocity difference wrt absolute frame
-        base_ee_to_abs_rel_trans = jacobian_change_frames( alpha_ * state.pose_gripper_r.pos - alpha * state.pose_gripper_l.pos, state.pose_abs.inv().rot )
-        link_mat[6:,:6] = base_ee_to_abs_rel_trans @ ( beta *np.eye(6))
-        link_mat[6:,6:] = base_ee_to_abs_rel_trans @ (-beta_*np.eye(6))
+        base_ee_to_abs_rel_trans = jacobian_change_frames( alpha_ * state.pose_gripper_r.pos - alpha * state.pose_gripper_l.pos, state.pose_abs.rot.conjugate() )
+        link[6:,:6] = base_ee_to_abs_rel_trans @ ( beta *self._cache_eye)
+        link[6:,6:] = base_ee_to_abs_rel_trans @ (-beta_*self._cache_eye)
         
-        # # TODO remove the following
-        # # WARNING this produces a kind of "quaternion difference discontinuity" 
-        # #         when the poses are 180deg from each other around a shared a common axis
-        # from dynamics.quat_utils import quat_diff
-        # pos_abs = (1-state.alpha)*state.pose_gripper_r.pos + state.alpha*state.pose_gripper_l.pos
-        # rot_diff = quat_diff(state.pose_gripper_l.rot, state.pose_gripper_r.rot)
-        # # `quat.as_rotation_vector()` === `2*np.log().vec` and since `rot_diff` is 
-        # # normalized, the `.vec` is not necessary because the scalar part will be 0. 
-        # # then, since `quat.from_rotation_vector(...)` === `np.exp([0, .../2])`, we 
-        # # can simplify the 2s and avoid pre-pending the 0
-        # rot_diff_asym = np.exp((1-state.alpha) * np.log(rot_diff))
-        # rot_abs = rot_diff_asym * state.pose_gripper_l.rot
-        # # if np.isclose(quat_diff(rot_abs, state.pose_abs.rot).w, 0):
-        # #     rot_abs = -rot_abs
-        # state.pose_abs = Frame(pos_abs, rot_abs)
-        #
-        # # relative pose, difference of the grippers wrt absolute frame
-        # beta = state.alpha / ((1-state.alpha)**2 + state.alpha**2)
-        # beta__ = (1-state.alpha) / ((1-state.alpha)**2 + state.alpha**2)
-        # # WARNING here we CANNOT simplify 
-        # #             pose_abs_inv @ state.pose_gripper_r - pose_abs_inv @ state.pose_gripper_l
-        # #         to  
-        # #             pose_abs_inv @ (state.pose_gripper_r - state.pose_gripper_l)
-        # #         due to non-commutation of rotation in the "pose subtraction" operation
-        # pose_abs_inv = state.pose_abs.inv()
-        # pose_r_wrt_abs = pose_abs_inv @ state.pose_gripper_r
-        # pose_l_wrt_abs = pose_abs_inv @ state.pose_gripper_l
-        # pos_rel = beta * pose_r_wrt_abs.pos - beta__ * pose_l_wrt_abs.pos
-        # rot_r_rel = np.exp(beta * np.log(pose_r_wrt_abs.rot))  # see above the explanation
-        # rot_l_rel = np.exp(beta__ * np.log(pose_l_wrt_abs.rot))
-        # rot_rel = quat_diff(rot_l_rel, rot_r_rel)
-        # state.pose_rel = Frame(pos_rel, rot_rel)
-        #
-        # # absolute linking matrix: maps gripper velocities to the velocity average
-        # link_mat_abs = np.block([ alpha__*np.eye(6), alpha*np.eye(6) ])
-        #
-        # # relative linking matrix: maps gripper velocities to the velocity difference wrt absolute frame
-        # # TODO investigate this weighting
-        # base_ee_to_abs_rel_trans = utils_dyn.jacobian_change_frames( alpha__ * state.pose_gripper_r.pos - alpha * state.pose_gripper_l.pos, state.pose_abs.inv().rot )
-        # link_mat_rel = base_ee_to_abs_rel_trans @ np.block([ beta*np.eye(6), -beta__*np.eye(6) ])
-        #
-        # # coordinated jacobian
-        # link_mat = np.block([[ link_mat_abs ],
-        #                      [ link_mat_rel ]])
-        
-        state.jacobian_coordinated = link_mat @ state.jacobian_grippers
-        
+        state.jacobian_coordinated = link @ state.jacobian_grippers
         # set velocities (avoid np.concatenate as it is expensive, prefer slicing (still expensive))
-        state.pose_abs.vel = link_mat[:6,:6] @ state.pose_gripper_r.vel + link_mat[:6,6:] @ state.pose_gripper_l.vel
-        state.pose_rel.vel = link_mat[6:,:6] @ state.pose_gripper_r.vel + link_mat[6:,6:] @ state.pose_gripper_l.vel
+        state.pose_abs.vel = link[:6,:6] @ state.pose_gripper_r.vel + link[:6,6:] @ state.pose_gripper_l.vel
+        state.pose_rel.vel = link[6:,:6] @ state.pose_gripper_r.vel + link[6:,6:] @ state.pose_gripper_l.vel
         
         # update wrenches
-        # (using the kineto-statics duality, i.e. pose_wrench = link_mat.T @ wrench_coordinated )
-        wrench_coordinated = np.linalg.inv(link_mat.T) @ state.effector_wrc
+        # (using the kineto-statics duality, i.e. pose_wrench = link.T @ wrench_coordinated )
+        wrench_coordinated = np.linalg.inv(link.T) @ state.effector_wrc
         state.pose_wrench_abs = wrench_coordinated[:6]
         state.pose_wrench_rel = wrench_coordinated[6:]
 

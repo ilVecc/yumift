@@ -19,5 +19,5 @@ class HQPParameters():
     elbows_min_distance = 0.200  # closes the elbows can be to each other in [m]
     
     # for joint potential, be less strict on the last wrist joints
-    potential_weight = np.array([1., 1., 1., 1., 1., 1., 0.25, 
-                                 1., 1., 1., 1., 1., 1., 0.25])
+    potential_weight = np.array([1., 1., 1., 1., 0.25, 0.25, 0.25, 
+                                 1., 1., 1., 1., 0.25, 0.25, 0.25])

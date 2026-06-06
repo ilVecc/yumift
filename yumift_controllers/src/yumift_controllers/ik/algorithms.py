@@ -1,8 +1,9 @@
-from typing import Dict
+from typing import Dict, Optional, Callable
 
 import numpy as np
+from numpy.typing import ArrayLike
 
-from .pinv_tasks import *
+from .pinv_tasks import secondary_neutral, secondary_center, secondary_nothing, YumiSizedArray
 from .hqp_tasks import *
 from .hqp_parameters import HQPParameters
 from .solver import IKAlgorithm
@@ -181,14 +182,59 @@ class HQPIKAlgorithm(IKAlgorithm):
 
 class PINVIKAlgorithm(IKAlgorithm):
 
-    def __init__(self):
+    def __init__(self, 
+        weights : Optional[ArrayLike] = [50., 50., 50., 50., 1., 1., 1.], 
+        damping : Optional[float] = 0.01, 
+        secondary_obj : Optional[Callable[[YumiSizedArray, YumiSizedArray], YumiSizedArray]] = secondary_neutral
+    ):
+        """ :param weights: cost for each joint
+        """
         super().__init__(name="pinv", can_init_late=True)
+        
+        self.secondary_obj = secondary_obj if secondary_obj is not None else secondary_nothing
+        
+        # weighted jacobian (W diagonal matrix)
+        #   J+ = W^-1 J' (J W^-1 J')^-1
+        if weights is None:
+            self.pinv_funct = lambda J : np.linalg.pinv(J)
+            self.W = np.ones(YumiRobotConstants.DOF)
+        else:
+            self.pinv_funct = lambda J : self.L[:,None] * np.linalg.pinv(J * self.L)  # use * instead of @ for performance
+            weights = np.asarray(weights)
+            if weights.shape == (YumiRobotConstants.DOF,):
+                self.W = weights
+            elif weights.shape == (YumiRobotConstants.DOF//2,):
+                self.W = np.concatenate([weights, weights])
+            else:
+                raise AttributeError("Weights must be None, 7-DOF or 14-DOF")
+        
+        # performance can improved for static W using its Cholesky decomposition
+        #   W^-1 = L L' = L^2  (L is diagonal as well)
+        #   J+ = W^-1 J' (J W^-1 J')^-1
+        #      = L (J L)' ((J L) (J L)')^-1
+        self.L = np.sqrt(1/self.W)
+        
+        if damping is not None:
+            # Tikhonov regularization
+            # J+ = J' (J J' + G G')^-1
+            # G = d I  (usually, becoming L2 regularization)
+            self.G = damping * np.eye(YumiRobotConstants.EE)
+            self.GGT = self.G @ self.G.T
+            
+            def damped_weighted_pinv(J : np.ndarray):
+                JL = J * self.L
+                return self.L[:,None] * JL.T @ np.linalg.inv(JL @ JL.T + self.GGT)
+            
+            self.pinv_funct = damped_weighted_pinv
 
+        self._cached_eye_DOF = np.eye(YumiRobotConstants.DOF)
+        
     def init(self):
         """ Sets up the pseudo-inverse solver
         """
         pass
-
+    
+    # TODO not all actions are `dict`
     def solve(self, action: dict, state: YumiDualDeviceState):
 
         jacobian = None
@@ -213,9 +259,10 @@ class PINVIKAlgorithm(IKAlgorithm):
         for i in range(7):
             joint_pos[i] = state.joint_pos_r[i]
             joint_pos[i+7] = state.joint_pos_l[i]
-        jacobian_pinv = np.linalg.pinv(jacobian)
-        vel = jacobian_pinv @ xdot \
-            + (np.eye(YumiRobotConstants.DOF) - jacobian_pinv @ jacobian) @ secondary_neutral(joint_pos, None)  # `state.joint_vel` not needed
+        
+        jacobian_pinv = self.pinv_funct(jacobian)
+        ortho_proj = self._cached_eye_DOF - jacobian_pinv @ jacobian
+        vel = jacobian_pinv @ xdot + ortho_proj @ self.secondary_obj(joint_pos, None)  # `state.joint_vel` not needed
 
         return vel
 

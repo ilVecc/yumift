@@ -21,38 +21,70 @@ if __name__ == "__main__":
         print_message="Incremental trajectory sent",
         wait_completion=True,
         postures=[
+            # Let's start in a comfortable position for the demo.
             H.posture( 8.0,
                 primary=(H.cm(35, -20, 20), H.e2q(-90, 0, 0)),
                 secondary=(H.cm(35, +20, 20), H.e2q(+90, 0, 0)),
                 incremental=H.Incr.OFF),
+            # This handy method creates a "keep previous posture for X seconds" 
+            # message and, for now, it uses magic to do that. We will use it to 
+            # pause and understand the various motions from now on.
+            H.pause(2.0),
+            ###################################################################
             # These three points are expressed as an increment to their previous 
             # point, w.r.t. the (global) world frame, i.e. Yumi's base.
             # Essentially, we are now passing a transformation (translation and 
-            # rotation) instead of a pose (position and orientation).
+            # rotation) instead of a pose (position and orientation), and this 
+            # transformation acts on the world frame. Effectively, this performs
+            # a motion as if we were modifying the world frame.
             H.posture( 5.0,
-                # [0.35, -0.2, 0.2]_WORLD + [0, +0.10, 0]_WORLD
-                primary=(H.cm(0, +10, 0), H.e2q(0, 0, -45, "rxyz")),
-                # No explicit secondary pose provided, this defaults to "do nothing"
-                # and can also be omitted entirely.
+                # Position is a vector to be added to the initial position as
+                #   [0.35, -0.2, 0.2]_WORLD + [-0.15, 0, 0]_WORLD
+                # For simplicity, no explicit rotation is defined now, meaning no 
+                # rotation will be applied on the current orientation.
+                primary=(H.cm(-15, 0, 0),),
+                # No explicit secondary pose provided, defaulting to "do nothing".
+                # This argument can also be omitted entirely.
                 secondary=tuple(),
-                # The increment is expressed in the world frame
+                # Finally, explicitely set the increment in the world frame.
+                # If you forget to do this, the arguments above are interpreted 
+                # as a desired pose instead of a desired transformation.
                 incremental=H.Incr.GLOBAL),
+            H.pause(2.0),
             H.posture( 5.0,
-                # To simplify even further the commands, you can avoid writing 
-                # the coordinates you do not care about, and default them to 0.
+                # To simplify the commands, you can avoid writing the coordinates 
+                # you do not care about; this defaults them to 0.
                 # For orientations, the default behaviour is `rxyz`, so "rotate 
                 # around the x-axis first, then on the new y-axis, and finally 
                 # on the new new z-axis", and the argument names are `ai`, `aj`, 
-                # `ak` (i,j,k are generic placeholder names for the chosen axes), 
-                # so the setting below performs a 45 degress rotation around 
-                # (unmodified, since `ai=0` by default) y-axis.
-                primary=(H.cm(z=-10), H.e2q(aj=45)),
+                # `ak` (i,j,k are generic placeholder names for the chosen order).
+                # The setting below thus performs a 45 degress rotation around the 
+                # unrotated z-axis (since `ai=0` and `aj=0` by default).
+                # It is important to remember that GLOBAL increments are expressed 
+                # in the world frame, meaning that an z-axis rotation pivots the 
+                # gripper around the world z-axis. Thus, z-axis translations do 
+                # not interfere with z-axis rotations (and any other same-axis 
+                # pair) ...
+                primary=(H.cm(z=-10), H.e2q(ak=45)),
                 incremental=H.Incr.GLOBAL),
-            H.posture( 5.0,
-                primary=(H.cm(x=+10), H.e2q(ai=45)),
-                incremental=H.Incr.GLOBAL),
-            # Handy method for "keep previous posture for X seconds" message
             H.pause(2.0),
+            # ... but different-axis pairs (or any multi-axis transformation, so 
+            # in general any other transformation) can result in apparently strange 
+            # behaviour. The example below moves the y-axis and rotates around the
+            # x-axis (we pedagogically chose to change the axes order to "relative,
+            # first y, then new z, then new new x" so `aj` in this case defines the 
+            # angle around the "new new x axis", which is simply the original x-axis).
+            # This achieves a seemingly unnatural motion, easily explanied by 
+            # remembering that the global transform essentially locks the gripper's 
+            # pose to the world frame, and then changes the world frame as desired.
+            H.posture( 5.0,
+                primary=(H.cm(y=-20), H.e2q(ak=-90, axes="ryzx")),
+                incremental=H.Incr.GLOBAL),
+            # Again, wait a little before the next motion.
+            # Now we can explain what a "pause" command actually is: a simple global
+            # increment by a zero translation and an identity rotation!
+            H.pause(2.0),
+            ###################################################################
             # These three points are expressed as an increment to their previous
             # point, w.r.t. the (local) target frame, i.e. Yumi's left tooltip.
             # The local increments are internally converted to global and then 

@@ -71,7 +71,7 @@ class KentaurController(AbstractROSController[KentaurDeviceState, KentaurDeviceA
         # transform yumi grippers from yumi base to home
         curr_homeX_r = homeXy @ state.state_yumi.pose_gripper_r
         curr_homeX_l = homeXy @ state.state_yumi.pose_gripper_l
-        curr_param = YumiParam.from_PoseParams(curr_homeX_r, curr_homeX_l)
+        curr_param = YumiParam.from_Frames(curr_homeX_r, curr_homeX_l)
         curr_state = YumiCoordinatedRobotState_from_YumiParam(curr_param)
         
         curr_yW_r = floor_mag(state.state_yumi.pose_wrench_r, 0.75, 0)

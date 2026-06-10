@@ -217,7 +217,7 @@ class YumiTrajectoryController(RoutinableYumiController):
                 grip_r = grip_r + prev_param.grip_right
                 grip_l = grip_l + prev_param.grip_left
                 
-                # TODO handle incremental twist
+                # TODO handle twist (can be None) in incremental mode
                 prev_1.vel = np.zeros(6)
                 prev_2.vel = np.zeros(6)
                 
@@ -227,14 +227,9 @@ class YumiTrajectoryController(RoutinableYumiController):
                     frame_1 = prev_1 @ frame_1
                     frame_2 = prev_2 @ frame_2
                 elif posture.incremental == YumiPostureMsg.GLOBAL:
-                    # next_posture = inv(prev_posture) @ global_transformation @ prev_posture
-                    frame_1 = prev_1.inv() @ frame_1 @ prev_1
-                    frame_2 = prev_2.inv() @ frame_2 @ prev_2
-
-                    # next_posture = global_transformation "*" prev_posture
-                    rot_2 = rot_2 * prev_2.rot
-                    pos_2 = pos_2 + prev_2.pos
-
+                    # next_posture = global_transformation @ prev_posture
+                    frame_1 = frame_1 @ prev_1
+                    frame_2 = frame_2 @ prev_2
                 else:
                     rospy.logerr(f"Unknown incremental mode {posture.incremental}")
             

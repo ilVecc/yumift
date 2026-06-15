@@ -45,21 +45,6 @@ class YumiDualDeviceCommand(AbstractDeviceCommand):
 
 
 # UTILS
-class YumiVelocityCommand(object):
-    """ Used for storing the velocity command for yumi
-    """
-    def __init__(self):
-        self._pub = rospy.Publisher("/yumi/egm/joint_group_velocity_controller/command", Float64MultiArrayMsg, queue_size=1)
-
-    def send_velocity_cmd(self, joint_velocity: np.ndarray):
-        """ Velocity should be an np.array() with 14 elements, [right arm, left arm]
-        """
-        # flip the array to [left, right] as required by ros_control velocity controller
-        msg = Float64MultiArrayMsg(
-            data=joint_velocity[7:14].tolist() + joint_velocity[0:7].tolist())
-        self._pub.publish(msg)
-
-
 class YumiGrippersCommand(object):
     """ Class for controlling the grippers on YuMi, the grippers are controlled
         in [mm] and uses ros service
@@ -116,7 +101,6 @@ class YumiGrippersCommand(object):
         except Exception as ex:
             print(f"SmartGripper error : {ex}")
 
-
 # TODO why not dual?
 # TODO remove "/yumi" from everywhere
 class YumiDevice(AbstractDevice[YumiDualDeviceState, YumiDualDeviceCommand]):
@@ -137,7 +121,7 @@ class YumiDevice(AbstractDevice[YumiDualDeviceState, YumiDualDeviceCommand]):
         rospy.wait_for_message("/yumi/unified/robot_state_coordinated", RobotStateMsg)
 
         # command publishers
-        self._pub_vel = YumiVelocityCommand()
+        self._pub_vel = rospy.Publisher("/yumi/egm/joint_group_velocity_controller/command", Float64MultiArrayMsg, queue_size=1)
         self._pub_grip = YumiGrippersCommand()
 
         # EGM error handler and status updater (updates `self._device_ready`)
@@ -178,8 +162,10 @@ class YumiDevice(AbstractDevice[YumiDualDeviceState, YumiDualDeviceCommand]):
 
     @override
     def send(self, command: YumiDualDeviceCommand):
-        # yumi control command and gripper control command (if any)
+        # flip the array to [left, right] as required by ros_control velocity controller
+        vel = command._dq_target.tolist()
+        msg = Float64MultiArrayMsg(data=vel[7:14]+vel[0:7])
+        self._pub_vel.publish(msg)
         # avoid sendind commands all the time to optimize bandwidth
-        self._pub_vel.send_velocity_cmd(command._dq_target)
         if (command._grip_r is not None) or (command._grip_l is not None):
             self._pub_grip.send_position_cmd(command._grip_r, command._grip_l)

@@ -178,7 +178,8 @@ class Admittance(DiscretizedStateSpaceModel):
         self.M = self._reshape(M, n)
         self.K = self._reshape(K, n)
         self.D = self._reshape(D, n) if D is not None else np.diag([None]*n)
-        self.D[self.D == None] = 2*self._matrix_sqrt((self.M[self.D == None] @ self.K[self.D == None]))
+        if np.any(self.D == None):
+            self.D[self.D == None] = 2*self._matrix_sqrt((self.M[self.D == None] @ self.K[self.D == None]))
         self.D = self.D.astype(float)
         self.dims = n
         

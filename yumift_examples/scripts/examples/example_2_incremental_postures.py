@@ -31,8 +31,8 @@ if __name__ == "__main__":
             # pause and understand the various motions from now on.
             H.pause(2.0),
             ###################################################################
-            # These three points are expressed as an increment to their previous 
-            # point, w.r.t. the (global) world frame, i.e. Yumi's base.
+            # These three postures are expressed as an increment from the previous, 
+            # w.r.t. the (global) world frame, i.e. Yumi's base.
             # Essentially, we are now passing a transformation (translation and 
             # rotation) instead of a pose (position and orientation), and this 
             # transformation acts on the world frame. Effectively, this performs
@@ -85,10 +85,10 @@ if __name__ == "__main__":
             # increment by a zero translation and an identity rotation!
             H.pause(2.0),
             ###################################################################
-            # These three points are expressed as an increment to their previous
-            # point, w.r.t. the (local) target frame, i.e. Yumi's left tooltip.
-            # The local increments are internally converted to global and then 
-            # applied to the previous point's global coordinates. 
+            # These three postures are expressed as an increment to the previous
+            # w.r.t. the (local) target frame, i.e. Yumi's tooltips.
+            # This transformation acts on the previous pose, effectively, performing
+            # a motion as if we were modifying the tooltip frame.
             H.posture( 5.0,
                 # [x y z]_WORLD + [0, +0.10, 0]_LOCAL
                 secondary=(H.cm(y=+10), H.e2q(ak=-45)),

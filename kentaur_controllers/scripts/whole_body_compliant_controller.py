@@ -15,6 +15,7 @@ from yumift_controllers.impl.trajectory import YumiParam
 from yumift_controllers.misc.utils import YumiCoordinatedRobotState_from_YumiParam
 
 from kentaur_controllers.misc.utils import load_config
+from kentaur_controllers.common.parameters import ControllerParameters
 from kentaur_controllers.common import (
     KentaurDeviceState, KentaurDeviceCommand, KentaurDevice,
     YumiDualDeviceCommand, SleipnerCartesianDeviceCommand,
@@ -63,7 +64,7 @@ class KentaurController(AbstractROSController[KentaurDeviceState, KentaurDeviceA
     
     @override
     def policy(self, state: KentaurDeviceState) -> KentaurDeviceAction:
-        state_dt = self.dt(state.state_sleipner.time)
+        ctrl_dt = ControllerParameters.dt  # self.dt(state.state_sleipner.time)
         traj_dt = self.dt(self.trajectory_initial_time)
         
         homeXs, homeXy = self._device.state_to_home(state)
@@ -88,12 +89,12 @@ class KentaurController(AbstractROSController[KentaurDeviceState, KentaurDeviceA
         des_state = YumiCoordinatedRobotState_from_YumiParam(des_param)
         
         # compute target velocities
-        vel_r, vel_l = self.control_law.update_and_compute(curr_state, des_state, state_dt)
+        vel_r, vel_l = self.control_law.update_and_compute(curr_state, des_state, ctrl_dt)
         
         # calculate new target velocities for this time step
         action = KentaurDeviceAction()
         action.action_yumi.control_space(MixedVelocityYumiAction.ControlSpace.INDIVIDUAL)
-        action.action_yumi.timestep(state_dt)
+        action.action_yumi.timestep(ctrl_dt)
         action.action_yumi.velocity_right(vel_r)
         action.action_yumi.velocity_left(vel_l)
         return action
@@ -102,31 +103,12 @@ class KentaurController(AbstractROSController[KentaurDeviceState, KentaurDeviceA
     def solve_action(self, state: KentaurDeviceState, action: KentaurDeviceAction) -> KentaurDeviceCommand:
         
         # base to world transform (odometry/slam data)
-        homeXs, homeXy = self._device.state_to_home(state)
-        
-        # task jacobian
-        homeJy_r = jacobian_change_base_frame(homeXy.rot, state.state_yumi.jacobian_gripper_r)
-        homeJs_r = jacobian_change_base_frame(homeXs.rot, state.state_sleipner.jacobian_SE3)
-        
-        homeJy_l = jacobian_change_base_frame(homeXy.rot, state.state_yumi.jacobian_gripper_l)
-        homeJs_l = homeJs_r
-        
-        
-        alpha = 2.75  # 1> is more yumi, 1< is more sleipner
-        beta = 1/alpha
-        
-        homeJ = np.zeros((6+6,7+7+3))
-        # right arm
-        homeJ[ 0:6, 0:7 ] = alpha * homeJy_r
-        homeJ[ 0:6,14:17] = beta * homeJs_r
-        # left arm
-        homeJ[6:12, 7:14] = alpha * homeJy_l
-        homeJ[6:12,14:17] = beta * homeJs_l
+        homeJ = self._device.jacobian_to_home(state, alpha=2.75)
         
         # compute joints command
-        vel_r = action.action_yumi["velocity_right"]
-        vel_l = action.action_yumi["velocity_left"]
-        vel_tgt = np.concatenate([vel_r, vel_l])  # cartesian, in home frame
+        vel_tgt = np.zeros(12)  # cartesian, in home frame
+        vel_tgt[0:6] = action.action_yumi["velocity_right"]
+        vel_tgt[6:12] = action.action_yumi["velocity_left"]
         
         homeJ_pinv = np.linalg.pinv(homeJ)
         dq_target = homeJ_pinv @ vel_tgt
@@ -138,16 +120,14 @@ class KentaurController(AbstractROSController[KentaurDeviceState, KentaurDeviceA
         if np.any(dq_r_clip) or np.any(dq_l_clip):
             idxs = np.arange(7) + 1
             labels = " ".join([f"R{i}" for i in idxs[dq_r_clip]] + [f"L{i}" for i in idxs[dq_l_clip]])
-            print(f"Joints [ {labels} ] are clipping!")
+            rospy.logwarn(f"Joints [ {labels} ] will clip!")
         
         # create command
         command = KentaurDeviceCommand(
-            YumiDualDeviceCommand(
-                dq_target[0:14],  # [right, left]
-                action.action_yumi.get("gripper_right"),
-                action.action_yumi.get("gripper_left")), 
-            SleipnerCartesianDeviceCommand(
-                dq_target[14:17]))
+            YumiDualDeviceCommand(dq_target[0:14],  # [right, left]
+                                  action.action_yumi.get("gripper_right"),
+                                  action.action_yumi.get("gripper_left")), 
+            SleipnerCartesianDeviceCommand(dq_target[14:17]))
         
         return command
     
@@ -160,4 +140,4 @@ if __name__ == "__main__":
     controller = KentaurController(device)
     
     controller.ready()
-    controller.start(250)  # locking
+    controller.start(ControllerParameters.update_freq)  # locking

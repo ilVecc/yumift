@@ -7,7 +7,7 @@ class ControllerParameters():
         
     # controller rate in Hz, also defined in `kdl_kinematics.cpp` (both needs to be the same!)
     # this is a desired value, thus unreliable! check the actual rate
-    update_rate = 500
+    update_rate = 250
     dt = 1/update_rate
     
     # initial configuration

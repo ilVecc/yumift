@@ -1,16 +1,9 @@
-from typing import Optional
-
 import rospy, rospkg
 import numpy as np, quaternion as quat
 import yaml
 from pathlib import Path
 
-from geometry_msgs.msg import (
-    Point as PointMsg,
-    PoseStamped as PoseStampedMsg, 
-    Quaternion as QuaternionMsg, 
-    Twist as TwistMsg,
-)
+from geometry_msgs.msg import PoseStamped as PoseStampedMsg
 from yumift_msgs.msg import RobotState as RobotStateMsg
 
 from yumift_common.msg_utils import JacobianMsg_to_ndarray, PoseMsg_to_Frame, TwistMsg_to_ndarray, WrenchMsg_to_ndarray
@@ -26,30 +19,6 @@ def load_config(filename : str):
         data = yaml.safe_load(f)
     return data
 
-
-def sanitize_grip(grip: float, default_none: bool = True) -> Optional[float]:
-    if np.isnan(grip):
-        return None if default_none else 0.
-    return grip
-
-def sanitize_pos(pos: PointMsg, default_none: bool = True) -> Optional[np.ndarray]:
-    pos = np.array([pos.x, pos.y, pos.z])
-    if np.any(np.isnan(pos)):
-        return None if default_none else np.zeros(3)
-    return pos
-
-def sanitize_rot(ori: QuaternionMsg, default_none: bool = True) -> Optional[np.quaternion]:
-    ori = quat.quaternion(ori.w, ori.x, ori.y, ori.z)
-    if ori == quat.zero or ori.isnan():
-        return None if default_none else quat.one
-    return ori
-
-def sanitize_vel(vel: TwistMsg, default_none: bool = True) -> Optional[np.ndarray]:
-    vel = np.array([vel.linear.x, vel.linear.y, vel.linear.z, 
-                    vel.angular.x, vel.angular.y, vel.angular.z])
-    if np.any(np.isnan(vel)):
-        return None if default_none else np.zeros(6)
-    return vel
 
 def quat_to_xyzw(q: np.quaternion) -> np.ndarray:
     return np.roll(quat.as_float_array(q), -1)

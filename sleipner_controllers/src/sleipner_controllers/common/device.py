@@ -168,6 +168,8 @@ class SleipnerCartesianDevice(AbstractDevice[SleipnerCartesianDeviceState, Sleip
         # relying on old odometry and thus possibly very biased)
         self.wXhome = self._cache_state.to_Frame()
         self.homeXw = self.wXhome.inv()
+        # pose of Sleipner's top surface from odom
+        self.odomXs = Frame(position=[0, 0, 0.303])
     
     def state_wrt_home(self, state : SleipnerCartesianDeviceState) -> Frame:
         # base transform in home (i.e. sleipner's pose at startup, based on odometry)

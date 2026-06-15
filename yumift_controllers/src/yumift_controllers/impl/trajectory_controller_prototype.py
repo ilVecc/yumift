@@ -10,6 +10,8 @@ from std_msgs.msg import Int64 as Int64Msg
 from nav_msgs.msg import Path as PathMsg
 from geometry_msgs.msg import Point as PointMsg
 from visualization_msgs.msg import MarkerArray as MarkerArrayMsg, Marker as MarkerMsg
+from yumift_controllers.common.parameters import ControllerParameters
+from yumift_msgs.helper import Helper
 from yumift_msgs.msg import YumiTrajectory as YumiTrajectoryMsg, YumiPosture as YumiPostureMsg
 
 from ..common.device import YumiDevice, YumiDualDeviceState, YumiCoordinatedRobotState
@@ -17,10 +19,8 @@ from ..common.controller_base import MixedVelocityYumiAction
 from ..common.controller_routinable import RoutinableYumiController
 from ..common.control_laws import YumiDualCartesianVelocityControlLaw
 from ..ik.algorithms import HQPIKAlgorithm, PINVIKAlgorithm
-from ..misc.utils import (
-    sanitize_pos, sanitize_rot, sanitize_vel, sanitize_grip, quat_to_xyzw,
-    Frame_to_PoseStampedMsg, YumiCoordinatedRobotState_from_YumiParam
-)
+from ..misc.utils import quat_to_xyzw, Frame_to_PoseStampedMsg, YumiCoordinatedRobotState_from_YumiParam
+
 from dynamicals.utils import Frame
 
 from .routines import ReadyPoseRoutine, CalibPoseRoutine
@@ -196,30 +196,27 @@ class YumiTrajectoryController(RoutinableYumiController):
         # append trajectory points from msg
         for posture in traj_msg.trajectory:
             posture: YumiPostureMsg
-            pos_1 = sanitize_pos(posture.pose_primary.position, default_none=False)
-            rot_1 = sanitize_rot(posture.pose_primary.orientation, default_none=False)
-            vel_1 = sanitize_vel(posture.twist_primary)
+            pos_1 = Helper.sanitize_pos(posture.pose_primary.position, default_none=False)
+            rot_1 = Helper.sanitize_rot(posture.pose_primary.orientation, default_none=False)
+            vel_1 = Helper.sanitize_vel(posture.twist_primary)
             frame_1 = Frame(pos_1, rot_1) #, vel_1)
-            pos_2 = sanitize_pos(posture.pose_secondary.position, default_none=False)
-            rot_2 = sanitize_rot(posture.pose_secondary.orientation, default_none=False)
-            vel_2 = sanitize_vel(posture.twist_secondary)
+            pos_2 = Helper.sanitize_pos(posture.pose_secondary.position, default_none=False)
+            rot_2 = Helper.sanitize_rot(posture.pose_secondary.orientation, default_none=False)
+            vel_2 = Helper.sanitize_vel(posture.twist_secondary)
             frame_2 = Frame(pos_2, rot_2) #, vel_2)
-            grip_r = sanitize_grip(posture.gripper_right, default_none=False)
-            grip_l = sanitize_grip(posture.gripper_left, default_none=False)
+            grip_r = Helper.sanitize_grip(posture.gripper_right, default_none=False)
+            grip_l = Helper.sanitize_grip(posture.gripper_left, default_none=False)
             duration = posture.time_to_execute.to_sec()
             # posture.mode  # TODO use me
             
             # convert everything to GLOBAL COORDINATES
             if posture.incremental != YumiPostureMsg.OFF:
                 prev_param = trajectory[-1].param
-                prev_1 = PoseParam.to_Frame(prev_param.pose_right)
-                prev_2 = PoseParam.to_Frame(prev_param.pose_left)
+                # TODO remove .motionless() and handle twist (can be None) in incremental mode
+                prev_1 = PoseParam.to_Frame(prev_param.pose_right).motionless()
+                prev_2 = PoseParam.to_Frame(prev_param.pose_left).motionless()
                 grip_r = grip_r + prev_param.grip_right
                 grip_l = grip_l + prev_param.grip_left
-                
-                # TODO handle twist (can be None) in incremental mode
-                prev_1.vel = np.zeros(6)
-                prev_2.vel = np.zeros(6)
                 
                 # handle incremental postures
                 if posture.incremental == YumiPostureMsg.LOCAL:
@@ -260,11 +257,11 @@ class YumiTrajectoryController(RoutinableYumiController):
         self._lock_trajectory.acquire()
         
         # calculate timing information
-        state_dt = self.dt(state.time)
+        ctrl_dt = ControllerParameters.dt  # self.dt(state.time)
         traj_dt = self.dt(self.trajectory_initial_time)
         
         # update timing
-        self.control_law.update_current_timestep(state_dt)
+        self.control_law.update_current_timestep(ctrl_dt)
         
         # update pose and wrench for the control law class
         self.control_law.update_current_state(state)
@@ -283,7 +280,7 @@ class YumiTrajectoryController(RoutinableYumiController):
             # get space based on control mode ...
             action = MixedVelocityYumiAction()
             action.control_space(MixedVelocityYumiAction.ControlSpace.from_str(self.control_law.mode.value))
-            action.timestep(state_dt)
+            action.timestep(ctrl_dt)
             
             # ... but use the effective mode to set the velocities
             if self.effective_mode == YumiTrajectoryMsg.INDIVIDUAL:

@@ -9,6 +9,7 @@ from dynamicals.impl import AbstractROSController, CartesianVelocityControlLaw
 from pathfinder.polynomial import CubicPoseTrajectory, PoseParam
 
 from sleipner_controllers.common import SleipnerCartesianDeviceState, SleipnerCartesianDeviceCommand, SleipnerCartesianDevice, SE2TwistAction
+from sleipner_controllers.common.parameters import ControllerParameters
 
 from geometry_msgs.msg import Quaternion
 
@@ -62,13 +63,13 @@ class SleipnerCartesianTrajectoryController(
     
     @override
     def policy(self, state: SleipnerCartesianDeviceState) -> SE2TwistAction:
-        state_dt = self.dt(state.time)
+        ctrl_dt = ControllerParameters.dt  # self.dt(state.time)
         traj_dt = self.dt(self.trajectory_initial_time)
         
         frame_now = self._device.state_wrt_home(state)
         frame_next = PoseParam.to_Frame(self.trajectory.compute(traj_dt))
         
-        twist = self.control_law.update_and_compute(frame_now, frame_next, state_dt)
+        twist = self.control_law.update_and_compute(frame_now, frame_next, ctrl_dt)
         
         return SE2TwistAction.from_twist_SE3(twist)
     
@@ -84,4 +85,4 @@ if __name__ == "__main__":
     controller = SleipnerCartesianTrajectoryController(sleipner)
     
     controller.ready()
-    controller.start(250)  # locking
+    controller.start(ControllerParameters.update_freq)  # locking

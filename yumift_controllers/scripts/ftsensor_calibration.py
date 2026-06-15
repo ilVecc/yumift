@@ -472,110 +472,54 @@ def measurement_campaign(prefix: str, filename_left: str, filename_right: str):
     
     wizard.print_campaign("motion (1/6) : FACE DOWN")
     wizard.measure_posture_list([
-        H.posture(4.0,
-            ([0.4, -0.25, 0.1], [0, 1, 0, 0]),
-            ([0.4,  0.25, 0.1], [0, 1, 0, 0])),
-        H.posture(4.0,
-            (H.e2q(0, +30, 0, "sxyz"),),
-            (H.e2q(0, +30, 0, "sxyz"),),
-            incremental=H.Incr.GLOBAL),
-        H.posture(4.0,
-            (H.e2q(0, -60, 0, "sxyz"),),
-            (H.e2q(0, -60, 0, "sxyz"),),
-            incremental=H.Incr.GLOBAL),
-        ])
+        H.posture(4.0,  (H.cm(40, -25, 10), H.e2q(ai=180),),  (H.cm(40, +25, 10), H.e2q(ai=180),), ),
+        H.posture(4.0,  (                   H.e2q(aj=+30),),  (                   H.e2q(aj=+30),), incremental=H.Incr.LOCAL),
+        H.posture(4.0,  (                   H.e2q(aj=-60),),  (                   H.e2q(aj=-60),), incremental=H.Incr.LOCAL),
+    ])
 
     wizard.print_campaign("motion (2/6) : FACE INSIDE")
     wizard.measure_posture_list([
-        H.posture(4.0,
-            ([0.45, -0.1, 0.25], H.e2q(-90, 0, 0, "sxyz")),
-            ([0.45,  0.1, 0.25], H.e2q(+90, 0, 0, "sxyz")),),
-        H.posture(4.0,
-            (H.e2q(-30, 0, 0, "sxyz"),),
-            (H.e2q(+30, 0, 0, "sxyz"),),
-            incremental=H.Incr.GLOBAL),
-        H.posture(4.0,
-            (H.e2q(+60, 0, 0, "sxyz"),),
-            (H.e2q(-60, 0, 0, "sxyz"),),
-            incremental=H.Incr.GLOBAL),
-        ])
+        H.posture(4.0,  (H.cm(45, -10, 25), H.e2q(ai=-90),),  (H.cm(45, +10, 25), H.e2q(ai=+90),), ),
+        H.posture(4.0,  (                   H.e2q(ai=-30),),  (                   H.e2q(ai=+30),), incremental=H.Incr.LOCAL),
+        H.posture(4.0,  (                   H.e2q(ai=+60),),  (                   H.e2q(ai=-60),), incremental=H.Incr.LOCAL),
+    ])
     
     wizard.print_campaign("motion (3/6) : FACE UP")
     wizard.measure_posture_list([
-        H.posture(4.0,
-            ([0.4, -0.2, 0.4], H.e2q(0, 0, 0, "sxyz")),
-            ([0.4,  0.2, 0.4], H.e2q(0, 0, 0, "sxyz")),),
-        H.posture(4.0,
-            (H.e2q(0, +30, 0, "sxyz"),),
-            (H.e2q(0, +30, 0, "sxyz"),),
-            incremental=H.Incr.GLOBAL),
-        H.posture(4.0,
-            (H.e2q(+30, 0, 0, "sxyz"),),
-            (H.e2q(+30, 0, 0, "sxyz"),),
-            incremental=H.Incr.GLOBAL),
-        H.posture(4.0,
-            (H.e2q(-60, 0, 0, "sxyz"),),
-            (H.e2q(-60, 0, 0, "sxyz"),),
-            incremental=H.Incr.GLOBAL),
-        ])
+        H.posture(4.0,  (H.cm(40, -20, 40),               ),  (H.cm(40, +20, 40),               ), ),
+        H.posture(4.0,  (                   H.e2q(aj=+30),),  (                   H.e2q(aj=+30),), incremental=H.Incr.LOCAL),
+        H.posture(4.0,  (                   H.e2q(ai=+30),),  (                   H.e2q(ai=+30),), incremental=H.Incr.LOCAL),
+        H.posture(4.0,  (                   H.e2q(ai=-60),),  (                   H.e2q(ai=-60),), incremental=H.Incr.LOCAL),
+    ])
     wizard.goto_posture(
-        H.posture(4.0,
-            (H.e2q(+30, 0, 0, "sxyz"),),
-            (H.e2q(+30, 0, 0, "sxyz"),),
-            incremental=H.Incr.GLOBAL)
-        )
+        H.posture(4.0,  (                   H.e2q(ai=+30),),  (                   H.e2q(ai=+30),), incremental=H.Incr.LOCAL)
+    )
     wizard.measure_posture_list([
-        H.posture(4.0,
-            (H.e2q(0, -60, 0, "sxyz"),),
-            (H.e2q(0, -60, 0, "sxyz"),),
-            incremental=H.Incr.GLOBAL),
-        H.posture(4.0,
-            (H.e2q(+30, 0, 0, "sxyz"),),
-            (H.e2q(+30, 0, 0, "sxyz"),),
-            incremental=H.Incr.GLOBAL),
-        H.posture(4.0,
-            (H.e2q(-60, 0, 0, "sxyz"),),
-            (H.e2q(-60, 0, 0, "sxyz"),),
-            incremental=H.Incr.GLOBAL),
-        ])
+        H.posture(4.0,  (                   H.e2q(aj=-60),),  (                   H.e2q(aj=-60),), incremental=H.Incr.LOCAL),
+        H.posture(4.0,  (                   H.e2q(ai=+30),),  (                   H.e2q(ai=+30),), incremental=H.Incr.LOCAL),
+        H.posture(4.0,  (                   H.e2q(ai=-60),),  (                   H.e2q(ai=-60),), incremental=H.Incr.LOCAL),
+    ])
     wizard.goto_posture(
-        H.posture(4.0,
-            (H.e2q(+30, 0, 0, "sxyz"),),
-            (H.e2q(+30, 0, 0, "sxyz"),),
-            incremental=H.Incr.GLOBAL),
-        )
+        H.posture(4.0,  (                   H.e2q(ai=+30),),  (                   H.e2q(ai=+30),), incremental=H.Incr.LOCAL),
+    )
     
     # wizard.print_campaign("motion (4/6) : FACE OUTSIDE")
     # wizard.measure_posture_list([
-    #      H.posture(4.0,
-    #         ([0.45, -0.45, 0.5], H.eul2quat(+90, 0, 0, "sxyz")),
-    #         ([0.45,  0.45, 0.5], H.eul2quat(-90, 0, 0, "sxyz")),),
-    #     ])
+    #     H.posture(4.0,  (H.cm(45, -45, 50), H.e2q(ai=+90),), (H.cm(45, +45, 50), H.e2q(ai=-90)),),
+    # ])
     
     wizard.print_campaign("motion (5/6) : FACE BACKWARD")
     wizard.measure_posture_list([
-        H.posture(4.0,
-            ([0.15, -0.25, 0.6], H.e2q(0, -90, 0, "rxyz")),
-            ([0.15,  0.25, 0.6], H.e2q(0, -90, 0, "rxyz")),),
-        H.posture(4.0,
-            (H.e2q(0, 0, +30, "sxyz"),),
-            (H.e2q(0, 0, +30, "sxyz"),),
-            incremental=H.Incr.GLOBAL),
-        H.posture(4.0,
-            (H.e2q(0, 0, -60, "sxyz"),),
-            (H.e2q(0, 0, -60, "sxyz"),),
-            incremental=H.Incr.GLOBAL),
-        ])
+        H.posture(4.0,  (H.cm(15, -25, 60), H.e2q(aj=-90),),  (H.cm(15, +25, 60), H.e2q(aj=-90),), ),
+        H.posture(4.0,  (                   H.e2q(ak=+30),),  (                   H.e2q(ak=+30),), incremental=H.Incr.LOCAL),
+        H.posture(4.0,  (                   H.e2q(ak=-60),),  (                   H.e2q(ak=-60),), incremental=H.Incr.LOCAL),
+    ])
     
     wizard.print_campaign("motion (6/6) : FACE FORWARD")
     wizard.measure_posture_list([
-        H.posture(3.0,
-            ([0.45, -0.15, 0.25], H.e2q(-90, 0, 0, "sxyz")),
-            ([0.45,  0.15, 0.25], H.e2q(+90, 0, 0, "sxyz")),),
-        H.posture(3.0,
-            ([0.45, -0.25, 0.0], H.e2q(0, 90, 0, "rxyz")),
-            ([0.45,  0.25, 0.0], H.e2q(0, 90, 0, "rxyz")),),
-        ])
+        H.posture(3.0,  (H.cm(45, -15, 25), H.e2q(ai=-90)),  (H.cm(45, +15, 25), H.e2q(ai=+90),), ),
+        H.posture(3.0,  (H.cm(45, -25,  0), H.e2q(aj=+90)),  (H.cm(45, +25,  0), H.e2q(aj=+90),), ),
+    ])
 
     wizard.print_campaign("resetting to READY")
     wizard.goto_ready()

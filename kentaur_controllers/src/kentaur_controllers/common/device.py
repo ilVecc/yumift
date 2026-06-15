@@ -30,16 +30,40 @@ class KentaurDevice(AbstractDevice[KentaurDeviceState, KentaurDeviceCommand]):
         self.device_yumi = YumiDevice()
         self.device_sleipner = SleipnerCartesianDevice()
         
-        # yumi to sleipner transform
+        # yumi to sleipner surface transform
         self.sXy = Frame(
-            position=np.array([-0.049, 0, 0.050]), 
+            position=np.array([-0.390, 0, 0.500]), 
             rotation=quat.from_rotation_vector([0, 0, np.deg2rad(180)]))
     
     def state_to_home(self, state : KentaurDeviceState) -> Tuple[Frame, Frame]:
         # base transform in home (i.e. sleipner's pose at startup, based on odometry)
-        homeXs = self.device_sleipner.state_wrt_home(state.state_sleipner)
+        homeXodom = self.device_sleipner.state_wrt_home(state.state_sleipner)
+        homeXs = homeXodom @ self.device_sleipner.odomXs
         homeXy = homeXs @ self.sXy
-        return homeXs, homeXy
+        return homeXodom, homeXy
+    
+    def jacobian_to_home(self, state : KentaurDeviceState, alpha : float = 2.75):
+        """ alpha > 1 is more yumi
+            alpha < 1 is more sleipner
+        """
+        homeXs, homeXy = self.state_to_home(state)
+        
+        # task jacobian
+        homeJy_r = jacobian_change_base_frame(homeXy.rot, state.state_yumi.jacobian_gripper_r)
+        homeJs_r = jacobian_change_base_frame(homeXs.rot, state.state_sleipner.jacobian_SE3)
+        homeJy_l = jacobian_change_base_frame(homeXy.rot, state.state_yumi.jacobian_gripper_l)
+        homeJs_l = homeJs_r
+        
+        beta = 1/alpha
+        homeJ = np.zeros((6+6,7+7+3))
+        # right arm
+        homeJ[ 0:6, 0:7 ] = alpha * homeJy_r
+        homeJ[ 0:6,14:17] = beta * homeJs_r
+        # left arm
+        homeJ[6:12, 7:14] = alpha * homeJy_l
+        homeJ[6:12,14:17] = beta * homeJs_l
+        
+        return homeJ
     
     @override
     def reset(self) -> bool:

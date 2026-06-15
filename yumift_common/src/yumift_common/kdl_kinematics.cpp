@@ -74,7 +74,7 @@ class YumiStatePublisher
 {
     // class for most of the kinematics calculations 
     
-    private:  // private variable declarations 
+    private:
     // define ros subscribers and publishers 
     ros::Subscriber joint_state_sub;
     ros::Subscriber egm_state_sub;
@@ -156,10 +156,8 @@ class YumiStatePublisher
     // egm active for both arms, safety system for if arms not started properly, though doesnt cover everything
     bool egm_active = false;
 
-    // public attributes to class
+    
     public:
-    int state_received = 0;
-
     // constructor
     YumiStatePublisher(ros::NodeHandle *nh);
     // just init pose for initial visualization 
@@ -253,7 +251,6 @@ void YumiStatePublisher::callback(const sensor_msgs::JointState::ConstPtr& joint
         joint_state[16] = 0.0;
         joint_state[17] = 0.0;
     }
-    state_received = 1; // makes sure that nothing is sent until any data has been received 
     mtx_receiving.unlock();
 
     // publish joint states, for visualization in Rviz
@@ -371,7 +368,7 @@ int main(int argc, char** argv){
     // main class 
     ros::NodeHandle nh;
     YumiStatePublisher statePublisher(&nh);
-    ros::Rate loopRate(500);  // Hz, set same value in parameters.py
+    ros::Rate loopRate(500); // Hz
 
     while (ros::ok()){
         statePublisher.update();

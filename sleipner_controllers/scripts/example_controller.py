@@ -5,6 +5,7 @@ import rospy
 
 from dynamicals.impl import AbstractROSController, CartesianVelocityControlLaw
 from sleipner_controllers.common import SleipnerCartesianDeviceState, SleipnerCartesianDeviceCommand, SleipnerCartesianDevice, SE2TwistAction
+from sleipner_controllers.common.parameters import ControllerParameters
 
 
 class DummySleipnerController(
@@ -27,7 +28,7 @@ class DummySleipnerController(
     @override
     def policy(self, state: SleipnerCartesianDeviceState) -> SE2TwistAction:
         # take the delta between the current wall time and the time of the robot state
-        dt = self.dt(state.time)
+        dt = ControllerParameters.dt  # self.dt(state.time)
         # convert the robot state to a SE3 frame
         pose_now = state.to_Frame()
         # compute the velocity to bring the current pose to the target
@@ -47,4 +48,4 @@ if __name__ == "__main__":
     controller = DummySleipnerController(sleipner)
     
     controller.ready()
-    controller.start(250)  # locking
+    controller.start(ControllerParameters.update_freq)  # locking

@@ -2,6 +2,8 @@ import numpy as np
 from numpy.typing import ArrayLike
 import quaternion as quat
 
+from .quaternions import quat_avg
+
 
 def skew_matrix(vector) -> np.ndarray:
     return np.array([[0, -vector[2], vector[1]],
@@ -47,10 +49,6 @@ def floor_mag(v: np.ndarray, threshold: float, value: float = -np.inf):
         return value * (v / mag)
     return v
     
-
-
-from .quaternions import quat_avg
-from .jacobians import jacobian_change_end_frame, skew_matrix
 
 class Frame(object):
     """ Reference frame or transformation
@@ -106,7 +104,7 @@ class Frame(object):
             # q := q1 * q2
             rotation=self.rot * frame.rot,
             # v := v1 + J*v2
-            velocity=self.vel + jacobian_change_end_frame(self.pos) @ frame.vel)
+            velocity=self.vel + self.actOn(frame.vel))
 
     def inv(self) -> "Frame":
         """ Invert this transformation
@@ -117,7 +115,7 @@ class Frame(object):
             # q := ~q
             rotation=self.rot.conjugate(),
             # v := -v
-            velocity=-self.vel)
+            velocity=-self.vel)  # TODO check me
 
     def __invert__(self) -> "Frame":
         return self.inv()

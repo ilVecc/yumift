@@ -117,15 +117,15 @@ class YumiDualController(
     def _on_device_lost(self):
         """ Decides what happens when e.g. control mode goes from "auto" to "manual".
         """
-        print("Controller lost device after \"device_lost\" event")
+        rospy.logwarn("Controller lost device after \"device_lost\" event")
     
     def _on_device_regained(self, state: YumiDualDeviceState):
         """ Decides what happens when e.g. control mode goes from "manual" to "auto".
         """
         self.reset(state)
-        print("Controller ran \"reset()\" after \"device_regained\" event")
+        rospy.logwarn("Controller ran \"reset()\" after \"device_regained\" event")
         self.device_reset()
-        print("Restared RAPID")
+        rospy.logwarn("Restared RAPID")
     
     @override
     def device_is_ready(self) -> bool:
@@ -138,12 +138,12 @@ class YumiDualController(
             self._device_ready_prev = device_ready_curr
             if device_ready_curr:
                 # if auto_mode was off and now it's on (eg. after acknoledgment of EGM error)
-                print("Regained control (auto_mode=true)")
+                rospy.logwarn("Regained control (auto_mode=true)")
                 state = self.device_read()
                 self._on_device_regained(state)
             else:
                 # if auto_mode was on and now it's off (eg. after "joint contraint violation" error)
-                print("Lost control (auto_mode=false)")
+                rospy.logwarn("Lost control (auto_mode=false)")
                 self._on_device_lost()
         
         return device_ready_curr
@@ -194,7 +194,7 @@ class YumiDualController(
             idxs = np.arange(7) + 1
             labels = "".join([f" R{i}" for i in idxs[vel_clip_r]]) \
                    + "".join([f" L{i}" for i in idxs[vel_clip_l]])
-            print(f"Joints [{labels} ] are clipping!")
+            rospy.logwarn(f"Joints [{labels} ] will be clipped!")
         
         # create command
         command = YumiDualDeviceCommand()

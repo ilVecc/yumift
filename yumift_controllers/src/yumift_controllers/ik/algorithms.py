@@ -256,9 +256,8 @@ class PINVIKAlgorithm(IKAlgorithm):
         
         # TODO `state.joint_pos` is a `np.concat`, veeeeery slow
         joint_pos = np.zeros(14)
-        for i in range(7):
-            joint_pos[i] = state.joint_pos_r[i]
-            joint_pos[i+7] = state.joint_pos_l[i]
+        joint_pos[0:7] = state.joint_pos_r
+        joint_pos[7:14] = state.joint_pos_l
         
         jacobian_pinv = self.pinv_funct(jacobian)
         ortho_proj = self._cached_eye_DOF - jacobian_pinv @ jacobian

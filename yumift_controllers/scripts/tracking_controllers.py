@@ -5,16 +5,15 @@ from typing_extensions import override
 import rospy
 import numpy as np, quaternion as quat
 
+from yumift_msgs.helper import Helper
 from yumift_msgs.msg import YumiPosture as YumiPostureMsg
 
+from yumift_controllers.common.parameters import ControllerParameters
 from yumift_controllers.common.device import YumiDualDeviceState, YumiDevice
 from yumift_controllers.common.controller_base import YumiDualController, MixedVelocityYumiAction
 from yumift_controllers.common.control_laws import YumiIndividualCartesianVelocityControlLaw, YumiDualCartesianVelocityControlLaw
 from yumift_controllers.impl.trajectory import YumiParam
-from yumift_controllers.misc.utils import (
-    load_config, sanitize_pos, sanitize_rot, sanitize_vel, sanitize_grip,
-    YumiCoordinatedRobotState_from_YumiParam
-)
+from yumift_controllers.misc.utils import load_config, YumiCoordinatedRobotState_from_YumiParam
 
 
 class YumiIndividualTrackingController(YumiDualController):
@@ -50,14 +49,14 @@ class YumiIndividualTrackingController(YumiDualController):
         """
         # update the current and desired robot state in the control law class, 
         # then compute the required command
-        dt = self.dt(state.time)
+        ctrl_dt = ControllerParameters.dt  #self.dt(state.time)
         yumi_desired_state = YumiCoordinatedRobotState_from_YumiParam(self.desired_posture)
-        vel_r, vel_l = self.control_law.update_and_compute(state, yumi_desired_state, dt)
+        vel_r, vel_l = self.control_law.update_and_compute(state, yumi_desired_state, ctrl_dt)
         
         # calculate new target velocities for this time step
         action = MixedVelocityYumiAction()
         action.control_space(MixedVelocityYumiAction.ControlSpace.from_str(self.control_law.mode))
-        action.timestep(dt)
+        action.timestep(ctrl_dt)
         action.velocity_right(vel_r) 
         action.velocity_left(vel_l)
         return action
@@ -74,15 +73,15 @@ class SingleTrackingController(YumiIndividualTrackingController):
         """ Gets called when a posture is received.  
         """
         if side == "right":
-            self.desired_posture.pose_right.pos = sanitize_pos(posture.pose_primary.position)
-            self.desired_posture.pose_right.rot = sanitize_rot(posture.pose_primary.orientation)
-            self.desired_posture.pose_right.vel = sanitize_vel(posture.twist_primary)
-            self.desired_posture.grip_right = sanitize_grip(posture.gripper_right)
+            self.desired_posture.pose_right.pos = Helper.sanitize_pos(posture.pose_primary.position)
+            self.desired_posture.pose_right.rot = Helper.sanitize_rot(posture.pose_primary.orientation)
+            self.desired_posture.pose_right.vel = Helper.sanitize_vel(posture.twist_primary)
+            self.desired_posture.grip_right = Helper.sanitize_grip(posture.gripper_right)
         elif side == "left":
-            self.desired_posture.pose_left.pos = sanitize_pos(posture.pose_secondary.position)
-            self.desired_posture.pose_left.rot = sanitize_rot(posture.pose_secondary.orientation)
-            self.desired_posture.pose_left.vel = sanitize_vel(posture.twist_secondary)
-            self.desired_posture.grip_left = sanitize_grip(posture.gripper_left)
+            self.desired_posture.pose_left.pos = Helper.sanitize_pos(posture.pose_secondary.position)
+            self.desired_posture.pose_left.rot = Helper.sanitize_rot(posture.pose_secondary.orientation)
+            self.desired_posture.pose_left.vel = Helper.sanitize_vel(posture.twist_secondary)
+            self.desired_posture.grip_left = Helper.sanitize_grip(posture.gripper_left)
         else:
             raise Exception(f"No such side {side}")
 
@@ -95,14 +94,14 @@ class WholeTrackingController(YumiIndividualTrackingController):
     def _callback_posture(self, posture: YumiPostureMsg):
         """ Gets called when a posture is received.  
         """
-        self.desired_posture.pose_right.pos = sanitize_pos(posture.pose_primary.position)
-        self.desired_posture.pose_right.rot = sanitize_rot(posture.pose_primary.orientation)
-        self.desired_posture.pose_right.vel = sanitize_vel(posture.twist_primary)
-        self.desired_posture.grip_right = sanitize_grip(posture.gripper_right)
-        self.desired_posture.pose_left.pos = sanitize_pos(posture.pose_secondary.position)
-        self.desired_posture.pose_left.rot = sanitize_rot(posture.pose_secondary.orientation)
-        self.desired_posture.pose_left.vel = sanitize_vel(posture.twist_secondary)
-        self.desired_posture.grip_left = sanitize_grip(posture.gripper_left)
+        self.desired_posture.pose_right.pos = Helper.sanitize_pos(posture.pose_primary.position)
+        self.desired_posture.pose_right.rot = Helper.sanitize_rot(posture.pose_primary.orientation)
+        self.desired_posture.pose_right.vel = Helper.sanitize_vel(posture.twist_primary)
+        self.desired_posture.grip_right = Helper.sanitize_grip(posture.gripper_right)
+        self.desired_posture.pose_left.pos = Helper.sanitize_pos(posture.pose_secondary.position)
+        self.desired_posture.pose_left.rot = Helper.sanitize_rot(posture.pose_secondary.orientation)
+        self.desired_posture.pose_left.vel = Helper.sanitize_vel(posture.twist_secondary)
+        self.desired_posture.grip_left = Helper.sanitize_grip(posture.gripper_left)
 
 
 if __name__ == "__main__":

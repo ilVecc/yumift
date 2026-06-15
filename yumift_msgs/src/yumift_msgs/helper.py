@@ -5,6 +5,7 @@ import rospy
 import tf.transformations as trans
 
 import numpy as np
+import quaternion as quat
 
 from geometry_msgs.msg import Point, Quaternion, Pose, Twist
 from yumift_msgs.msg import YumiPosture, YumiTrajectory
@@ -177,3 +178,74 @@ class Helper():
         # wait if required
         if wait_completion:    
             rospy.sleep(time)
+
+    # @staticmethod
+    # def decode_trajectory(traj_msg : YumiTrajectory):
+    #     trajectory = []
+    #     # append trajectory points from msg
+    #     for posture in traj_msg.trajectory:
+    #         posture: YumiPosture
+    #         pos_1 = Helper.sanitize_pos(posture.pose_primary.position, default_none=False)
+    #         rot_1 = Helper.sanitize_rot(posture.pose_primary.orientation, default_none=False)
+    #         vel_1 = Helper.sanitize_vel(posture.twist_primary)
+    #         frame_1 = Frame(pos_1, rot_1) #, vel_1)
+    #         pos_2 = Helper.sanitize_pos(posture.pose_secondary.position, default_none=False)
+    #         rot_2 = Helper.sanitize_rot(posture.pose_secondary.orientation, default_none=False)
+    #         vel_2 = Helper.sanitize_vel(posture.twist_secondary)
+    #         frame_2 = Frame(pos_2, rot_2) #, vel_2)
+    #         grip_r = Helper.sanitize_grip(posture.gripper_right, default_none=False)
+    #         grip_l = Helper.sanitize_grip(posture.gripper_left, default_none=False)
+    #         duration = posture.time_to_execute.to_sec()
+    #         # posture.mode  # TODO use me
+            
+    #         # convert everything to GLOBAL COORDINATES
+    #         if posture.incremental != YumiPosture.OFF:
+    #             prev_param = trajectory[-1].param
+    #             # TODO remove .motionless() and handle twist (can be None) in incremental mode
+    #             prev_1 = PoseParam.to_Frame(prev_param.pose_right).motionless()
+    #             prev_2 = PoseParam.to_Frame(prev_param.pose_left).motionless()
+    #             grip_r = grip_r + prev_param.grip_right
+    #             grip_l = grip_l + prev_param.grip_left
+                
+    #             # handle incremental postures
+    #             if posture.incremental == YumiPosture.LOCAL:
+    #                 # next_posture = prev_posture @ local_transformation
+    #                 frame_1 = prev_1 @ frame_1
+    #                 frame_2 = prev_2 @ frame_2
+    #             elif posture.incremental == YumiPosture.GLOBAL:
+    #                 # next_posture = global_transformation @ prev_posture
+    #                 frame_1 = frame_1 @ prev_1
+    #                 frame_2 = frame_2 @ prev_2
+    #             else:
+    #                 rospy.logerr(f"Unknown incremental mode {posture.incremental}")
+            
+    #         traj_point = tuple(frame_1.pos, frame_1.rot, vel_1, grip_r, frame_2.pos, frame_2.rot, vel_2, grip_l, duration)
+    #         trajectory.append(traj_point)
+
+    @staticmethod
+    def sanitize_grip(grip: float, default_none: bool = True) -> Optional[float]:
+        if np.isnan(grip):
+            return None if default_none else 0.
+        return grip
+
+    @staticmethod
+    def sanitize_pos(pos: Point, default_none: bool = True) -> Optional[np.ndarray]:
+        pos = np.array([pos.x, pos.y, pos.z])
+        if np.any(np.isnan(pos)):
+            return None if default_none else np.zeros(3)
+        return pos
+
+    @staticmethod
+    def sanitize_rot(ori: Quaternion, default_none: bool = True) -> Optional[np.quaternion]:
+        ori = quat.quaternion(ori.w, ori.x, ori.y, ori.z)
+        if ori == quat.zero or ori.isnan():
+            return None if default_none else quat.one
+        return ori
+
+    @staticmethod
+    def sanitize_vel(vel: Twist, default_none: bool = True) -> Optional[np.ndarray]:
+        vel = np.array([vel.linear.x, vel.linear.y, vel.linear.z,
+                        vel.angular.x, vel.angular.y, vel.angular.z])
+        if np.any(np.isnan(vel)):
+            return None if default_none else np.zeros(6)
+        return vel

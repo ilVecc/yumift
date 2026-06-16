@@ -190,48 +190,9 @@ class YumiTrajectoryController(RoutinableYumiController):
         # use the required mode as first pose
         curr_state = self.device_read()
         curr_pose_1, curr_pose_2 = curr_state.poses_individual if is_individual else curr_state.poses_coordinated
-        traj_point = YumiParam.from_Frames(curr_pose_1, curr_pose_2, curr_state.grip_r, curr_state.grip_l)
-        trajectory = [YumiTrajectoryParam(traj_point, duration=0)]
-        
-        # append trajectory points from msg
-        for posture in traj_msg.trajectory:
-            posture: YumiPostureMsg
-            pos_1 = Helper.sanitize_pos(posture.pose_primary.position, default_none=False)
-            rot_1 = Helper.sanitize_rot(posture.pose_primary.orientation, default_none=False)
-            vel_1 = Helper.sanitize_vel(posture.twist_primary)
-            frame_1 = Frame(pos_1, rot_1) #, vel_1)
-            pos_2 = Helper.sanitize_pos(posture.pose_secondary.position, default_none=False)
-            rot_2 = Helper.sanitize_rot(posture.pose_secondary.orientation, default_none=False)
-            vel_2 = Helper.sanitize_vel(posture.twist_secondary)
-            frame_2 = Frame(pos_2, rot_2) #, vel_2)
-            grip_r = Helper.sanitize_grip(posture.gripper_right, default_none=False)
-            grip_l = Helper.sanitize_grip(posture.gripper_left, default_none=False)
-            duration = posture.time_to_execute.to_sec()
-            # posture.mode  # TODO use me
-            
-            # convert everything to GLOBAL COORDINATES
-            if posture.incremental != YumiPostureMsg.OFF:
-                prev_param = trajectory[-1].param
-                # TODO remove .motionless() and handle twist (can be None) in incremental mode
-                prev_1 = PoseParam.to_Frame(prev_param.pose_right).motionless()
-                prev_2 = PoseParam.to_Frame(prev_param.pose_left).motionless()
-                grip_r = grip_r + prev_param.grip_right
-                grip_l = grip_l + prev_param.grip_left
-                
-                # handle incremental postures
-                if posture.incremental == YumiPostureMsg.LOCAL:
-                    # next_posture = prev_posture @ local_transformation
-                    frame_1 = prev_1 @ frame_1
-                    frame_2 = prev_2 @ frame_2
-                elif posture.incremental == YumiPostureMsg.GLOBAL:
-                    # next_posture = global_transformation @ prev_posture
-                    frame_1 = frame_1 @ prev_1
-                    frame_2 = frame_2 @ prev_2
-                else:
-                    rospy.logerr(f"Unknown incremental mode {posture.incremental}")
-            
-            traj_point = YumiParam(frame_1.pos, frame_1.rot, vel_1, grip_r, frame_2.pos, frame_2.rot, vel_2, grip_l)
-            trajectory.append(YumiTrajectoryParam(traj_point, duration))
+        trajectory = Helper.decode_trajectory((curr_pose_1, curr_pose_2, curr_state.grip_r, curr_state.grip_l), traj_msg)
+        trajectory = [YumiTrajectoryParam(YumiParam.from_Frames(frame_1, frame_2, grip_r, grip_l), duration)
+                      for (frame_1, frame_2, grip_r, grip_l), duration in trajectory]
         #######################################################################
         
         # update the trajectory

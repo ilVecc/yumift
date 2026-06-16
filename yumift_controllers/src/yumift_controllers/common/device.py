@@ -162,6 +162,16 @@ class YumiDevice(AbstractDevice[YumiDualDeviceState, YumiDualDeviceCommand]):
 
     @override
     def send(self, command: YumiDualDeviceCommand):
+        
+        # log joints with clipping velocities
+        vel_clip_r = np.abs(command._dq_target[0:7]) > YumiRobotConstants.JOINT_VEL_AB
+        vel_clip_l = np.abs(command._dq_target[7:14]) > YumiRobotConstants.JOINT_VEL_AB
+        if np.any(vel_clip_r) or np.any(vel_clip_l):
+            idxs = np.arange(7) + 1
+            labels = "".join([f" R{i}" for i in idxs[vel_clip_r]]) \
+                   + "".join([f" L{i}" for i in idxs[vel_clip_l]])
+            rospy.logwarn(f"Joints [{labels} ] will be clipped!")
+        
         # flip the array to [left, right] as required by ros_control velocity controller
         vel = command._dq_target.tolist()
         msg = Float64MultiArrayMsg(data=vel[7:14]+vel[0:7])
@@ -169,3 +179,4 @@ class YumiDevice(AbstractDevice[YumiDualDeviceState, YumiDualDeviceCommand]):
         # avoid sendind commands all the time to optimize bandwidth
         if (command._grip_r is not None) or (command._grip_l is not None):
             self._pub_grip.send_position_cmd(command._grip_r, command._grip_l)
+    

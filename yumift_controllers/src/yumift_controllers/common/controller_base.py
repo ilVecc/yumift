@@ -186,15 +186,6 @@ class YumiDualController(
             dq_target = action["velocity_joints"]
         else:
             dq_target = self._iksolver.solve(action, state)
-                    
-        # log joints with clipping velocities
-        vel_clip_r = np.abs(dq_target[0:7]) > YumiRobotConstants.JOINT_VEL_AB
-        vel_clip_l = np.abs(dq_target[7:14]) > YumiRobotConstants.JOINT_VEL_AB
-        if np.any(vel_clip_r) or np.any(vel_clip_l):
-            idxs = np.arange(7) + 1
-            labels = "".join([f" R{i}" for i in idxs[vel_clip_r]]) \
-                   + "".join([f" L{i}" for i in idxs[vel_clip_l]])
-            rospy.logwarn(f"Joints [{labels} ] will be clipped!")
         
         # create command
         command = YumiDualDeviceCommand()

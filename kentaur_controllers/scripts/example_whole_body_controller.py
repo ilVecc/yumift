@@ -4,7 +4,7 @@ from typing_extensions import override
 import rospy
 import numpy as np, quaternion as quat
 
-from dynamicals.utils import Frame, jacobian_change_base_frame
+from dynamicals.utils import Frame
 from dynamicals.impl import AbstractROSController
 from pathfinder import PoseParam, CubicPoseTrajectory
 
@@ -33,10 +33,8 @@ class KentaurController(AbstractROSController[KentaurDeviceState, KentaurDeviceA
         self.trajectory_initial_time = rospy.Time.now()
         
         # reset gripper position difference, in home frame
-        # self.target_r = Frame(np.array([-0.2, -0.2, 0]))
-        # self.target_l = Frame(np.array([-0.3, +0.1, 0]))
-        self.target_r = Frame(np.array([-0.2, +0.2, 0]))
-        self.target_l = Frame(np.array([-0.2, -0.2, 0]))
+        self.target_r = Frame([-0.2, +0.2, 0])
+        self.target_l = Frame([-0.2, -0.2, 0])
         self.target_time = 5.0
     
     @override
@@ -45,11 +43,11 @@ class KentaurController(AbstractROSController[KentaurDeviceState, KentaurDeviceA
         
         _, homeXy = self._device.state_to_home(state)
         
-        homeX_r_init = homeXy @ state.state_yumi.pose_gripper_r
+        homeX_r_init = (homeXy @ state.state_yumi.pose_gripper_r).motionless()
         homeX_r_final = self.target_r @ homeX_r_init
         self.trajectory_r.update(PoseParam.from_Frame(homeX_r_init), PoseParam.from_Frame(homeX_r_final), self.target_time)
         
-        homeX_l_init = homeXy @ state.state_yumi.pose_gripper_l
+        homeX_l_init = (homeXy @ state.state_yumi.pose_gripper_l).motionless()
         homeX_l_final = self.target_l @ homeX_l_init
         self.trajectory_l.update(PoseParam.from_Frame(homeX_l_init), PoseParam.from_Frame(homeX_l_final), self.target_time)
         
@@ -71,7 +69,7 @@ class KentaurController(AbstractROSController[KentaurDeviceState, KentaurDeviceA
         # transform yumi grippers from yumi base to home
         curr_homeX_r = homeXy @ state.state_yumi.pose_gripper_r
         curr_homeX_l = homeXy @ state.state_yumi.pose_gripper_l
-        curr_param = YumiParam.from_PoseParams(curr_homeX_r, curr_homeX_l)
+        curr_param = YumiParam.from_Frames(curr_homeX_r, curr_homeX_l)
         curr_state = YumiCoordinatedRobotState_from_YumiParam(curr_param)
         
         # gripper poses are already in home
@@ -103,14 +101,6 @@ class KentaurController(AbstractROSController[KentaurDeviceState, KentaurDeviceA
         vel_tgt[6:12] = action.action_yumi["velocity_left"]
         
         dq_target = np.linalg.pinv(homeJ) @ vel_tgt
-        
-        # log joints with clipping velocities
-        dq_r_clip = np.abs(dq_target[0:7]) > YumiRobotConstants.JOINT_VEL_AB
-        dq_l_clip = np.abs(dq_target[7:14]) > YumiRobotConstants.JOINT_VEL_AB
-        if np.any(dq_r_clip) or np.any(dq_l_clip):
-            idxs = np.arange(7) + 1
-            labels = " ".join([f"R{i}" for i in idxs[dq_r_clip]] + [f"L{i}" for i in idxs[dq_l_clip]])
-            rospy.logwarn(f"Joints [ {labels} ] are clipping!")
         
         # create command
         command = KentaurDeviceCommand(

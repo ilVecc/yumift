@@ -2,8 +2,6 @@ import numpy as np
 from numpy.typing import ArrayLike
 import quaternion as quat
 
-from .quaternions import quat_avg
-
 
 def skew_matrix(vector) -> np.ndarray:
     return np.array([[0, -vector[2], vector[1]],
@@ -49,6 +47,9 @@ def floor_mag(v: np.ndarray, threshold: float, value: float = -np.inf):
         return value * (v / mag)
     return v
     
+
+# prevents circluar imports (.quaternions requires the functions above)
+from .quaternions import quat_avg
 
 class Frame(object):
     """ Reference frame or transformation
@@ -161,11 +162,15 @@ class Frame(object):
 
     @property
     def vel(self):
+        """ Returns the velocity
+        """
         return self._vel
 
     @vel.setter
     def vel(self, velocity: np.ndarray):
-        assert velocity.shape == (6,)
+        """ Updates the velocity
+            :param velocity: np.array([vx,vy,vz,wx,wy,wz]) [m/s, rad/s]
+        """
         self._vel = velocity
 
     @property

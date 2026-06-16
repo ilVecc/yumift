@@ -113,10 +113,12 @@ def plot_traj_pose(ax : Optional[plt.Axes], pos: np.ndarray, rot: np.ndarray, al
     if ax is None:
         ax = plt.figure().add_subplot(projection='3d')
     
-    ax.plot(pos[:, 0], pos[:, 1], pos[:, 2], c="k", lw=10)
+    ax.plot(pos[:, 0], pos[:, 1], pos[:, 2], c="k", lw=10, dash_capstyle="round")
     ax.quiver(pos[:, 0], pos[:, 1], pos[:, 2], rotmat[:, 0, 0], rotmat[:, 1, 0], rotmat[:, 2, 0], length=scale, colors="r", alpha=alpha)
     ax.quiver(pos[:, 0], pos[:, 1], pos[:, 2], rotmat[:, 0, 1], rotmat[:, 1, 1], rotmat[:, 2, 1], length=scale, colors="g", alpha=alpha)
     ax.quiver(pos[:, 0], pos[:, 1], pos[:, 2], rotmat[:, 0, 2], rotmat[:, 1, 2], rotmat[:, 2, 2], length=scale, colors="b", alpha=alpha)
+    ax.scatter(pos[0, 0], pos[0, 1], pos[0, 2], c="orange", marker="o", s=75)
+    ax.scatter(pos[-1, 0], pos[-1, 1], pos[-1, 2], c="orange", marker="*", s=150)
     
     ax.set_xlabel('X')
     ax.set_ylabel('Y')

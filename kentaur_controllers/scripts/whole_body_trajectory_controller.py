@@ -74,48 +74,10 @@ class KentaurTrajectoryController(AbstractROSController[KentaurDeviceState, Kent
         _, homeXy = self._device.state_to_home(curr_state)
         curr_homeX_r = homeXy @ curr_state.state_yumi.pose_gripper_r
         curr_homeX_l = homeXy @ curr_state.state_yumi.pose_gripper_l
-        traj_point = YumiParam.from_Frames(curr_homeX_r, curr_homeX_l, curr_state.state_yumi.grip_r, curr_state.state_yumi.grip_l)
-        trajectory = [YumiTrajectoryParam(traj_point, duration=0)]
-        
-        # append trajectory points from msg
-        for posture in traj_msg.trajectory:
-            posture: YumiPostureMsg
-            pos_1 = Helper.sanitize_pos(posture.pose_primary.position, default_none=False)
-            rot_1 = Helper.sanitize_rot(posture.pose_primary.orientation, default_none=False)
-            vel_1 = Helper.sanitize_vel(posture.twist_primary)
-            frame_1 = Frame(pos_1, rot_1) #, vel_1)
-            pos_2 = Helper.sanitize_pos(posture.pose_secondary.position, default_none=False)
-            rot_2 = Helper.sanitize_rot(posture.pose_secondary.orientation, default_none=False)
-            vel_2 = Helper.sanitize_vel(posture.twist_secondary)
-            frame_2 = Frame(pos_2, rot_2) #, vel_2)
-            grip_r = Helper.sanitize_grip(posture.gripper_right, default_none=False)
-            grip_l = Helper.sanitize_grip(posture.gripper_left, default_none=False)
-            duration = posture.time_to_execute.to_sec()
-            # posture.mode  # TODO use me
-            
-            # convert everything to GLOBAL COORDINATES
-            if posture.incremental != YumiPostureMsg.OFF:
-                prev_param = trajectory[-1].param
-                # TODO remove .motionless() and handle twist (can be None) in incremental mode
-                prev_1 = PoseParam.to_Frame(prev_param.pose_right).motionless()
-                prev_2 = PoseParam.to_Frame(prev_param.pose_left).motionless()
-                grip_r = grip_r + prev_param.grip_right
-                grip_l = grip_l + prev_param.grip_left
-                
-                # handle incremental postures
-                if posture.incremental == YumiPostureMsg.LOCAL:
-                    # next_posture = prev_posture @ local_transformation
-                    frame_1 = prev_1 @ frame_1
-                    frame_2 = prev_2 @ frame_2
-                elif posture.incremental == YumiPostureMsg.GLOBAL:
-                    # next_posture = global_transformation @ prev_posture
-                    frame_1 = frame_1 @ prev_1
-                    frame_2 = frame_2 @ prev_2
-                else:
-                    rospy.logerr(f"Unknown incremental mode {posture.incremental}")
-            
-            traj_point = YumiParam(frame_1.pos, frame_1.rot, vel_1, grip_r, frame_2.pos, frame_2.rot, vel_2, grip_l)
-            trajectory.append(YumiTrajectoryParam(traj_point, duration))
+        trajectory = Helper.decode_trajectory((curr_homeX_r, curr_homeX_l, curr_state.state_yumi.grip_r, curr_state.state_yumi.grip_l), traj_msg)
+        trajectory = [YumiTrajectoryParam(YumiParam.from_Frames(frame_1, frame_2, grip_r, grip_l), duration)
+                      for (frame_1, frame_2, grip_r, grip_l), duration in trajectory]
+        #######################################################################
         
         # update the trajectory
         with self._lock_trajectory:
@@ -172,14 +134,6 @@ class KentaurTrajectoryController(AbstractROSController[KentaurDeviceState, Kent
         homeJ_pinv = np.linalg.pinv(homeJ)
         dq_target = homeJ_pinv @ vel_tgt
         dq_target[:14] += (np.eye(14) - (homeJ_pinv @ homeJ)[:14,:14]) @ secondary_neutral(state.state_yumi.joint_pos, None, k=30)
-        
-        # log joints with clipping velocities
-        dq_r_clip = np.abs(dq_target[0:7]) > YumiRobotConstants.JOINT_VEL_AB
-        dq_l_clip = np.abs(dq_target[7:14]) > YumiRobotConstants.JOINT_VEL_AB
-        if np.any(dq_r_clip) or np.any(dq_l_clip):
-            idxs = np.arange(7) + 1
-            labels = " ".join([f"R{i}" for i in idxs[dq_r_clip]] + [f"L{i}" for i in idxs[dq_l_clip]])
-            rospy.logwarn(f"Joints [ {labels} ] are clipping!")
         
         # create command
         command = KentaurDeviceCommand(

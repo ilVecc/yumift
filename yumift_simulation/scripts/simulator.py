@@ -76,7 +76,7 @@ class Simulator(object):
         self.gripper_position = np.array([0.0,0.0]) # used to store gripper commands until they are used
 
     def rapid_service(self, req: TriggerWithResultCodeRequest):
-        print("started RAPID")
+        rospy.loginfo("started RAPID")
         return [1, ""]
 
     def callback(self, msg: Float64MultiArrayMsg):

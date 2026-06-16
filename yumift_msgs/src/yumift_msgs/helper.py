@@ -1,4 +1,4 @@
-from typing import List, Union, Optional
+from typing import List, Union, Optional, Tuple
 from enum import Enum
 
 import rospy
@@ -6,6 +6,9 @@ import tf.transformations as trans
 
 import numpy as np
 import quaternion as quat
+from numpy.typing import ArrayLike
+
+from dynamicals.utils import Frame
 
 from geometry_msgs.msg import Point, Quaternion, Pose, Twist
 from yumift_msgs.msg import YumiPosture, YumiTrajectory
@@ -43,11 +46,19 @@ class Helper():
         return np.array([x,y,z]) * 0.01
     
     @staticmethod
-    def _parse_input(point : tuple):
+    def _parse_input(point : Optional[Union[tuple, ArrayLike]]):
+        # force tuple to keep the parsing clean
+        if point is None:
+            point = tuple()
+        if not isinstance(point, tuple):
+            point = (point,)
+        
+        # check elements in the tuple, and prepare their sizes
         sizes = np.array([np.size(o) for o in point])
         if len(sizes) > 4:
             raise Exception("Too many parameters")
-
+        
+        # filter component (grip, pos, rot, vel) by vector size
         idx = np.where(sizes == 1)[0]
         grip = np.array(point[idx[0]]) if len(idx) == 1 else np.nan
 
@@ -65,8 +76,8 @@ class Helper():
     @staticmethod
     def posture( 
         duration : float = 0.0, 
-        primary : tuple = tuple(), 
-        secondary : tuple = tuple(),
+        primary : Optional[Union[tuple, ArrayLike]] = tuple(), 
+        secondary : Optional[Union[tuple, ArrayLike]] = tuple(),
         mode : Mode = Mode.INDIVIDUAL, 
         incremental : Incr = Incr.OFF
     ):
@@ -179,48 +190,54 @@ class Helper():
         if wait_completion:    
             rospy.sleep(time)
 
-    # @staticmethod
-    # def decode_trajectory(traj_msg : YumiTrajectory):
-    #     trajectory = []
-    #     # append trajectory points from msg
-    #     for posture in traj_msg.trajectory:
-    #         posture: YumiPosture
-    #         pos_1 = Helper.sanitize_pos(posture.pose_primary.position, default_none=False)
-    #         rot_1 = Helper.sanitize_rot(posture.pose_primary.orientation, default_none=False)
-    #         vel_1 = Helper.sanitize_vel(posture.twist_primary)
-    #         frame_1 = Frame(pos_1, rot_1) #, vel_1)
-    #         pos_2 = Helper.sanitize_pos(posture.pose_secondary.position, default_none=False)
-    #         rot_2 = Helper.sanitize_rot(posture.pose_secondary.orientation, default_none=False)
-    #         vel_2 = Helper.sanitize_vel(posture.twist_secondary)
-    #         frame_2 = Frame(pos_2, rot_2) #, vel_2)
-    #         grip_r = Helper.sanitize_grip(posture.gripper_right, default_none=False)
-    #         grip_l = Helper.sanitize_grip(posture.gripper_left, default_none=False)
-    #         duration = posture.time_to_execute.to_sec()
-    #         # posture.mode  # TODO use me
+    @staticmethod
+    def decode_trajectory(init_posture : Tuple[Frame, Frame, float, float], traj_msg : YumiTrajectory) -> List[Tuple[Tuple[Frame, Frame, float, float], float]]:
+        trajectory = [(init_posture, 0)]
+        # append trajectory points from msg
+        for posture in traj_msg.trajectory:
+            posture: YumiPosture
+            pos_1 = Helper.sanitize_pos(posture.pose_primary.position, default_none=False)
+            rot_1 = Helper.sanitize_rot(posture.pose_primary.orientation, default_none=False)
+            vel_1 = Helper.sanitize_vel(posture.twist_primary)
+            frame_1 = Frame(pos_1, rot_1) #, vel_1)
+            pos_2 = Helper.sanitize_pos(posture.pose_secondary.position, default_none=False)
+            rot_2 = Helper.sanitize_rot(posture.pose_secondary.orientation, default_none=False)
+            vel_2 = Helper.sanitize_vel(posture.twist_secondary)
+            frame_2 = Frame(pos_2, rot_2) #, vel_2)
+            grip_r = Helper.sanitize_grip(posture.gripper_right, default_none=False)
+            # TODO use me more for other things as well
+            # set the same grip width if in coordinated mode
+            if posture.mode != YumiPosture.COORDINATED:
+                grip_l = Helper.sanitize_grip(posture.gripper_left, default_none=False)
+            else:
+                grip_l = grip_r
+            duration = posture.time_to_execute.to_sec()
             
-    #         # convert everything to GLOBAL COORDINATES
-    #         if posture.incremental != YumiPosture.OFF:
-    #             prev_param = trajectory[-1].param
-    #             # TODO remove .motionless() and handle twist (can be None) in incremental mode
-    #             prev_1 = PoseParam.to_Frame(prev_param.pose_right).motionless()
-    #             prev_2 = PoseParam.to_Frame(prev_param.pose_left).motionless()
-    #             grip_r = grip_r + prev_param.grip_right
-    #             grip_l = grip_l + prev_param.grip_left
+            # convert everything to GLOBAL COORDINATES
+            if posture.incremental != YumiPosture.OFF:
+                prev_1, prev_2, prev_grip_r, prev_grip_l = trajectory[-1][0]
+                # TODO remove .motionless() and handle twist (can be None) in incremental mode
+                prev_1 = prev_1.motionless()
+                prev_2 = prev_2.motionless()
+                grip_r = grip_r + prev_grip_r
+                grip_l = grip_l + prev_grip_l
                 
-    #             # handle incremental postures
-    #             if posture.incremental == YumiPosture.LOCAL:
-    #                 # next_posture = prev_posture @ local_transformation
-    #                 frame_1 = prev_1 @ frame_1
-    #                 frame_2 = prev_2 @ frame_2
-    #             elif posture.incremental == YumiPosture.GLOBAL:
-    #                 # next_posture = global_transformation @ prev_posture
-    #                 frame_1 = frame_1 @ prev_1
-    #                 frame_2 = frame_2 @ prev_2
-    #             else:
-    #                 rospy.logerr(f"Unknown incremental mode {posture.incremental}")
+                # handle incremental postures
+                if posture.incremental == YumiPosture.LOCAL:
+                    # next_posture = prev_posture @ local_transformation
+                    frame_1 = prev_1 @ frame_1
+                    frame_2 = prev_2 @ frame_2
+                elif posture.incremental == YumiPosture.GLOBAL:
+                    # next_posture = global_transformation @ prev_posture
+                    frame_1 = frame_1 @ prev_1
+                    frame_2 = frame_2 @ prev_2
+                else:
+                    rospy.logerr(f"Unknown incremental mode {posture.incremental}")
             
-    #         traj_point = tuple(frame_1.pos, frame_1.rot, vel_1, grip_r, frame_2.pos, frame_2.rot, vel_2, grip_l, duration)
-    #         trajectory.append(traj_point)
+            frame_1.vel = vel_1
+            frame_2.vel = vel_2
+            trajectory.append(((frame_1, frame_2, grip_r, grip_l), duration))
+        return trajectory
 
     @staticmethod
     def sanitize_grip(grip: float, default_none: bool = True) -> Optional[float]:

@@ -114,14 +114,6 @@ class KentaurController(AbstractROSController[KentaurDeviceState, KentaurDeviceA
         dq_target = homeJ_pinv @ vel_tgt
         dq_target[:14] += (np.eye(14) - (homeJ_pinv @ homeJ)[:14,:14]) @ secondary_neutral(state.state_yumi.joint_pos, None, k=30)
         
-        # log joints with clipping velocities
-        dq_r_clip = np.abs(dq_target[0:7]) > YumiRobotConstants.JOINT_VEL_AB
-        dq_l_clip = np.abs(dq_target[7:14]) > YumiRobotConstants.JOINT_VEL_AB
-        if np.any(dq_r_clip) or np.any(dq_l_clip):
-            idxs = np.arange(7) + 1
-            labels = " ".join([f"R{i}" for i in idxs[dq_r_clip]] + [f"L{i}" for i in idxs[dq_l_clip]])
-            rospy.logwarn(f"Joints [ {labels} ] will clip!")
-        
         # create command
         command = KentaurDeviceCommand(
             YumiDualDeviceCommand(dq_target[0:14],  # [right, left]

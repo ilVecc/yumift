@@ -1,0 +1,12 @@
+# Gains for individual right control
+IR:
+  K_P: 2.0     # Gain for positional error
+  K_O: 8.0   # Gain for angular error
+# Gains for individual right control
+IL:
+  K_P: 2.0
+  K_O: 8.0
+# Minimum error to take action
+MIN_ACTION: [0.001, 0.017453]  # [lin, ang]  # 1mm, 1deg
+# Maximum deviation in target
+MAX_DEVIATION: [0.080, 0.17453]  # [lin, ang]  # 80mm, 10deg

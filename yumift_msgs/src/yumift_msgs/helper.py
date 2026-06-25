@@ -233,7 +233,7 @@ class Helper():
                     frame_2 = frame_2 @ prev_2
                 else:
                     rospy.logerr(f"Unknown incremental mode {posture.incremental}")
-            
+            # TODO this must be fixed
             frame_1.vel = vel_1
             frame_2.vel = vel_2
             trajectory.append(((frame_1, frame_2, grip_r, grip_l), duration))

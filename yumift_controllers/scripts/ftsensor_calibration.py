@@ -10,6 +10,7 @@ from numpy.typing import NDArray
 import numpy as np
 from threading import Lock
 import pickle
+import os
 
 from geometry_msgs.msg import WrenchStamped as WrenchStampedMsg
 from yumift_msgs.msg import YumiPosture as YumiPostureMsg
@@ -580,12 +581,16 @@ def call_rosservices(prefix: str, params_left: dict, params_right: dict):
     
     call_services(params_left, "left")
     call_services(params_right, "right")
-    
+
+def delete_measurements(filename_left: str, filename_right: str):
+    os.remove(filename_left)
+    os.remove(filename_right)
+
 
 if __name__ == "__main__":
-    prefix = "/yumi/sensors/wrench"
+    topics_prefix = "/yumi/sensors/wrench"
     filename_left, filename_right = "measurements_left.pkl", "measurements_right.pkl"
-    measurement_campaign(prefix, filename_left, filename_right)
+    measurement_campaign(topics_prefix, filename_left, filename_right)
     params_left, params_right = tool_calibration(filename_left, filename_right)
-    call_rosservices(prefix, params_left, params_right)
-    
+    call_rosservices(topics_prefix, params_left, params_right)
+    delete_measurements(filename_left, filename_right)

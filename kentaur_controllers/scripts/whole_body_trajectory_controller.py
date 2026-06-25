@@ -48,9 +48,8 @@ class KentaurTrajectoryController(AbstractROSController[KentaurDeviceState, Kent
             rospy.logwarn("Controller cannot be reset (Yumi is not ready, retrying in 5 seconds)")
             rospy.sleep(5)
         # create the dummy path
-        _, homeXy = self._device.state_to_home(state)
-        homeX_r_init = homeXy @ state.state_yumi.pose_gripper_r
-        homeX_l_init = homeXy @ state.state_yumi.pose_gripper_l
+        # transform yumi grippers from yumi base to home
+        homeX_r_init, homeX_l_init = self._device.grippers_wrt_home(state)
         current_pose = YumiParam.from_Frames(homeX_r_init.motionless(), homeX_l_init.motionless(), 0, 0)
         path = [YumiTrajectoryParam(current_pose, 0), YumiTrajectoryParam(current_pose, 0.00001)]
         # update the trajectory
@@ -58,8 +57,11 @@ class KentaurTrajectoryController(AbstractROSController[KentaurDeviceState, Kent
             self.control_law.clear()
             self.trajectory.update(path)
             self.trajectory_initial_time = rospy.Time.now()
+        # print some usefult frames
+        homeXs, homeXy = self._device.robots_wrt_home(state)
         rospy.loginfo("Controller reset (previous trajectory has been discarded)")
         rospy.loginfo(f"ODOM   in [ -- ]: {state.state_sleipner.to_Frame()}")
+        rospy.loginfo(f"ODOM   in [HOME]: {homeXs}")
         rospy.loginfo(f"YUMI   in [HOME]: {homeXy}")
         rospy.loginfo(f"tool_r in [HOME]: {homeX_r_init}")
         rospy.loginfo(f"tool_l in [HOME]: {homeX_l_init}")
@@ -71,9 +73,7 @@ class KentaurTrajectoryController(AbstractROSController[KentaurDeviceState, Kent
         # use current position, rotation and velocity as first trajectory points
         # use the required mode as first pose
         curr_state = self.device_read()
-        _, homeXy = self._device.state_to_home(curr_state)
-        curr_homeX_r = homeXy @ curr_state.state_yumi.pose_gripper_r
-        curr_homeX_l = homeXy @ curr_state.state_yumi.pose_gripper_l
+        curr_homeX_r, curr_homeX_l = self._device.grippers_wrt_home(curr_state)
         trajectory = Helper.decode_trajectory((curr_homeX_r, curr_homeX_l, curr_state.state_yumi.grip_r, curr_state.state_yumi.grip_l), traj_msg)
         trajectory = [YumiTrajectoryParam(YumiParam.from_Frames(frame_1, frame_2, grip_r, grip_l), duration)
                       for (frame_1, frame_2, grip_r, grip_l), duration in trajectory]
@@ -90,11 +90,8 @@ class KentaurTrajectoryController(AbstractROSController[KentaurDeviceState, Kent
         ctrl_dt = ControllerParameters.dt  # self.dt(state.state_sleipner.time)
         traj_dt = self.dt(self.trajectory_initial_time)
         
-        _, homeXy = self._device.state_to_home(state)
-        
         # transform yumi grippers from yumi base to home
-        curr_homeX_r = homeXy @ state.state_yumi.pose_gripper_r
-        curr_homeX_l = homeXy @ state.state_yumi.pose_gripper_l
+        curr_homeX_r, curr_homeX_l = self._device.grippers_wrt_home(state)
         curr_param = YumiParam.from_Frames(curr_homeX_r, curr_homeX_l)
         curr_state = YumiCoordinatedRobotState_from_YumiParam(curr_param)
         

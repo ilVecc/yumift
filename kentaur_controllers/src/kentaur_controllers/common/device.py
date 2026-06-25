@@ -34,34 +34,41 @@ class KentaurDevice(AbstractDevice[KentaurDeviceState, KentaurDeviceCommand]):
         self.sXy = Frame(
             position=np.array([-0.390, 0, 0.500]), 
             rotation=quat.from_rotation_vector([0, 0, np.deg2rad(180)]))
+        # cache yumi to odometry transform
+        self.odomXyumi = self.device_sleipner.odomXs @ self.sXy
     
-    def state_to_home(self, state : KentaurDeviceState) -> Tuple[Frame, Frame]:
+    def robots_wrt_home(self, state : KentaurDeviceState) -> Tuple[Frame, Frame]:
         # base transform in home (i.e. sleipner's pose at startup, based on odometry)
         homeXodom = self.device_sleipner.state_wrt_home(state.state_sleipner)
-        homeXs = homeXodom @ self.device_sleipner.odomXs
-        homeXy = homeXs @ self.sXy
-        return homeXodom, homeXy
+        homeXyumi = homeXodom @ self.odomXyumi
+        return homeXodom, homeXyumi
+    
+    def grippers_wrt_home(self, state : KentaurDeviceState) -> Tuple[Frame, Frame]:
+        _, homeXy = self.robots_wrt_home(state)
+        homeX_r = homeXy @ state.state_yumi.pose_gripper_r
+        homeX_l = homeXy @ state.state_yumi.pose_gripper_l
+        return homeX_r, homeX_l
     
     def jacobian_to_home(self, state : KentaurDeviceState, alpha : float = 2.75):
         """ alpha > 1 is more yumi
             alpha < 1 is more sleipner
         """
-        homeXs, homeXy = self.state_to_home(state)
+        homeXodom, homeXyumi = self.robots_wrt_home(state)
         
         # task jacobian
-        homeJy_r = jacobian_change_base_frame(homeXy.rot, state.state_yumi.jacobian_gripper_r)
-        homeJs_r = jacobian_change_base_frame(homeXs.rot, state.state_sleipner.jacobian_SE3)
-        homeJy_l = jacobian_change_base_frame(homeXy.rot, state.state_yumi.jacobian_gripper_l)
+        homeJy_r = jacobian_change_base_frame(homeXyumi.rot, state.state_yumi.jacobian_gripper_r)
+        homeJs_r = jacobian_change_base_frame(homeXodom.rot, state.state_sleipner.jacobian_SE3)
+        homeJy_l = jacobian_change_base_frame(homeXyumi.rot, state.state_yumi.jacobian_gripper_l)
         homeJs_l = homeJs_r
         
         beta = 1/alpha
         homeJ = np.zeros((6+6,7+7+3))
         # right arm
         homeJ[ 0:6, 0:7 ] = alpha * homeJy_r
-        homeJ[ 0:6,14:17] = beta * homeJs_r
+        homeJ[ 0:6,14:17] = beta  * homeJs_r
         # left arm
         homeJ[6:12, 7:14] = alpha * homeJy_l
-        homeJ[6:12,14:17] = beta * homeJs_l
+        homeJ[6:12,14:17] = beta  * homeJs_l
         
         return homeJ
     

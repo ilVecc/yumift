@@ -236,7 +236,6 @@ class YumiTrajectoryController(RoutinableYumiController):
         try:
             # set velocities based on control mode
             vel_1, vel_2 = self.control_law.compute_target_state()
-            # print()
             
             # get space based on control mode ...
             action = MixedVelocityYumiAction()

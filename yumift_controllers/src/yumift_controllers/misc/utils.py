@@ -1,3 +1,5 @@
+from typing import Optional
+
 import rospy, rospkg
 import numpy as np, quaternion as quat
 import yaml
@@ -24,7 +26,9 @@ def quat_to_xyzw(q: np.quaternion) -> np.ndarray:
     return np.roll(quat.as_float_array(q), -1)
 
 
-def RobotStateMsg_to_YumiCoordinatedRobotState(robot_state: RobotStateMsg, yumi_state = YumiCoordinatedRobotState()):
+def RobotStateMsg_to_YumiCoordinatedRobotState(robot_state: RobotStateMsg, yumi_state : Optional[YumiCoordinatedRobotState] = None):
+    if yumi_state is None:
+        yumi_state = YumiCoordinatedRobotState()
     yumi_state.joint_pos = np.array(robot_state.jointState[0].position[:7] + robot_state.jointState[1].position[:7])
     yumi_state.joint_vel = np.array(robot_state.jointState[0].velocity[:7] + robot_state.jointState[1].velocity[:7])
     yumi_state.grip_r = robot_state.jointState[0].position[7]
@@ -102,9 +106,12 @@ def Frame_to_PoseStampedMsg(pose: Frame, parent: str = "yumi_base_link"):
 
 ### interal object representation convertion
 
-def YumiCoordinatedRobotState_from_YumiParam(yumi_param: YumiParam, yumi_state = YumiCoordinatedRobotState()):
+def YumiCoordinatedRobotState_from_YumiParam(yumi_param : YumiParam, yumi_state : Optional[YumiCoordinatedRobotState] = None):
     """ Transforms a desired Yumi parameter into a Yumi state.
     """
+    if yumi_state is None:
+        yumi_state = YumiCoordinatedRobotState()
+    
     yumi_state.grip_r=yumi_param.grip_right
     yumi_state.grip_l=yumi_param.grip_left
 

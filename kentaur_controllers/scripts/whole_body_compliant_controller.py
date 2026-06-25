@@ -44,13 +44,11 @@ class KentaurController(AbstractROSController[KentaurDeviceState, KentaurDeviceA
     def reset(self, state: KentaurDeviceState):
         self.control_law.clear()
         
-        _, homeXy = self._device.state_to_home(state)
+        homeX_r_init, homeX_l_init = self._device.grippers_wrt_home(state)
         
-        homeX_r_init = homeXy @ state.state_yumi.pose_gripper_r
         homeX_r_final = self.target_r @ homeX_r_init
         self.trajectory_r.update(PoseParam.from_Frame(homeX_r_init), PoseParam.from_Frame(homeX_r_final), self.target_time)
         
-        homeX_l_init = homeXy @ state.state_yumi.pose_gripper_l
         homeX_l_final = self.target_l @ homeX_l_init
         self.trajectory_l.update(PoseParam.from_Frame(homeX_l_init), PoseParam.from_Frame(homeX_l_final), self.target_time)
         
@@ -67,7 +65,7 @@ class KentaurController(AbstractROSController[KentaurDeviceState, KentaurDeviceA
         ctrl_dt = ControllerParameters.dt  # self.dt(state.state_sleipner.time)
         traj_dt = self.dt(self.trajectory_initial_time)
         
-        homeXs, homeXy = self._device.state_to_home(state)
+        homeXs, homeXy = self._device.robots_wrt_home(state)
         
         # transform yumi grippers from yumi base to home
         curr_homeX_r = homeXy @ state.state_yumi.pose_gripper_r

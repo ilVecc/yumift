@@ -23,9 +23,9 @@
         <arg name="robot_nickname" value="" />  <!-- the namespace is already defined above -->
       </include>
     </group>
-    <!-- ... or the simulator -->
+    <!-- ... or the emulator -->
     <group unless="$(eval use_real)">
-      <node pkg="yumift_simulation" type="simulator.py" name="simulator" output="screen" />
+      <node pkg="yumift_emulation" type="yumi_emulator.py" name="emulator" output="screen" />
     </group>
 
     <!-- load URDF -->

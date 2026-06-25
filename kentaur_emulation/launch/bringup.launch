@@ -1,0 +1,60 @@
+<?xml version="1.0"?>
+<launch>
+
+  <arg name="rviz" default="true" />
+  <arg name="coordinated" default="false" />
+
+  <include file="$(find kentaur_description)/launch/load.launch" />
+
+  <!-- start yumi nodes -->
+  <group ns="yumi">
+
+    <!-- start the emulation (i.e. publish joint_states) -->    
+    <node pkg="yumift_emulation" type="yumi_emulator.py" name="emulator" output="screen" />
+
+    <!-- start the kinematics computation -->    
+    <node pkg="yumift_common" type="kdl_kinematics" name="unified_kinematics">
+      <!-- in -->
+      <remap from="/egm_joint_states" to="egm/joint_states"/>
+      <remap from="/egm_states"       to="egm/egm_states"/>
+      <!-- out -->
+      <remap from="/kinematics"       to="unified/kinematics"/>
+      <remap from="/joint_states"     to="unified/joint_states"/>
+    </node>
+
+    <!-- include Python node for computation of unified (aka with sensors) robot state (and possibily coordinated task space) -->
+    <include file="$(find yumift_common)/launch/unified_state_updater.launch">
+      <!-- TODO remove this line and dynamically load it -->
+      <arg name="coordinated_symmetry" value="0"/>
+      <arg unless="$(arg coordinated)" name="update_options" value="3" />
+      <arg name="topic_sensor_r" default="sensors/wrench/right/compensated_world"/>
+      <arg name="topic_sensor_l" default="sensors/wrench/left/compensated_world"/>
+      <arg name="topic_kinematics" default="unified/kinematics"/>
+      <arg name="topic_robot_state" default="unified/robot_state_coordinated"/>
+    </include>
+
+  </group>
+
+  <!-- start sleipner nodes -->
+  <group ns="sleipner">
+    
+    <!-- start sleipner emulator if working offline -->
+    <node pkg="sleipner_emulation" type="sleipner_emulator.py" name="emulator" output="screen">
+      <!-- in -->
+      <remap from="/base/twist_controller/command" to="/base/twist_mux/command_teleop_keyboard" />
+    </node>
+
+  </group>
+
+  <!-- start joint state publisher (i.e. merge /*/joint_states into one /joint_states) -->
+  <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
+    <rosparam param="source_list">["/base/joint_states", "/yumi/unified/joint_states"]</rosparam>
+    <rosparam param="rate">250</rosparam>
+  </node>
+
+  <!-- start robot state publisher (i.e. publish /joint_states to /tf) -->
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+
+  <node if="$(arg rviz)" name="rviz" pkg="rviz" type="rviz" args="-d $(find kentaur_description)/rviz/kentaur.rviz" required="true" />
+
+</launch>

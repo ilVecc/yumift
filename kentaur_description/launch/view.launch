@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<launch>
+  
+  <include file="$(find kentaur_description)/launch/load.launch" />
+
+  <node name="joint_state_publisher_gui" pkg="joint_state_publisher_gui" type="joint_state_publisher_gui" />
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />  <!-- state to tf2 -->
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find kentaur_description)/rviz/kentaur.rviz" required="true" />
+
+</launch>

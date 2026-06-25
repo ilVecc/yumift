@@ -140,7 +140,8 @@ class YumiStatePublisher
         "gripper_r_joint", "gripper_r_joint_m", "gripper_l_joint", "gripper_l_joint_m"
     };
 
-    // naming for ABB driver, ABB is inconsistent with naming joint names!
+    // naming in ABB drivers
+    // ABB is inconsistent with their naming standards!
     std::string name_list[18] = {
         "yumi_robr_joint_1", "yumi_robr_joint_2", "yumi_robr_joint_3", "yumi_robr_joint_4", "yumi_robr_joint_5", "yumi_robr_joint_6", "yumi_robr_joint_7", 
         "yumi_robl_joint_1", "yumi_robl_joint_2", "yumi_robl_joint_3", "yumi_robl_joint_4", "yumi_robl_joint_5", "yumi_robl_joint_6", "yumi_robl_joint_7"

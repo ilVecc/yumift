@@ -54,7 +54,7 @@
     </node>
 
     <!-- start rviz visualization -->
-    <include if="$(arg rviz)" file="$(find yumift_common)/launch/display.launch" />
+    <node if="$(arg rviz)" name="rviz" pkg="rviz" type="rviz" args="-d $(find yumift_description)/rviz/yumift.rviz" required="true" />
   
   </group>
 

@@ -393,7 +393,7 @@
 			<geometry>
 				<mesh filename="package://sleipner_description/meshes/base/raw_battery.stl"/>
 			</geometry>
-			<material name="Gazebo/Black"/>
+			<material name="IPA/Black"/>
 		</visual>
 		<collision>
 			<origin rpy="0 0 0" xyz="0 0.075 0"/>
@@ -407,7 +407,7 @@
 	<gazebo reference="base_battery_battery">
 		<gravity>true</gravity>
 		<self_collide>false</self_collide>
-		<material value="Gazebo/Black"/>
+		<material value="IPA/Black"/>
 	</gazebo>
 	<gazebo reference="base_link">
 		<gravity>true</gravity>

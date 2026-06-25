@@ -1,0 +1,7 @@
+<launch>
+
+  <!-- TODO should add parameters for the URDF -->
+
+  <param name="robot_description" command="$(find xacro)/xacro $(find kentaur_description)/urdf/kentaur.urdf.xacro" />
+
+</launch>

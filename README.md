@@ -48,8 +48,8 @@ This package is `python3`-based and written for `ROS Noetic`, which runs on the 
   ```bash
   python3 -m pip install -U pip
   ```
-  > [!WARNING]
-  > **This point is crucial**, as some of this package's dependencies require the latest `pip` features to be compiled/installed.
+> [!WARNING]
+> **This point is crucial**, as some of this package's dependencies require the latest `pip` features to be compiled/installed.
 
 * `ROS Noetic`, preferably the `Desktop Install` version, following the [official installation guide](https://wiki.ros.org/noetic/Installation/Ubuntu), and **DO NOT SKIP** installing `rosdep` ([section 1.6](https://wiki.ros.org/noetic/Installation/Ubuntu#:~:text=zshrc%0Asource%20~/.zshrc-,Dependencies%20for%20building%20packages,-Up%20to%20now));
 
@@ -222,25 +222,28 @@ roslaunch yumift_common start_egm.launch
 If the second command fails, follow the instructions in the error message and launch again the command until it succedes. Once the command succeded, you should now see the robot visualization in the same configuration as the real robot; now, the setup is ready to be used.
 
 > [!TIP]
-> EGM communication will be cut every time an hardware failure/error occurs, which can happen very often (e.g. payload too high, collision detected, command sent but ignored, etc.).
-> Every time the communication is cut, you need to restart it with the command above. These frequent interruptions can become very frustrating during debugging. To avoid this, allow the EGM connection to automatically restart by adding to the launch command the following extra argument
-> ```bash
-> roslaunch yumift_common start_egm.launch resilient:=true
-> ```
 > The EGM communication nodes can also be started directly in the bring-up using
 > ```bash
 > roslaunch yumift_common bringup.launch use_real:=true start_egm_link:=true
 > ```
-> or in its resilient version via
+
+EGM communication will be cut every time an hardware failure/error occurs, which can happen very often (e.g. payload too high, collision detected, command sent but ignored, etc.).
+Every time the communication is cut, you need to restart it manually with the command above. If you used the `start_egm_link:=true` argument, you will need to restart the entire bringup.
+
+> [!CAUTION]
+> Frequent EGM interruptions can become very frustrating during debugging. 
+> To avoid this, you can allow the EGM connection to automatically restart by adding to the launch command the following extra argument
+> ```bash
+> roslaunch yumift_common start_egm.launch resilient:=true
+> ```
+> Alternatively, you can bringup the robot in its resilient version via
 > ```bash
 > roslaunch yumift_common bringup.launch use_real:=true resilient_egm_link:=true
 > ```
-
-> [!CAUTION]
-> Using the tip above is strongly discouraged for beginners and recommended to expert users only! 
+> Using this option is **strongly discouraged for beginners** and recommended to expert users only! 
 > The robot will automatically restart moving few instants after it failed. 
 > This is particularly dangerous if the robot self-collided, stopped near to a singularity, or if the controller you are using doesn't handle big position errors very well. 
-> **DO NOT USE THIS OPTION** if you are not **certain** of what you are doing.
+> **DO NOT USE THIS OPTION** if you are not **CERTAIN** of what you are doing.
 
 > [!IMPORTANT]
 > The parameters of the robot's motion are setup at the beginning of the EGM communication, in particular joint velocity limits. If different values are needed, they must changed in `yumift_common/config/config_hardware_egm.yaml`. 
@@ -279,7 +282,10 @@ Once done, you'll see the forces in RViz completely compensated. You can now sto
 
 
 ## Using off-the-shelf controllers
-A set of velocity controllers is shipped with this package. These are categorized as *individual* (acting separately on each arm) or *dual* (acting in either *individual* or *coordinated* fashion, i.e. absolute and relative pose control). All controllers receive either a `yumift_msgs/YumiPosture` (tracking controllers) or a `yumift_msgs/YumiTrajectory` (trajectory controllers) message (the latter is simply a list of the former). Trajectory controllers are *"routinable"*, meaning that they can execute pre-registered routines that achieve particular motions (e.g. "go back home", "grippers point down", etc.). 
+A set of velocity-based controllers is shipped in the `yumift_controllers` package. 
+These are categorized as *tracking* controllers (receive `yumift_msgs/YumiPosture` messages) or *trajectory* controllers (receive `yumift_msgs/YumiTrajectory` messages, which are lists of `yumift_msgs/YumiPosture` messages). 
+Trajectory controllers are *"routinable"*, meaning that they can execute pre-registered routines that achieve particular motions (e.g. "go back home", "grippers point down", etc.). 
+Controllers can work in two modes, either *individual* (acting separately on each arm) or *dual* (acting in either *individual* or *coordinated* fashion, i.e. absolute and relative pose control).
 
 The available controllers are:
 - `SingleTrackingController` achieves independent cartesian tracking control (i.e. each arm receives a dedicated posture, from two separate topics);
@@ -301,8 +307,8 @@ In each controller, a `YumiPosture` message can be set to represent six differen
 > Checkout `yumift_controllers/config/gains.yaml` to tune the gains of the various controllers. 
 > For trajectory controllers, a set of example trajectories is also provided (see following subsections for more info).
 
-### Example controller:
-This controller only serves as a tutorial on how to build controllers. This controller simply commands to achieve a pre-defined pose.
+### Example controller
+This (dummy) controller only serves as a tutorial on how to build your own controllers, and it simply commands to achieve a pre-defined fixed pose.
 For safety/educational purpose, only run this file in simulation. To start the controller use
 ```bash
 rosrun yumift_controllers example_controller.py
@@ -316,40 +322,44 @@ To start a trajectory controller use
 ```bash
 rosrun yumift_controllers trajectory_controllers.py simple
 ```
-with available options `simple`, `dual`, `wrenched`, `compliant`.
+with available options `simple`, `dual`, `wrenched`, and `compliant`.
 
-Trajectories are cubic polynomials and are automatically computed based on the received `YumiPosture` list.
+Trajectories are automatically computed based on the received `YumiPosture` list (`YumiTrajectory`), and use cubic polynomials (position and orientation are interpolated separately) to connect the postures.
 
-Send some example trajectories to the controller with
+### Sending trajectories
+
+The best way to construct and send trajectories is to use the `Helper` class provided by the `yumift_msgs` package, as it offers handy ways of constructing posture messages (`H.posture`), convert units (`H.cm` and `H.e2q`), and send trajectories (`H.quick_send`). Have a look at the various `example_*` files to see the helper in action. 
+
+You can also run these files to send some trajectories to the controller using 
 ```bash
 rosrun yumift_examples example_1_simple_trajectory.py
 ```
-Have a look at the various `example_*` files for a description of the trajectories.
 
-Alternatively, although discouraged, you can send commands directly through the command line with
-```bash
-rostopic pub /trajectory yumift_msgs/YumiTrajectory "
-trajectory:
-- primary_pose:
-    position: 
-      x:  0.4
-      y: -0.3
-      z:  0.6
-    orientation: 
-      w: 1
-  secondary_pose:
-    position:
-      x:  0.4
-      y:  0.3
-      z:  0.6
-    orientation:
-      w: 1
-  gripper_right: 20
-  gripper_left: 20
-  time_to_execute: 4.0
-mode: yumift_msgs/YumiTrajectory.INDIVIDUAL"
---once
-``` 
+> [!NOTE]
+> Alternatively, although discouraged, you can send commands directly through the command line with
+> ```bash
+> rostopic pub /trajectory yumift_msgs/YumiTrajectory "
+> trajectory:
+> - primary_pose:
+>     position: 
+>       x:  0.4
+>       y: -0.3
+>       z:  0.6
+>     orientation: 
+>       w: 1
+>   secondary_pose:
+>     position:
+>       x:  0.4
+>       y:  0.3
+>       z:  0.6
+>     orientation:
+>       w: 1
+>   gripper_right: 20
+>   gripper_left: 20
+>   time_to_execute: 4.0
+> mode: yumift_msgs/YumiTrajectory.INDIVIDUAL"
+> --once
+> ``` 
 
 ### Tracking controllers
 To start a tracking controller use

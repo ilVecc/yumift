@@ -111,9 +111,8 @@ class YumiDualCartesianVelocityControlLaw(AbstractControlLaw):
         
     @property
     def current_pose(self):
-        """
-        Return current pose as a tuple of (pos_1, rot_1, pos_2, rot_2) where _1
-        is either _right or _absolute and _2 is either _left or _relative 
+        """ Return current pose as a tuple of (pos_1, rot_1, pos_2, rot_2) where _1
+            is either _right or _absolute and _2 is either _left or _relative 
         """
         if self.mode == self.ControlMode.INDIVIDUAL:
             return self.current_pose_individual
@@ -122,8 +121,7 @@ class YumiDualCartesianVelocityControlLaw(AbstractControlLaw):
     
     @property
     def current_pose_individual(self):
-        """
-        Return current individual pose as a tuple of (pos_r, rot_r, pos_l, rot_l)
+        """ Return current individual pose as a tuple of (pos_r, rot_r, pos_l, rot_l)
         """
         current_pos_r = np.copy(self.control_right.current_position)
         current_rot_r = np.copy(self.control_right.current_rotation)
@@ -133,8 +131,7 @@ class YumiDualCartesianVelocityControlLaw(AbstractControlLaw):
     
     @property
     def current_pose_coordinated(self):
-        """
-        Return current coordinated pose as a tuple of (pos_abs, rot_abs, pos_rel, rot_rel)
+        """ Return current coordinated pose as a tuple of (pos_abs, rot_abs, pos_rel, rot_rel)
         """
         current_pos_abs = np.copy(self.control_abs.current_position)
         current_rot_abs = np.copy(self.control_abs.current_rotation)
@@ -144,9 +141,8 @@ class YumiDualCartesianVelocityControlLaw(AbstractControlLaw):
     
     @property
     def last_target_velocity(self):
-        """
-        Return last target velocity as a tuple of (vel_1, vel_2) where _1
-        is either _right or _absolute and _2 is either _left or _relative 
+        """ Return last target velocity as a tuple of (vel_1, vel_2) where _1
+            is either _right or _absolute and _2 is either _left or _relative 
         """
         if self.mode == self.ControlMode.INDIVIDUAL:
             return self.last_target_velocity_individual
@@ -155,8 +151,7 @@ class YumiDualCartesianVelocityControlLaw(AbstractControlLaw):
     
     @property
     def last_target_velocity_individual(self):
-        """
-        Return last individual target velocity as a tuple of (vel_r, vel_l)
+        """ Return last individual target velocity as a tuple of (vel_r, vel_l)
         """
         vel_r_init = np.copy(self.control_right.target_velocity)
         vel_l_init = np.copy(self.control_left.target_velocity)
@@ -164,8 +159,7 @@ class YumiDualCartesianVelocityControlLaw(AbstractControlLaw):
     
     @property
     def last_target_velocity_coordinated(self):
-        """
-        Return last coordinated target velocity as a tuple of (vel_abs, vel_rel)
+        """ Return last coordinated target velocity as a tuple of (vel_abs, vel_rel)
         """
         vel_abs_init = np.copy(self.control_abs.target_velocity)
         vel_rel_init = np.copy(self.control_rel.target_velocity)
@@ -179,8 +173,7 @@ class YumiDualCartesianVelocityControlLaw(AbstractControlLaw):
         self.control_rel.clear()
 
     def update_current_state(self, yumi_state: YumiCoordinatedRobotState):
-        """ 
-        Updates individual and coordinated poses
+        """ Updates individual and coordinated poses
         """
         self.control_right.update_current_state(yumi_state.pose_gripper_r)
         self.control_left.update_current_state(yumi_state.pose_gripper_l)
@@ -232,14 +225,13 @@ class YumiDualCartesianVelocityControlLaw(AbstractControlLaw):
 
 
 class YumiDualWrenchFeedbackControlLaw(YumiDualCartesianVelocityControlLaw):
-    """
-    Generates velocity commands in cartesian space with the law
-            dx := dx_tgt + k * (x_tgt - x) + l * f
-    where
-        x, dx           state and speed of the YuMi (either linear or angular)
-        x_tgt, dx_tgt   target state and speed for the YuMi (either linear or angular)
-        f               external forces at the end effector
-    in either individual or coordinated motion.
+    """ Generates velocity commands in cartesian space with the law
+                dx := dx_tgt + k * (x_tgt - x) + l * f
+        where
+            x, dx           state and speed of the YuMi (either linear or angular)
+            x_tgt, dx_tgt   target state and speed for the YuMi (either linear or angular)
+            f               external forces at the end effector
+        in either individual or coordinated motion.
     """
     def __init__(self, gains):
         super().__init__(gains)
@@ -273,20 +265,19 @@ class YumiDualWrenchFeedbackControlLaw(YumiDualCartesianVelocityControlLaw):
 
 
 class YumiIndividualAdmittanceControlLaw(YumiIndividualCartesianVelocityControlLaw):
-    """
-    Generates velocity commands in cartesian space with the law
-            dx := dx_tgt + k * (x_tgt - x)
-    and
-             x_tgt :=  x_des +  e
-            dx_tgt := dx_des + de
-            M * dde + D * de + K * e = f
-    where
-        x, dx           state and speed of the YuMi (either linear or angular)
-        x_des, dx_des   desired (ex target) state and speed for the YuMi (either linear or angular)
-        f               external forces at the end effector
-        M, D, K         admittance coefficients
-        e, de, dde      error (and derivatives) on the desired point due to external forces
-    in individual motion.
+    """ Generates velocity commands in cartesian space with the law
+                dx := dx_tgt + k * (x_tgt - x)
+        and
+                x_tgt :=  x_des +  e
+                dx_tgt := dx_des + de
+                M * dde + D * de + K * e = f
+        where
+            x, dx           state and speed of the YuMi (either linear or angular)
+            x_des, dx_des   desired (ex target) state and speed for the YuMi (either linear or angular)
+            f               external forces at the end effector
+            M, D, K         admittance coefficients
+            e, de, dde      error (and derivatives) on the desired point due to external forces
+        in individual motion.
     """
     def __init__(self, gains, discretization="forward", initial_timestep=ControllerParameters.dt):
         super().__init__(gains)
@@ -361,20 +352,19 @@ class YumiIndividualAdmittanceControlLaw(YumiIndividualCartesianVelocityControlL
 
 
 class YumiDualAdmittanceControlLaw(YumiDualCartesianVelocityControlLaw):
-    """
-    Generates velocity commands in cartesian space with the law
-            dx := dx_tgt + k * (x_tgt - x)
-    and
-             x_tgt :=  x_des +  e
-            dx_tgt := dx_des + de
-            M * dde + D * de + K * e = f
-    where
-        x, dx           state and speed of the YuMi (either linear or angular)
-        x_des, dx_des   desired (ex target) state and speed for the YuMi (either linear or angular)
-        f               external forces at the end effector
-        M, D, K         admittance coefficients
-        e, de, dde      error (and derivatives) on the desired point due to external forces
-    in either individual or coordinated motion.
+    """ Generates velocity commands in cartesian space with the law
+                dx := dx_tgt + k * (x_tgt - x)
+        and
+                x_tgt :=  x_des +  e
+                dx_tgt := dx_des + de
+                M * dde + D * de + K * e = f
+        where
+            x, dx           state and speed of the YuMi (either linear or angular)
+            x_des, dx_des   desired (ex target) state and speed for the YuMi (either linear or angular)
+            f               external forces at the end effector
+            M, D, K         admittance coefficients
+            e, de, dde      error (and derivatives) on the desired point due to external forces
+        in either individual or coordinated motion.
     """
     def __init__(self, gains, discretization="forward", initial_timestep=ControllerParameters.dt):
         super().__init__(gains)

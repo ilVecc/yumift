@@ -15,7 +15,21 @@ tframe: &tframe
   rot: *quat_one
 
 
-# Gripper info page 21-22 in https://abb.sluzba.cz/Pages/Public/IRC5UserDocumentationRW6/en/3HC054949%20PM%20IRB%2014000%20Gripper-en.pdf
+
+total_load_with_sensor: &total_load_with_sensor
+  mass: 0.296
+  cog:
+    x: 8.2
+    y: 11.7
+    z: 52.0
+  aom: *quat_one
+  ix: 0.00021
+  iy: 0.00024
+  iz: 0.00009
+
+
+
+# Gripper info page 21-22 in https://library.abb.com/d/3HAC054949-001
 # mass [kg], center_of_gravity [mm], inertia [kgm^2]
 total_load_R: &total_load_R
   mass: 0.230
@@ -42,12 +56,14 @@ total_load_L: &total_load_L
 tool_R: &tool_R
   robhold: True
   tframe: *tframe
-  tload: *total_load_R
+  # tload: *total_load_R
+  tload: *total_load_with_sensor
 
 tool_L: &tool_L
   robhold: True
   tframe: *tframe
-  tload: *total_load_L
+  # tload: *total_load_L
+  tload: *total_load_with_sensor
 
 
 work_obj: &work_obj

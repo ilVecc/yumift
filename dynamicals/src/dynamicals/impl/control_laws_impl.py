@@ -100,10 +100,10 @@ class CartesianVelocityControlLaw(AbstractControlLaw):
         if self.max_deviation is not None \
         and (error_pos_mag > self.max_deviation[0] or error_rot_mag > self.max_deviation[1]):
             if raise_deviation:
-                raise ControlLawError("Deviation from current target too high")
-            else:
-                error_pos_mag = min(error_pos_mag, self.max_deviation[0])
-                error_rot_mag = min(error_rot_mag, self.max_deviation[1])
+                raise ControlLawError(f"Deviation from target too high: ERR_POS {error_pos_mag:.3f} | ERR_ROT {error_rot_mag:.3f}")
+            
+            error_pos_mag = min(error_pos_mag, self.max_deviation[0])
+            error_rot_mag = min(error_rot_mag, self.max_deviation[1])
 
         # Check that the error from the trajectory is not too small.
         # This prevents insignificant errors from being magnified by K gains.

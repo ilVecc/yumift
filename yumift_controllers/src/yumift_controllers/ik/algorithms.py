@@ -13,6 +13,7 @@ from ..common.controller_base import MixedVelocityYumiAction
 from yumift_common.constants import YumiRobotConstants
 
 from dynamicals.solvers.hqp import HQPSolver, HQPTaskError, Task
+from dynamicals.solvers.pinv import PINVSolver
 
 
 class HQPIKAlgorithm(IKAlgorithm):
@@ -191,43 +192,21 @@ class PINVIKAlgorithm(IKAlgorithm):
         """
         super().__init__(name="pinv", can_init_late=True)
         
-        self.secondary_obj = secondary_obj if secondary_obj is not None else secondary_nothing
-        
-        # weighted jacobian (W diagonal matrix)
-        #   J+ = W^-1 J' (J W^-1 J')^-1
-        if weights is None:
-            self.pinv_funct = lambda J : np.linalg.pinv(J)
-            self.W = np.ones(YumiRobotConstants.DOF)
+        weights = np.asarray(weights)
+        if weights.shape == (YumiRobotConstants.DOF,):
+            self.W = weights
+        elif weights.shape == (YumiRobotConstants.DOF//2,):
+            self.W = np.concatenate([weights, weights])
         else:
-            self.pinv_funct = lambda J : self.L[:,None] * np.linalg.pinv(J * self.L)  # use * instead of @ for performance
-            weights = np.asarray(weights)
-            if weights.shape == (YumiRobotConstants.DOF,):
-                self.W = weights
-            elif weights.shape == (YumiRobotConstants.DOF//2,):
-                self.W = np.concatenate([weights, weights])
-            else:
-                raise AttributeError("Weights must be None, 7-DOF or 14-DOF")
+            raise AttributeError("Weights must be None, scalar, 7-DOF, or 14-DOF")
         
-        # performance can improved for static W using its Cholesky decomposition
-        #   W^-1 = L L' = L^2  (L is diagonal as well)
-        #   J+ = W^-1 J' (J W^-1 J')^-1
-        #      = L (J L)' ((J L) (J L)')^-1
-        self.L = np.sqrt(1/self.W)
+        if secondary_obj is None:
+            secondary_obj = secondary_nothing
+        # TODO remove this lambda
+        secondary_obj = lambda J, q, qd : secondary_obj(q, qd)
+        self._pinv_solver_12 = PINVSolver((YumiRobotConstants.EE, YumiRobotConstants.DOF), weights, damping, secondary_obj)
+        self._pinv_solver_6 = PINVSolver((YumiRobotConstants.EE//2, YumiRobotConstants.DOF), weights, damping, secondary_obj)
         
-        if damping is not None:
-            # Tikhonov regularization
-            # J+ = J' (J J' + G G')^-1
-            # G = d I  (usually, becoming L2 regularization)
-            self.G = damping * np.eye(YumiRobotConstants.EE)
-            self.GGT = self.G @ self.G.T
-            
-            def damped_weighted_pinv(J : np.ndarray):
-                JL = J * self.L
-                return self.L[:,None] * JL.T @ np.linalg.inv(JL @ JL.T + self.GGT)
-            
-            self.pinv_funct = damped_weighted_pinv
-
-        self._cached_eye_DOF = np.eye(YumiRobotConstants.DOF)
         
     def init(self):
         """ Sets up the pseudo-inverse solver
@@ -237,18 +216,47 @@ class PINVIKAlgorithm(IKAlgorithm):
     # TODO not all actions are `dict`
     def solve(self, action: dict, state: YumiDualDeviceState):
 
+        xdot = None
         jacobian = None
-        xdot = np.zeros(12)
-
+        jacobian_pinv = None
+        
         if action["control_space"] == MixedVelocityYumiAction.ControlSpace.INDIVIDUAL:
-            xdot[0:6] = action.get("velocity_right", np.zeros(6))
-            xdot[6:12] = action.get("velocity_left", np.zeros(6))
+            xdot = np.zeros(12)
+            xdot[0:6] = action["velocity_right"]
+            xdot[6:12] = action["velocity_left"]
             jacobian = state.jacobian_grippers
-
+        
+        elif action["control_space"] == MixedVelocityYumiAction.ControlSpace.RIGHT:
+            xdot = action["velocity_right"]
+            jacobian = state.jacobian_gripper_r
+            jacobian_pinv = self.pinv_funct(jacobian)
+            # add extra DOFs missing
+            zeros = np.zeros((6,7))
+            jacobian = np.hstack([jacobian, zeros])
+            jacobian_pinv = np.vstack([jacobian_pinv, zeros.T])
+            
+        elif action["control_space"] == MixedVelocityYumiAction.ControlSpace.LEFT:
+            xdot = action["velocity_left"]
+            jacobian = state.jacobian_gripper_l
+            jacobian_pinv = self.pinv_funct(jacobian)
+            # add extra DOFs missing
+            zeros = np.zeros((6,7))
+            jacobian = np.hstack([zeros, jacobian])
+            jacobian_pinv = np.vstack([zeros.T, jacobian_pinv])
+        
         elif action["control_space"] == MixedVelocityYumiAction.ControlSpace.COORDINATED:
-            xdot[0:6] = action.get("velocity_absolute", np.zeros(6))
-            xdot[6:12] = action.get("velocity_relative", np.zeros(6))
+            xdot = np.zeros(12)
+            xdot[0:6] = action["velocity_absolute"]
+            xdot[6:12] = action["velocity_relative"]
             jacobian = state.jacobian_coordinated
+            
+        elif action["control_space"] == MixedVelocityYumiAction.ControlSpace.ABSOLUTE:
+            xdot = action["velocity_absolute"]
+            jacobian = state.jacobian_coordinated_abs
+            
+        elif action["control_space"] == MixedVelocityYumiAction.ControlSpace.RELATIVE:
+            xdot = action["velocity_relative"]
+            jacobian = state.jacobian_coordinated_rel
 
         else:
             print(f"Unknown control mode ({action['control_space']}), stopping")
@@ -259,7 +267,9 @@ class PINVIKAlgorithm(IKAlgorithm):
         joint_pos[0:7] = state.joint_pos_r
         joint_pos[7:14] = state.joint_pos_l
         
-        jacobian_pinv = self.pinv_funct(jacobian)
+        if jacobian_pinv is None:
+            # otherwise it's been already created in RIGHT or LEFT
+            jacobian_pinv = self.pinv_funct(jacobian)
         ortho_proj = self._cached_eye_DOF - jacobian_pinv @ jacobian
         vel = jacobian_pinv @ xdot + ortho_proj @ self.secondary_obj(joint_pos, None)  # `state.joint_vel` not needed
 

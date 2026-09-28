@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 from typing_extensions import override
 
-import threading
-
 import rospy
 import numpy as np
+import threading
 
 from yumift_msgs.helper import Helper
 from yumift_msgs.msg import YumiTrajectory as YumiTrajectoryMsg
 
 from dynamicals.impl import AbstractROSController
+from dynamicals.solvers.pinv import PINVSolver
 
 from yumift_controllers.common.control_laws import YumiIndividualCartesianVelocityControlLaw
 from yumift_controllers.ik.pinv_tasks import secondary_neutral
@@ -41,6 +41,10 @@ class KentaurTrajectoryController(AbstractROSController[KentaurDeviceState, Kent
         self.des_gripW_r = np.array([0, 0, -10, 0, 0, 0])
         self.des_gripW_l = np.array([0, 0, 0, 0, 0, 0])
         self.Kf = np.eye(6) * 0.5
+        
+        # # TODO fix me
+        # secondary_neutral_alt = lambda J, q, dq : secondary_neutral(q, dq)
+        # self.iksolver_yumi = PINVSolver((14, 12), [25, 25, 25, 10, 1, 1, 1], None, secondary_neutral_alt)
     
     @override
     def reset(self, state: KentaurDeviceState):
@@ -128,7 +132,6 @@ class KentaurTrajectoryController(AbstractROSController[KentaurDeviceState, Kent
         vel_tgt = np.zeros(12)  # cartesian, in home frame
         vel_tgt[0:6] = action.action_yumi["velocity_right"]
         vel_tgt[6:12] = action.action_yumi["velocity_left"]
-        
         
         homeJ_pinv = np.linalg.pinv(homeJ)
         dq_target = homeJ_pinv @ vel_tgt

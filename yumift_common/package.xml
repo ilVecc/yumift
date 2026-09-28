@@ -82,7 +82,7 @@
   <exec_depend>liborocos-kdl</exec_depend>
   <exec_depend>geometry2</exec_depend>
   <exec_depend>yumift_msgs</exec_depend>
-  <exec_depend>yumift_simulation</exec_depend>
+  <exec_depend>yumift_emulation</exec_depend>
   <!-- Python dependencies -->
   <exec_depend>python3-pip</exec_depend>
   <exec_depend>python3-yaml</exec_depend>
@@ -90,7 +90,7 @@
   <exec_depend>python-numpy-quaternion-pip</exec_depend>
   <!-- Pinocchio dropped support for Ubuntu 20.04 in version 3.7.0, but PIP  -->
   <!-- in Python3.8 (default version for ROS Noetic) offers pinocchio<=3.4.0 -->
-  <exec_depend version_lte="3.4.0">python3-pin</exec_depend>
+  <!-- <exec_depend version_lte="3.4.0">python3-pin</exec_depend> -->
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

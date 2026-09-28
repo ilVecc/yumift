@@ -34,19 +34,16 @@ class MixedVelocityYumiAction(AbstractControllerAction, dict):
     class ControlSpace(Enum):
         JOINT_SPACE = "joint_space"
         INDIVIDUAL = "individual"
+        RIGHT = "right"
+        LEFT = "left"
         COORDINATED = "coordinated"
+        ABSOLUTE = "absolute"
+        RELATIVE = "relative"
         
-        @classmethod    
-        def from_str(cls, name: str):
-            if name == "joint_space":
-                return cls.JOINT_SPACE
-            elif name == "individual":
-                return cls.INDIVIDUAL
-            elif name == "coordinated":
-                return cls.COORDINATED
-            else:
-                raise NameError(f"No control space for the provided name: {name}")
-    
+        @staticmethod    
+        def from_str(name: str):
+            return MixedVelocityYumiAction.ControlSpace[name.upper()]
+            
     def __init__(self) -> None:
         super().__init__()
         self.control_space(MixedVelocityYumiAction.ControlSpace.JOINT_SPACE)

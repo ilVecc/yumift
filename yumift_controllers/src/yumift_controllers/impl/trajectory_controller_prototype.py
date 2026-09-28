@@ -21,8 +21,6 @@ from ..common.control_laws import YumiDualCartesianVelocityControlLaw
 from ..ik.algorithms import HQPIKAlgorithm, PINVIKAlgorithm
 from ..misc.utils import quat_to_xyzw, Frame_to_PoseStampedMsg, YumiCoordinatedRobotState_from_YumiParam
 
-from dynamicals.utils import Frame
-
 from .routines import ReadyPoseRoutine, CalibPoseRoutine
 from .trajectory import YumiParam, YumiTrajectory, YumiTrajectoryParam, PoseParam
 
@@ -125,7 +123,7 @@ class YumiTrajectoryController(RoutinableYumiController):
         # but the final selection of what will be sent to the inverse kinematics
         # solver is actually be performed based on what was originally requested.
         # Thus, `self.effective_mode` is used to store the original request.
-        self.effective_mode : int = None
+        self.effective_mode : YumiTrajectoryMsg
         
         # prepare trajectory buffer
         self.trajectory_initial_time = rospy.Time.now()
@@ -239,23 +237,28 @@ class YumiTrajectoryController(RoutinableYumiController):
             
             # get space based on control mode ...
             action = MixedVelocityYumiAction()
-            action.control_space(MixedVelocityYumiAction.ControlSpace.from_str(self.control_law.mode.value))
             action.timestep(ctrl_dt)
             
             # ... but use the effective mode to set the velocities
             if self.effective_mode == YumiTrajectoryMsg.INDIVIDUAL:
+                action.control_space(MixedVelocityYumiAction.ControlSpace.INDIVIDUAL)
                 action.velocity_right(vel_1) 
                 action.velocity_left(vel_2)
             elif self.effective_mode == YumiTrajectoryMsg.RIGHT:
+                action.control_space(MixedVelocityYumiAction.ControlSpace.RIGHT)
                 action.velocity_right(vel_1)
             elif self.effective_mode == YumiTrajectoryMsg.LEFT:
+                action.control_space(MixedVelocityYumiAction.ControlSpace.LEFT)
                 action.velocity_left(vel_2)
             elif self.effective_mode == YumiTrajectoryMsg.COORDINATED:
+                action.control_space(MixedVelocityYumiAction.ControlSpace.COORDINATED)
                 action.velocity_absolute(vel_1)
                 action.velocity_relative(vel_2)
             elif self.effective_mode == YumiTrajectoryMsg.ABSOLUTE:
+                action.control_space(MixedVelocityYumiAction.ControlSpace.ABSOLUTE)
                 action.velocity_absolute(vel_1)
             elif self.effective_mode == YumiTrajectoryMsg.RELATIVE:
+                action.control_space(MixedVelocityYumiAction.ControlSpace.RELATIVE)
                 action.velocity_relative(vel_2)
             
             # set commands to the grippers

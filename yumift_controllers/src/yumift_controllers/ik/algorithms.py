@@ -202,10 +202,12 @@ class PINVIKAlgorithm(IKAlgorithm):
         
         if secondary_obj is None:
             secondary_obj = secondary_nothing
-        # TODO remove this lambda
-        secondary_obj = lambda J, q, qd : secondary_obj(q, qd)
-        self._pinv_solver_12 = PINVSolver((YumiRobotConstants.EE, YumiRobotConstants.DOF), weights, damping, secondary_obj)
-        self._pinv_solver_6 = PINVSolver((YumiRobotConstants.EE//2, YumiRobotConstants.DOF), weights, damping, secondary_obj)
+        
+        # FIXME remove this lambda
+        secondary_obj_fixme = lambda J, q, qd : secondary_obj(q, qd)
+        
+        self._pinv_solver_12 = PINVSolver((YumiRobotConstants.EE, YumiRobotConstants.DOF), weights, damping, secondary_obj_fixme)
+        self._pinv_solver_6 = PINVSolver((YumiRobotConstants.EE//2, YumiRobotConstants.DOF), weights, damping, secondary_obj_fixme)
         
         
     def init(self):

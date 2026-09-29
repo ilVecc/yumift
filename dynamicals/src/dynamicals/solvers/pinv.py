@@ -14,7 +14,7 @@ class PINVSolver():
         J_size : ArrayLike,
         weights : Optional[ArrayLike] = None,
         damping : Optional[float] = None, 
-        secondary_obj : Callable[[ArrayLike, ArrayLike], ArrayLike] = secondary_nothing
+        secondary_obj : Callable[[ArrayLike, ArrayLike, ArrayLike], ArrayLike] = secondary_nothing
     ):
         """ :param weights: cost for each joint
         """

@@ -50,6 +50,7 @@ class PINVSolver():
     
     def solve(self, v, J, q, dq):
         """ Solve the `v = J(q) @ dq` problem via least-squares error minimization.
+            The function calculates `dq = J+ @ v + (I - J+ @ J) @ secondary`.
             :param v: desired output command
             :param J: current Jacobian
             :param q: current state positions

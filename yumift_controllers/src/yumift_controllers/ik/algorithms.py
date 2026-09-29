@@ -218,7 +218,6 @@ class PINVIKAlgorithm(IKAlgorithm):
 
         xdot = None
         jacobian = None
-        jacobian_pinv = None
         
         if action["control_space"] == MixedVelocityYumiAction.ControlSpace.INDIVIDUAL:
             xdot = np.zeros(12)
@@ -229,20 +228,22 @@ class PINVIKAlgorithm(IKAlgorithm):
         elif action["control_space"] == MixedVelocityYumiAction.ControlSpace.RIGHT:
             xdot = action["velocity_right"]
             jacobian = state.jacobian_gripper_r
-            jacobian_pinv = self.pinv_funct(jacobian)
+            # FIXME ASAP
+            # jacobian_pinv = self._pinv_solver_6.solve(jacobian)
             # add extra DOFs missing
             zeros = np.zeros((6,7))
             jacobian = np.hstack([jacobian, zeros])
-            jacobian_pinv = np.vstack([jacobian_pinv, zeros.T])
+            # jacobian_pinv = np.vstack([jacobian_pinv, zeros.T])
             
         elif action["control_space"] == MixedVelocityYumiAction.ControlSpace.LEFT:
             xdot = action["velocity_left"]
             jacobian = state.jacobian_gripper_l
-            jacobian_pinv = self.pinv_funct(jacobian)
+            # FIXME ASAP
+            # jacobian_pinv = self._pinv_solver_6.solve(jacobian)
             # add extra DOFs missing
             zeros = np.zeros((6,7))
             jacobian = np.hstack([zeros, jacobian])
-            jacobian_pinv = np.vstack([zeros.T, jacobian_pinv])
+            # jacobian_pinv = np.vstack([zeros.T, jacobian_pinv])
         
         elif action["control_space"] == MixedVelocityYumiAction.ControlSpace.COORDINATED:
             xdot = np.zeros(12)
@@ -267,11 +268,10 @@ class PINVIKAlgorithm(IKAlgorithm):
         joint_pos[0:7] = state.joint_pos_r
         joint_pos[7:14] = state.joint_pos_l
         
-        if jacobian_pinv is None:
-            # otherwise it's been already created in RIGHT or LEFT
-            jacobian_pinv = self.pinv_funct(jacobian)
-        ortho_proj = self._cached_eye_DOF - jacobian_pinv @ jacobian
-        vel = jacobian_pinv @ xdot + ortho_proj @ self.secondary_obj(joint_pos, None)  # `state.joint_vel` not needed
+        # FIXME ASAP
+        # if jacobian_pinv is None:
+        #     # otherwise it's been already created in RIGHT or LEFT
+        vel = self._pinv_solver_12.solve(xdot, jacobian, joint_pos, None)  # `state.joint_vel` not needed
 
         return vel
 

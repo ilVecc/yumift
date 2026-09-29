@@ -194,9 +194,9 @@ class PINVIKAlgorithm(IKAlgorithm):
         
         weights = np.asarray(weights)
         if weights.shape == (YumiRobotConstants.DOF,):
-            self.W = weights
+            pass
         elif weights.shape == (YumiRobotConstants.DOF//2,):
-            self.W = np.concatenate([weights, weights])
+            weights = np.concatenate([weights, weights])
         else:
             raise AttributeError("Weights must be None, scalar, 7-DOF, or 14-DOF")
         

@@ -84,7 +84,7 @@ When done configuring the WSL, run `wsl --shutdown` in a PowerShell terminal and
 ## Building the package
 Create a folder for the Catkin workspace
 ```bash
-mkdir -p ~/yumift_ws/src && cd ~/yumift_ws && catkin init && cd src
+mkdir -p ~/ws_yumift/src && cd ~/ws_yumift && catkin init && cd src
 ```
 
 Clone [`abb_robot_driver`](https://github.com/ros-industrial/abb_robot_driver) and add its dependecies with
@@ -121,14 +121,14 @@ catkin build
 
 To start using the packages, source the setup file with
 ```bash
-source ~/yumift_ws/devel/setup.bash
+source ~/ws_yumift/devel/setup.bash
 ```
 
 
 ### Final touch-ups
 Instead of sourcing the packages at every startup, add the line above to `.bashrc` with
 ```bash
-echo "source ~/yumift_ws/devel/setup.bash" >> ~/.bashrc && source ~/.bashrc
+echo "source ~/ws_yumift/devel/setup.bash" >> ~/.bashrc && source ~/.bashrc
 ```
 
 Since ROS Noetic is now in its End Of Life stage, an annoying message will pop-up every time you launch `RViz` (the 3D visualization window). Use the following command to disable it

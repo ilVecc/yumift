@@ -10,6 +10,6 @@ if __name__ == "__main__":
         topic="/trajectory",
         print_message="sent trajectory",
         postures=[
-            H.posture(5.0, (H.cm(-20, +20, +20), H.e2q(ai=0)), (H.cm(-20, -20, +20), H.e2q(ai=0)), incremental=H.Incr.GLOBAL),
-            H.posture(5.0, (H.cm(-40, -10, -20), H.e2q(ai=0)), (H.cm(-40, +10, -20), H.e2q(ai=0)), incremental=H.Incr.GLOBAL),
+            H.posture(5.0, (H.cm(-20, +20, +20), H.e2q(a1=0)), (H.cm(-20, -20, +20), H.e2q(a1=0)), reference=H.Reference.GLOBAL),
+            H.posture(5.0, (H.cm(-40, -10, -20), H.e2q(a1=0)), (H.cm(-40, +10, -20), H.e2q(a1=0)), reference=H.Reference.GLOBAL),
     ])

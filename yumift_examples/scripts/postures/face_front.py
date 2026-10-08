@@ -12,6 +12,6 @@ if __name__ == "__main__":
         print_message="FACE_FRONT sent",
         postures=[
             H.posture( 4.0,
-            (H.cm(45, -25, 10), H.e2q(aj=90)),
-            (H.cm(45, +25, 10), H.e2q(aj=90)))
+            (H.cm(45, -25, 10), H.e2q(a2=90)),
+            (H.cm(45, +25, 10), H.e2q(a2=90)))
     ])

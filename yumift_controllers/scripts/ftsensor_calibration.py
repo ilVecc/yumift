@@ -75,7 +75,7 @@ class MeasurementWizard():
         H.quick_send(self.pub, routine_name="ready_pose")
     
     def goto_posture(self, posture : YumiPostureMsg):
-        H.quick_send(self.pub, H.Mode.INDIVIDUAL, [posture], wait_completion=0.5)
+        H.quick_send(self.pub, H.Motion.INDIVIDUAL, [posture], wait_completion=0.5)
         
     def measure_posture(self, posture : YumiPostureMsg):
         self.goto_posture(posture)
@@ -473,35 +473,35 @@ def measurement_campaign(prefix: str, filename_left: str, filename_right: str):
     
     wizard.print_campaign("motion (1/6) : FACE DOWN")
     wizard.measure_posture_list([
-        H.posture(4.0,  (H.cm(40, -25, 10), H.e2q(ai=180),),  (H.cm(40, +25, 10), H.e2q(ai=180),), ),
-        H.posture(4.0,  (                   H.e2q(aj=+30),),  (                   H.e2q(aj=+30),), incremental=H.Incr.LOCAL),
-        H.posture(4.0,  (                   H.e2q(aj=-60),),  (                   H.e2q(aj=-60),), incremental=H.Incr.LOCAL),
+        H.posture(4.0,  (H.cm(40, -25, 10), H.e2q(a1=180),),  (H.cm(40, +25, 10), H.e2q(a1=180),), ),
+        H.posture(4.0,  (                   H.e2q(a2=+30),),  (                   H.e2q(a2=+30),), reference=H.Reference.TOOL),
+        H.posture(4.0,  (                   H.e2q(a2=-60),),  (                   H.e2q(a2=-60),), reference=H.Reference.TOOL),
     ])
 
     wizard.print_campaign("motion (2/6) : FACE INSIDE")
     wizard.measure_posture_list([
-        H.posture(4.0,  (H.cm(45, -10, 25), H.e2q(ai=-90),),  (H.cm(45, +10, 25), H.e2q(ai=+90),), ),
-        H.posture(4.0,  (                   H.e2q(ai=-30),),  (                   H.e2q(ai=+30),), incremental=H.Incr.LOCAL),
-        H.posture(4.0,  (                   H.e2q(ai=+60),),  (                   H.e2q(ai=-60),), incremental=H.Incr.LOCAL),
+        H.posture(4.0,  (H.cm(45, -10, 25), H.e2q(a1=-90),),  (H.cm(45, +10, 25), H.e2q(a1=+90),), ),
+        H.posture(4.0,  (                   H.e2q(a1=-30),),  (                   H.e2q(a1=+30),), reference=H.Reference.TOOL),
+        H.posture(4.0,  (                   H.e2q(a1=+60),),  (                   H.e2q(a1=-60),), reference=H.Reference.TOOL),
     ])
     
     wizard.print_campaign("motion (3/6) : FACE UP")
     wizard.measure_posture_list([
         H.posture(4.0,  (H.cm(40, -20, 40),               ),  (H.cm(40, +20, 40),               ), ),
-        H.posture(4.0,  (                   H.e2q(aj=+30),),  (                   H.e2q(aj=+30),), incremental=H.Incr.LOCAL),
-        H.posture(4.0,  (                   H.e2q(ai=+30),),  (                   H.e2q(ai=+30),), incremental=H.Incr.LOCAL),
-        H.posture(4.0,  (                   H.e2q(ai=-60),),  (                   H.e2q(ai=-60),), incremental=H.Incr.LOCAL),
+        H.posture(4.0,  (                   H.e2q(a2=+30),),  (                   H.e2q(a2=+30),), reference=H.Reference.TOOL),
+        H.posture(4.0,  (                   H.e2q(a1=+30),),  (                   H.e2q(a1=+30),), reference=H.Reference.TOOL),
+        H.posture(4.0,  (                   H.e2q(a1=-60),),  (                   H.e2q(a1=-60),), reference=H.Reference.TOOL),
     ])
     wizard.goto_posture(
-        H.posture(4.0,  (                   H.e2q(ai=+30),),  (                   H.e2q(ai=+30),), incremental=H.Incr.LOCAL)
+        H.posture(4.0,  (                   H.e2q(a1=+30),),  (                   H.e2q(a1=+30),), reference=H.Reference.TOOL)
     )
     wizard.measure_posture_list([
-        H.posture(4.0,  (                   H.e2q(aj=-60),),  (                   H.e2q(aj=-60),), incremental=H.Incr.LOCAL),
-        H.posture(4.0,  (                   H.e2q(ai=+30),),  (                   H.e2q(ai=+30),), incremental=H.Incr.LOCAL),
-        H.posture(4.0,  (                   H.e2q(ai=-60),),  (                   H.e2q(ai=-60),), incremental=H.Incr.LOCAL),
+        H.posture(4.0,  (                   H.e2q(a2=-60),),  (                   H.e2q(a2=-60),), reference=H.Reference.TOOL),
+        H.posture(4.0,  (                   H.e2q(a1=+30),),  (                   H.e2q(a1=+30),), reference=H.Reference.TOOL),
+        H.posture(4.0,  (                   H.e2q(a1=-60),),  (                   H.e2q(a1=-60),), reference=H.Reference.TOOL),
     ])
     wizard.goto_posture(
-        H.posture(4.0,  (                   H.e2q(ai=+30),),  (                   H.e2q(ai=+30),), incremental=H.Incr.LOCAL),
+        H.posture(4.0,  (                   H.e2q(a1=+30),),  (                   H.e2q(a1=+30),), reference=H.Reference.TOOL),
     )
     
     # wizard.print_campaign("motion (4/6) : FACE OUTSIDE")
@@ -511,15 +511,15 @@ def measurement_campaign(prefix: str, filename_left: str, filename_right: str):
     
     wizard.print_campaign("motion (5/6) : FACE BACKWARD")
     wizard.measure_posture_list([
-        H.posture(4.0,  (H.cm(15, -25, 60), H.e2q(aj=-90),),  (H.cm(15, +25, 60), H.e2q(aj=-90),), ),
-        H.posture(4.0,  (                   H.e2q(ak=+30),),  (                   H.e2q(ak=+30),), incremental=H.Incr.LOCAL),
-        H.posture(4.0,  (                   H.e2q(ak=-60),),  (                   H.e2q(ak=-60),), incremental=H.Incr.LOCAL),
+        H.posture(4.0,  (H.cm(15, -25, 60), H.e2q(a2=-90),),  (H.cm(15, +25, 60), H.e2q(a2=-90),), ),
+        H.posture(4.0,  (                   H.e2q(a3=+30),),  (                   H.e2q(a3=+30),), reference=H.Reference.TOOL),
+        H.posture(4.0,  (                   H.e2q(a3=-60),),  (                   H.e2q(a3=-60),), reference=H.Reference.TOOL),
     ])
     
     wizard.print_campaign("motion (6/6) : FACE FORWARD")
     wizard.measure_posture_list([
-        H.posture(3.0,  (H.cm(45, -15, 25), H.e2q(ai=-90)),  (H.cm(45, +15, 25), H.e2q(ai=+90),), ),
-        H.posture(3.0,  (H.cm(45, -25,  0), H.e2q(aj=+90)),  (H.cm(45, +25,  0), H.e2q(aj=+90),), ),
+        H.posture(3.0,  (H.cm(45, -15, 25), H.e2q(a1=-90)),  (H.cm(45, +15, 25), H.e2q(a1=+90),), ),
+        H.posture(3.0,  (H.cm(45, -25,  0), H.e2q(a2=+90)),  (H.cm(45, +25,  0), H.e2q(a2=+90),), ),
     ])
 
     wizard.print_campaign("resetting to READY")

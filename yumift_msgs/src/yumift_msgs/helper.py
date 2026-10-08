@@ -1,7 +1,9 @@
+from ctypes import ArgumentError
 from typing import List, Union, Optional, Tuple
 from enum import Enum
 
 import rospy
+import tf2_ros
 import tf.transformations as trans
 
 import numpy as np
@@ -10,30 +12,54 @@ from numpy.typing import ArrayLike
 
 from dynamicals.utils import Frame
 
-from geometry_msgs.msg import Point, Quaternion, Pose, Twist
+from geometry_msgs.msg import Point, Quaternion, Pose, Twist, TransformStamped
 from yumift_msgs.msg import YumiPosture, YumiTrajectory
 
 
+buffer = tf2_ros.Buffer()
+static_broadcaster = tf2_ros.StaticTransformBroadcaster()
 
 class Helper():
     
-    class Mode(Enum):
-        INDIVIDUAL  = YumiTrajectory.INDIVIDUAL,   YumiPosture.INDIVIDUAL
-        RIGHT       = YumiTrajectory.RIGHT,        YumiPosture.RIGHT
-        LEFT        = YumiTrajectory.LEFT,         YumiPosture.LEFT
-        COORDINATED = YumiTrajectory.COORDINATED,  YumiPosture.COORDINATED
-        ABSOLUTE    = YumiTrajectory.ABSOLUTE,     YumiPosture.ABSOLUTE
-        RELATIVE    = YumiTrajectory.RELATIVE,     YumiPosture.RELATIVE
+    class Motion(Enum):
+        INDIVIDUAL  = YumiTrajectory.INDIVIDUAL,   YumiPosture.MOTION_INDIVIDUAL
+        RIGHT       = YumiTrajectory.RIGHT,        YumiPosture.MOTION_RIGHT
+        LEFT        = YumiTrajectory.LEFT,         YumiPosture.MOTION_LEFT
+        COORDINATED = YumiTrajectory.COORDINATED,  YumiPosture.MOTION_COORDINATED
+        ABSOLUTE    = YumiTrajectory.ABSOLUTE,     YumiPosture.MOTION_ABSOLUTE
+        RELATIVE    = YumiTrajectory.RELATIVE,     YumiPosture.MOTION_RELATIVE
 
-    class Incr(Enum):
-        OFF     = YumiPosture.OFF
-        LOCAL   = YumiPosture.LOCAL
-        GLOBAL  = YumiPosture.GLOBAL
-
+    class Reference(Enum):
+        BASE   = YumiPosture.REFERENCE_BASE
+        TOOL   = YumiPosture.REFERENCE_TOOL
+        LOCAL  = YumiPosture.REFERENCE_LOCAL
+        GLOBAL = YumiPosture.REFERENCE_GLOBAL
+        FRAME  = YumiPosture.REFERENCE_FRAME
+    
+    FRAME_DEFAULT = "yumi_base_link"
+    GRIP_MIN = 0
+    GRIP_MAX = 25
+    
+    
+    ###########################################################################
+    #                          CLIENT-SIDE METHODS                            #
+    ###########################################################################
+    
     @staticmethod
-    def e2q(ai : float = 0, aj : float = 0, ak : float = 0, axes : str = "rxyz") -> np.ndarray:
-        """ Create quaternions from Euler angles, in either relative or static base. """
-        return np.roll(trans.quaternion_from_euler(np.radians(ai), np.radians(aj), np.radians(ak), axes), 1)
+    def _quat_xyzw_to_wxyz(quat_xyzw):
+        return np.roll(quat_xyzw, 1)
+    
+    @staticmethod
+    def _quat_wxyz_to_xyzw(quat_wxyz):
+        return np.roll(quat_wxyz, -1)
+    
+    @staticmethod
+    def e2q(a1 : float = 0, a2 : float = 0, a3 : float = 0, axes : str = "rxyz") -> np.ndarray:
+        """ Create quaternions from Euler angles, in either relative or static base. 
+            `a1`, `a2`, `a3` are the angles for the chosen order in `axes`.
+            The output quaternion follows the `[w, x, y, z]` convention.
+        """
+        return Helper._quat_xyzw_to_wxyz(trans.quaternion_from_euler(np.radians(a1), np.radians(a2), np.radians(a3), axes))
     
     @staticmethod
     def mm(x: float = 0, y: float = 0, z: float = 0) -> np.ndarray:
@@ -78,9 +104,18 @@ class Helper():
         duration : float = 0.0, 
         primary : Optional[Union[tuple, ArrayLike]] = tuple(), 
         secondary : Optional[Union[tuple, ArrayLike]] = tuple(),
-        mode : Mode = Mode.INDIVIDUAL, 
-        incremental : Incr = Incr.OFF
+        motion : Motion = Motion.INDIVIDUAL, 
+        reference : Reference = Reference.BASE,
+        frame : str = FRAME_DEFAULT
     ):
+        """ Create a `YumiPosture` message.
+            :param duration: time to execute this posture
+            :param primary: position, rotation, velocity and grip for the RIGHT arm or the ABSOLUTE pose (grip is set to both gripper in this case)
+            :param primary: position, rotation, velocity and grip for the LEFT arm or the RELATIVE pose (grip is ignored in this case)
+            :param motion: how to interpret `primary` and `secondary`
+            :param reference: where to interpret `primary` and `secondary`
+            :param frame: reference frame of `primary` and `secondary` (RELATIVE pose is always expressed wrt the ABSOLUTE pose)
+        """
         grip_r, pos_1, rot_1, vel_1 = Helper._parse_input(primary)
         grip_l, pos_2, rot_2, vel_2 = Helper._parse_input(secondary)
         
@@ -100,25 +135,51 @@ class Helper():
             gripper_right = grip_r,
             gripper_left  = grip_l,
             time_to_execute = rospy.Duration(secs=duration),
-            mode = mode.value[1],
-            incremental = incremental.value)
+            motion = motion.value[1],
+            reference = reference.value,
+            ref_frame = frame
+        )
         
         return posture
 
     @staticmethod
     def pause(time : float):
         posture = YumiPosture(
-            mode=YumiPosture.INDIVIDUAL,
-            incremental=YumiPosture.GLOBAL, 
+            motion=YumiPosture.MOTION_INDIVIDUAL,
+            reference=YumiPosture.REFERENCE_GLOBAL, 
             time_to_execute=rospy.Duration.from_sec(time))
         posture.pose_primary.orientation.w = 1
         posture.pose_secondary.orientation.w = 1
         return posture
     
     @staticmethod
-    def trajectory(mode : Mode = Mode.INDIVIDUAL, postures : List[YumiPosture] = []):
+    def grip(grip_r : float = GRIP_MIN, grip_l : float = GRIP_MIN):
+        posture = YumiPosture(
+            gripper_right=grip_r,
+            gripper_left=grip_l,
+            motion=YumiPosture.MOTION_INDIVIDUAL,
+            reference=YumiPosture.REFERENCE_GLOBAL, 
+            time_to_execute=rospy.Duration.from_sec(0.9))
+        posture.pose_primary.orientation.w = 1
+        posture.pose_secondary.orientation.w = 1
+        return posture
+    
+    @staticmethod
+    def release(grip_r : float = GRIP_MAX, grip_l : float = GRIP_MAX):
+        posture = YumiPosture(
+            gripper_right=grip_r,
+            gripper_left=grip_l,
+            motion=YumiPosture.MOTION_INDIVIDUAL,
+            reference=YumiPosture.REFERENCE_GLOBAL, 
+            time_to_execute=rospy.Duration.from_sec(0.9))
+        posture.pose_primary.orientation.w = 1
+        posture.pose_secondary.orientation.w = 1
+        return posture
+    
+    @staticmethod
+    def trajectory(motion_override : Motion = Motion.INDIVIDUAL, postures : List[YumiPosture] = []):
         msg = YumiTrajectory()
-        msg.mode = mode.value[0]
+        msg.mode = motion_override.value[0]
         msg.trajectory = postures
         msg.header.stamp = rospy.Time.now()
         return msg
@@ -136,7 +197,7 @@ class Helper():
     @staticmethod
     def quick_send(
         topic : Union[str, rospy.Publisher] = "/trajectory",
-        mode : Mode = Mode.INDIVIDUAL,
+        motion_override : Motion = Motion.INDIVIDUAL,
         postures : Optional[List[YumiPosture]] = None,
         routine_name : Optional[str] = None,
         print_message : Optional[str] = None,
@@ -175,7 +236,7 @@ class Helper():
             msg.mode = YumiTrajectory.ROUTINE
             msg.routine_name = routine_name
         else:
-            msg.mode = mode.value[0]
+            msg.mode = motion_override.value[0]
             msg.trajectory = postures
         
         # send the message
@@ -190,8 +251,56 @@ class Helper():
         if wait_completion:    
             rospy.sleep(time)
 
+
+    @staticmethod
+    def add_frame(name : str, pos, rot, parent : str = FRAME_DEFAULT, replace = True):
+        """ Set a static (unchanging) frame attached to another existing frame.
+            :param pos: position wrt `parent` (in meters)
+            :param rot: rotation wrt `parent` (wxyz quaternion)
+            :param name: name of the new frame (must not exist in `tf`)
+            :param parent: name of the parent frame (must exist in `tf`)
+        """
+        
+        # if not buffer.can_transform(FRAME_DEFAULT, parent, rospy.Time(0)):
+        #     rospy.logerr(f"Parent frame \"{parent}\" does not exist. Aborting.")
+        #     return False
+        # if buffer.can_transform(FRAME_DEFAULT, name, rospy.Time(0)):
+        #     if not replace:
+        #         rospy.logerr(f"Frame name \"{name}\" already in use. Aborting.")
+        #         return False
+        #     rospy.logwarn(f"Frame name \"{name}\" already in use. Replacing it.")
+            
+        t = TransformStamped()
+        t.header.stamp = rospy.Time.now()
+        t.header.frame_id = parent
+        t.child_frame_id = name
+        t.transform.translation.x = pos[0]
+        t.transform.translation.y = pos[1]
+        t.transform.translation.z = pos[2]
+        t.transform.rotation.w = rot[0]
+        t.transform.rotation.x = rot[1]
+        t.transform.rotation.y = rot[2]
+        t.transform.rotation.z = rot[3]
+        static_broadcaster.sendTransform(t)
+        
+        return True
+
+
+    ###########################################################################
+    #                        CONTROLLER-SIDE METHODS                          #
+    ###########################################################################
+
+
     @staticmethod
     def decode_trajectory(init_posture : Tuple[Frame, Frame, float, float], traj_msg : YumiTrajectory) -> List[Tuple[Tuple[Frame, Frame, float, float], float]]:
+        """ Decode the trajectory into numpy objects, and trasform all poses into base frame, 
+            while retaining info regarding the MOTION type.
+        """
+        
+        # TODO move this out
+        transform_listener = tf2_ros.TransformListener(buffer)
+        rospy.sleep(0.5)
+        
         trajectory = [(init_posture, 0)]
         # append trajectory points from msg
         for posture in traj_msg.trajectory:
@@ -205,38 +314,84 @@ class Helper():
             vel_2 = Helper.sanitize_vel(posture.twist_secondary)
             frame_2 = Frame(pos_2, rot_2) #, vel_2)
             grip_r = Helper.sanitize_grip(posture.gripper_right, default_none=False)
+            
+            
             # TODO use me more for other things as well
             # set the same grip width if in coordinated mode
-            if posture.mode != YumiPosture.COORDINATED:
+            if posture.motion != YumiPosture.MOTION_COORDINATED:
                 grip_l = Helper.sanitize_grip(posture.gripper_left, default_none=False)
             else:
                 grip_l = grip_r
             duration = posture.time_to_execute.to_sec()
             
-            # convert everything to GLOBAL COORDINATES
-            if posture.incremental != YumiPosture.OFF:
+            
+            # convert everything to GLOBAL COORDINATES (base)
+            if posture.reference != YumiPosture.REFERENCE_BASE:
                 prev_1, prev_2, prev_grip_r, prev_grip_l = trajectory[-1][0]
-                # TODO remove .motionless() and handle twist (can be None) in incremental mode
+                # TODO remove .motionless() and handle twist (can be None) in the right reference
                 prev_1 = prev_1.motionless()
                 prev_2 = prev_2.motionless()
-                grip_r = grip_r + prev_grip_r
-                grip_l = grip_l + prev_grip_l
+                # TODO introduce this again?
+                # grip_r = grip_r + prev_grip_r
+                # grip_l = grip_l + prev_grip_l
                 
-                # handle incremental postures
-                if posture.incremental == YumiPosture.LOCAL:
-                    # next_posture = prev_posture @ local_transformation
-                    frame_1 = prev_1 @ frame_1
-                    frame_2 = prev_2 @ frame_2
-                elif posture.incremental == YumiPosture.GLOBAL:
-                    # next_posture = global_transformation @ prev_posture
-                    frame_1 = frame_1 @ prev_1
-                    frame_2 = frame_2 @ prev_2
+                # resolve the unknown "ref_frame" frame if present
+                if posture.reference in [YumiPosture.REFERENCE_LOCAL, YumiPosture.REFERENCE_FRAME]:
+                    
+                    if posture.ref_frame == "" or not buffer.can_transform(Helper.FRAME_DEFAULT, posture.ref_frame, rospy.Time(0)):
+                        error_string = f"Reference frame \"{posture.ref_frame}\" does not exist."
+                        rospy.logerr(error_string)
+                        raise ArgumentError(error_string)
+                    
+                    # construct frame-to-base (bHf) or new_frame-to-frame (fHf') transformation
+                    T = buffer.lookup_transform(Helper.FRAME_DEFAULT, posture.ref_frame, rospy.Time(0))
+                    t, r = T.transform.translation, T.transform.rotation
+                    ref_frame = Frame([t.x, t.y, t.z], quat.quaternion(r.w, r.x, r.y, r.z))
+                
+                
+                # apply transformation/pose based on reference on:
+                #   frame_1  if  INDIVIDUAL, COORDINATED, ABSOLUTE, RIGHT
+                #   frame_2  if  INDIVIDUAL, LEFT (RELATIVE is always in ABSOLUTE frame)
+                
+                # next_posture = local_frame @ local_transformation
+                if posture.reference == YumiPosture.REFERENCE_TOOL:
+                    # provided `eX_t` compute bX_t = bHe @ eX_t
+                    base_1, pose_1 = prev_1, frame_1
+                    base_2, pose_2 = prev_2, frame_2
+                
+                elif posture.reference == YumiPosture.REFERENCE_LOCAL:
+                    # provided `fX_t` compute bX_t = bHf @ fX_t
+                    base_1, pose_1 = ref_frame, frame_1
+                    base_2, pose_2 = ref_frame, frame_2
+                
+                # next_posture = frame_transformation @ prev_posture
+                elif posture.reference == YumiPosture.REFERENCE_GLOBAL:
+                    # provided `bHb'` compute bX_t = bHb' @ bX_i
+                    base_1, pose_1 = frame_1, prev_1
+                    base_2, pose_2 = frame_2, prev_2
+                
+                elif posture.reference == YumiPosture.REFERENCE_FRAME:
+                    # provided `fHf'` compute bX_t = (bHf @ fHf' / bHf) @ bX_i
+                    base_1, pose_1 = (ref_frame @ frame_1 / ref_frame), prev_1
+                    base_2, pose_2 = (ref_frame @ frame_2 / ref_frame), prev_2
+                           
                 else:
-                    rospy.logerr(f"Unknown incremental mode {posture.incremental}")
+                    error_string = f"Unknown reference type {posture.reference}"
+                    rospy.logerr(error_string)
+                    raise ArgumentError(error_string)
+                
+                frame_1 = base_1 @ pose_1
+                if posture.motion in [YumiPosture.MOTION_INDIVIDUAL, YumiPosture.MOTION_LEFT]:
+                    frame_2 = base_2 @ pose_2
+            
+            
             # TODO this must be fixed
             frame_1.vel = vel_1
             frame_2.vel = vel_2
             trajectory.append(((frame_1, frame_2, grip_r, grip_l), duration))
+        
+        transform_listener.unregister()
+        
         return trajectory
 
     @staticmethod

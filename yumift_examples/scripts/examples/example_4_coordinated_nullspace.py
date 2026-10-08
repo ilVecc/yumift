@@ -5,7 +5,7 @@ from yumift_msgs.helper import Helper as H
 
 
 if __name__ == "__main__":
-    rospy.init_node("trajectory_test", anonymous=True)
+    rospy.init_node("example_4_coordinated_nullspace", anonymous=True)
     
     H.quick_send(
         topic="/trajectory",
@@ -17,19 +17,19 @@ if __name__ == "__main__":
         # (e.g. absolute manipulability), or to simply ignore controlling it.
         # Not all controllers necessarily implement this "nullspace-aware" control
         # law, so be sure to use a compatible controller.
-        mode=H.Mode.ABSOLUTE,
+        motion_override=H.Motion.ABSOLUTE,
         postures=[
             H.posture( 5.0,
-                (H.cm(x=45, z=20), H.e2q(ai=180)),
+                (H.cm(x=45, z=20), H.e2q(a1=180)),
                 None,
-                H.Mode.ABSOLUTE),
+                H.Motion.ABSOLUTE),
             H.posture( 5.0,
-                H.e2q(ai=-45),
+                H.e2q(a1=-45),
                 None,
-                H.Mode.ABSOLUTE,
-                H.Incr.LOCAL),
+                H.Motion.ABSOLUTE,
+                H.Reference.TOOL),
             H.posture( 5.0,
-                (H.cm(x=45, z=20), H.e2q(ai=180)),
+                (H.cm(x=45, z=20), H.e2q(a1=180)),
                 None,
-                H.Mode.ABSOLUTE),
+                H.Motion.ABSOLUTE),
         ])

@@ -29,71 +29,73 @@ if __name__ == "__main__":
             H.posture( 5.0, 
                 # Already, we can see that individual mode is inefficient and 
                 # cumbersome for highly symmetric tasks
-                (H.cm(35, -20, 20), H.e2q(ai=180), 20.0),
-                (H.cm(35, +20, 20), H.e2q(ai=180), 20.0)),
+                (H.cm(35, -20, 20), H.e2q(a1=180), H.GRIP_MAX),
+                (H.cm(35, +20, 20), H.e2q(a1=180), H.GRIP_MAX)),
             H.posture( 2.0,
-                # Now we want to close in the grippers, so we increase and decrease
+                # Now we want to bring closer the grippers, so we increase and decrease
                 # right and left accordingly... and verbosily...
                 # (extra: here we only want to update the positions, so we can skip 
                 # the creation of a tuple to simplify the syntax a little)
                 H.cm(y=+10), 
                 H.cm(y=-10),
-                incremental=H.Incr.GLOBAL),
+                reference=H.Reference.GLOBAL),
             H.posture( 2.0,
                 # Again, it is clear that we could exploit the symmetry of this
                 # "stretching out" motion... 
-                # Also, here we showcase incremental gripper closing, which adds 
-                # the amount to the previous (20.0) gripper position
-                (H.cm(y=-15, z=-16), -20.0),
-                (H.cm(y=+15, z=-16), -20.0),
-                incremental=H.Incr.GLOBAL),
+                # FIXME this is not true anymore
+                # # Also, here we showcase incremental gripper closing, which adds 
+                # # the amount to the previous (20.0) gripper position
+                (H.cm(y=-15, z=-16), H.GRIP_MIN),
+                (H.cm(y=+15, z=-16), H.GRIP_MIN),
+                reference=H.Reference.GLOBAL),
             H.posture( 2.0,
-                # Finally, incremental gripper opening (omitting tuple creation)
-                # The amount is always added, so the + sign is just a reminder 
-                # of what will happen: a positive increment
-                +20.0,
-                +20.0,
-                incremental=H.Incr.GLOBAL),
+                # FIXME this is not true anymore
+                # # Finally, incremental gripper opening (omitting tuple creation)
+                # # The amount is always added, so the + sign is just a reminder 
+                # # of what will happen: a positive increment
+                H.GRIP_MAX,
+                H.GRIP_MAX,
+                reference=H.Reference.GLOBAL),
     ])
     
     H.quick_send(
         topic=pub,
         print_message="Sent \"stretching\" trajectory in COORDINATED mode",
         # Now, we control with the "coordinated motion" mode
-        mode=H.Mode.COORDINATED,
+        motion_override=H.Motion.COORDINATED,
         postures=[
             H.posture( 5.0, 
                 # Primary is now the ABSOLUTE frame, so the "average pose" of 
                 # the two grippers w.r.t. the base frame.
                 # Simply, we want the grippers at this average location, and both
                 # the fingers to be opened at 20mm.
-                primary=(H.cm(x=35, z=20), H.e2q(ai=180), 20),
+                primary=(H.cm(x=35, z=20), H.e2q(a1=180), H.GRIP_MAX),
                 # Secondary is now the RELATIVE frame, so the "difference pose" 
                 # of the two grippers w.r.t. the absolute frame.
                 # Again, simply, we want the grippers to be this far from each other.
                 secondary=(H.cm(y=40), H.e2q()),
                 # Use the COORDINATED mode per-posture as well
-                mode=H.Mode.COORDINATED),
+                motion=H.Motion.COORDINATED),
             H.posture( 2.0,
                 # No absolute request...
                 None,  # or tuple() can be used to avoid keyword assignment
                 # ... only a relative inwards displacement of the grippers
                 H.cm(y=-20),
-                H.Mode.COORDINATED, 
-                H.Incr.GLOBAL),
+                H.Motion.COORDINATED, 
+                H.Reference.GLOBAL),
             H.posture( 2.0, 
                 # Now, we want both grippers to move down and close their fingers...
-                (H.cm(z=-16), -20),
+                (H.cm(z=-16), H.GRIP_MIN),
                 # ... while moving outwards.
                 H.cm(y=+30), 
-                H.Mode.COORDINATED, 
-                H.Incr.GLOBAL),
+                H.Motion.COORDINATED, 
+                H.Reference.GLOBAL),
             H.posture( 2.0,
                 # And finally to open both grippers' fingers again.
-                +20.0,
+                H.GRIP_MAX,
                 None,
-                H.Mode.COORDINATED, 
-                H.Incr.GLOBAL),
+                H.Motion.COORDINATED, 
+                H.Reference.GLOBAL),
     ])
     
     #
@@ -103,74 +105,74 @@ if __name__ == "__main__":
     H.quick_send(
         topic=pub,
         print_message="Sent more coordinated motions",
-        mode=H.Mode.COORDINATED,
+        motion_override=H.Motion.COORDINATED,
         postures=[
             H.posture(5.0,
-                (H.cm(40, 0, 20), H.e2q(ai=180)),
+                (H.cm(40, 0, 20), H.e2q(a1=180)),
                 (H.cm(y=10), H.e2q()),
-                H.Mode.COORDINATED),
+                H.Motion.COORDINATED),
             H.posture(5.0,
-                # notice the use of `ai=180` since we want to keep the absolute 
+                # notice the use of `a1=180` since we want to keep the absolute 
                 # frame facing down, and on top of that add a 45deg rotation on 
                 # the new y-axis (this of course can be simplified using the 
-                # handy incremental keyword)
-                (H.cm(40, 0, 20), H.e2q(ai=180, aj=45)),
+                # handy `reference` keyword)
+                (H.cm(40, 0, 20), H.e2q(a1=180, a2=45)),
                 (H.cm(y=10), H.e2q()),
-                H.Mode.COORDINATED),
+                H.Motion.COORDINATED),
             H.posture( 5.0,
-                H.e2q(aj=-45),
+                H.e2q(a2=-45),
                 H.cm(y=+15),
-                H.Mode.COORDINATED,
-                H.Incr.LOCAL),
+                H.Motion.COORDINATED,
+                H.Reference.TOOL),
             H.posture( 5.0,
                 H.cm(y=+10, z=+20),
                 None,
-                H.Mode.COORDINATED,
-                H.Incr.GLOBAL),
+                H.Motion.COORDINATED,
+                H.Reference.GLOBAL),
             H.posture( 5.0,
                 H.cm(y=-20, z=-40),
                 H.cm(y=-15),
-                H.Mode.COORDINATED,
-                H.Incr.GLOBAL)
+                H.Motion.COORDINATED,
+                H.Reference.GLOBAL)
     ])
 
     H.quick_send(
         topic=pub,
         print_message="Sent a final coordinated motion parade!",
-        mode=H.Mode.COORDINATED,
+        motion_override=H.Motion.COORDINATED,
         postures = [
             H.posture( 8.0,
-                (H.cm(40, 0, 20), H.e2q(ai=180)),
+                (H.cm(40, 0, 20), H.e2q(a1=180)),
                 (H.cm(y=25), H.e2q()),
-                H.Mode.COORDINATED),
+                H.Motion.COORDINATED),
             H.posture( 8.0,
-                H.e2q(ai=+15),
-                H.e2q(aj=+45),
-                H.Mode.COORDINATED,
-                H.Incr.LOCAL),
+                H.e2q(a1=+15),
+                H.e2q(a2=+45),
+                H.Motion.COORDINATED,
+                H.Reference.TOOL),
             H.posture( 8.0,
-                H.e2q(ai=-30),
-                H.e2q(aj=-45),
-                H.Mode.COORDINATED,
-                H.Incr.LOCAL),
+                H.e2q(a1=-30),
+                H.e2q(a2=-45),
+                H.Motion.COORDINATED,
+                H.Reference.TOOL),
             H.posture( 8.0,
-                H.e2q(ai=+15),
-                H.e2q(ai=+30),
-                H.Mode.COORDINATED,
-                H.Incr.LOCAL),
+                H.e2q(a1=+15),
+                H.e2q(a1=+30),
+                H.Motion.COORDINATED,
+                H.Reference.TOOL),
             H.posture( 8.0,
-                H.e2q(ak=40),
-                H.e2q(ai=-30),
-                H.Mode.COORDINATED,
-                H.Incr.LOCAL),
+                H.e2q(a3=40),
+                H.e2q(a1=-30),
+                H.Motion.COORDINATED,
+                H.Reference.TOOL),
             H.posture( 8.0,
-                H.e2q(ak=-80),
-                H.e2q(ak=+45),
-                H.Mode.COORDINATED,
-                H.Incr.LOCAL),
+                H.e2q(a3=-80),
+                H.e2q(a3=+45),
+                H.Motion.COORDINATED,
+                H.Reference.TOOL),
             H.posture( 8.0,
-                H.e2q(ak=40),
-                H.e2q(ak=-45),
-                H.Mode.COORDINATED,
-                H.Incr.LOCAL),
+                H.e2q(a3=40),
+                H.e2q(a3=-45),
+                H.Motion.COORDINATED,
+                H.Reference.TOOL),
     ])

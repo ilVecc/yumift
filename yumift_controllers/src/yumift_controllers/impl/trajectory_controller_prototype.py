@@ -10,10 +10,11 @@ from std_msgs.msg import Int64 as Int64Msg
 from nav_msgs.msg import Path as PathMsg
 from geometry_msgs.msg import Point as PointMsg
 from visualization_msgs.msg import MarkerArray as MarkerArrayMsg, Marker as MarkerMsg
-from yumift_controllers.common.parameters import ControllerParameters
+
 from yumift_msgs.helper import Helper
 from yumift_msgs.msg import YumiTrajectory as YumiTrajectoryMsg, YumiPosture as YumiPostureMsg
 
+from ..common.parameters import ControllerParameters
 from ..common.device import YumiDevice, YumiDualDeviceState, YumiCoordinatedRobotState
 from ..common.controller_base import MixedVelocityYumiAction
 from ..common.controller_routinable import RoutinableYumiController
@@ -193,6 +194,7 @@ class YumiTrajectoryController(RoutinableYumiController):
                       for (frame_1, frame_2, grip_r, grip_l), duration in trajectory]
         #######################################################################
         
+        # TODO make use of YumiPostureMsg.<MOTION_TYPE>
         # update the trajectory
         CM = self.control_law.ControlMode
         with self._lock_trajectory:

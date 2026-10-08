@@ -105,10 +105,10 @@ git clone https://github.com/ilVecc/yumift.git
 
 Finally, install all the required dependencies and modules with
 ```bash
-rosdep update --rosdistro=noetic
-rosdep install --from-paths . --ignore-src --rosdistro noetic -y
 python3 -m pip install -U -e yumift/dynamicals
 python3 -m pip install -U -e yumift/pathfinder
+rosdep update --rosdistro=noetic
+rosdep install --from-paths . --ignore-src --rosdistro noetic -y
 ```
 and build workspace with
 ```bash

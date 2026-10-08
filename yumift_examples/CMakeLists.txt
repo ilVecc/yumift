@@ -9,10 +9,11 @@ catkin_package()
 
 catkin_install_python(PROGRAMS
   scripts/examples/example_1_simple_trajectory.py
-  scripts/examples/example_2_incremental_postures.py
-  scripts/examples/example_3_coordinated_mode.py
-  scripts/examples/example_4_coordinated_nullspace.py
-  scripts/examples/example_5_reference_frames.py
+  scripts/examples/example_2_reference_frames_basic.py
+  scripts/examples/example_3_reference_frames_advanced.py
+  scripts/examples/example_4_coordinated_mode.py
+  scripts/examples/example_5_coordinated_nullspace.py
+  scripts/examples/example_6_robot_introspection.py
   scripts/examples/example_wiggle.py
   scripts/postures/face_back.py
   scripts/postures/face_down.py

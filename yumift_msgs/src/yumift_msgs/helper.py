@@ -13,7 +13,11 @@ from numpy.typing import ArrayLike
 from dynamicals.utils import Frame
 
 from geometry_msgs.msg import Point, Quaternion, Pose, Twist, TransformStamped
-from yumift_msgs.msg import YumiPosture, YumiTrajectory
+from yumift_msgs.msg import YumiPosture, YumiTrajectory, RobotState
+
+# TODO this is not nice here... Helper is agnostic about the controllers, since
+#      yumift_msgs must not have yumift_controllers as dependency
+from yumift_controllers.misc.utils import RobotStateMsg_to_YumiCoordinatedRobotState
 
 
 buffer = tf2_ros.Buffer()
@@ -44,6 +48,17 @@ class Helper():
     ###########################################################################
     #                          CLIENT-SIDE METHODS                            #
     ###########################################################################
+    
+    @staticmethod
+    def current_posture():
+        try:
+            state_msg : RobotState = rospy.wait_for_message("/yumi/unified/robot_state_coordinated", RobotState, 0.5)
+        except (rospy.ROSException, rospy.ROSInterruptException) as ex:
+            rospy.logerr("Could not read the robot state before timeout")
+            raise ex
+        
+        state = RobotStateMsg_to_YumiCoordinatedRobotState(state_msg)
+        return state
     
     @staticmethod
     def _quat_xyzw_to_wxyz(quat_xyzw):

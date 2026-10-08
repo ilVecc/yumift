@@ -5,7 +5,7 @@ from yumift_msgs.helper import Helper as H
 
 
 if __name__ == "__main__":
-    rospy.init_node("example_4_coordinated_nullspace", anonymous=True)
+    rospy.init_node("example_5_coordinated_nullspace", anonymous=True)
     
     H.quick_send(
         topic="/trajectory",

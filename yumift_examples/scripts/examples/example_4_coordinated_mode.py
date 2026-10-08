@@ -13,7 +13,7 @@ from yumift_msgs.helper import Helper as H
 # twisting a bottle cap, folding a newspaper) with much more ease.
 
 if __name__ == "__main__":
-    rospy.init_node("example_3_coordinated_mode", anonymous=True)
+    rospy.init_node("example_4_coordinated_mode", anonymous=True)
     
     # `H.quick_send()` will create a ROS Publisher (always the same one, 
     # actually) multiple times, one for each trajectory you send.

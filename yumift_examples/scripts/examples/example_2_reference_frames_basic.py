@@ -14,7 +14,7 @@ from yumift_msgs.helper import Helper as H
 
 if __name__ == "__main__":
     # First, initialize the ROS node
-    rospy.init_node("example_2_incremental_postures", anonymous=True)
+    rospy.init_node("example_2_reference_frames_basic", anonymous=True)
     
     # Then, as seen in the previous example, quickly contruct and send a trajectory
     H.quick_send(

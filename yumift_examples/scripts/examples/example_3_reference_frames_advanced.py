@@ -5,7 +5,7 @@ from yumift_msgs.helper import Helper as H
 
 
 if __name__ == "__main__":
-    rospy.init_node("example_5_reference_frames", anonymous=True)
+    rospy.init_node("example_3_reference_frames_advanced", anonymous=True)
     
     # Add a frame 
     H.add_frame("table", H.cm(30, 0, 10), H.e2q(a1=180), H.FRAME_DEFAULT)

@@ -50,7 +50,9 @@ def main():
         #  3) rotate around the y-axis of the second frame, generating the third frame
         #  4) rotate around the z-axis of the third frame, generating the final frame
         # and finally convert it to a quaternion).
-        (H.cm(35, 20, 20), H.e2q(+90, 0, 0), 0.0)
+        # Finally, instead of millimeters, we can use the handy `H.GRIP_CLOSED` and 
+        # `H.GRIP_OPENED` instead to set the finger width of the grippers.
+        (H.cm(35, 20, 20), H.e2q(+90, 0, 0), H.GRIP_CLOSED)
     )
 
     # Finally, use this function to immediately create and send a list of postures
@@ -62,8 +64,8 @@ def main():
         postures=[
             first_posture,
             H.posture( 5.0,
-                (H.cm(35, -10, 4), H.e2q(0, 45, -135, "rzyx"), 20.0),
-                (H.cm(35, +10, 4), H.e2q(0, 45, +135, "rzyx"), 20.0)),
+                (H.cm(35, -10, 4), H.e2q(0, 45, -135, "rzyx"), H.GRIP_OPENED),
+                (H.cm(35, +10, 4), H.e2q(0, 45, +135, "rzyx"), H.GRIP_OPENED)),
             H.posture( 5.0,
                 (H.cm(45, -15, 15), H.e2q(180, -45, -30, "ryzx")),  # no gripper value needed, the previous one will be used
                 (H.cm(45, +15, 15), H.e2q(180, +45, +30, "ryzx"))),

@@ -17,7 +17,7 @@ if __name__ == "__main__":
         # (e.g. absolute manipulability), or to simply ignore controlling it.
         # Not all controllers necessarily implement this "nullspace-aware" control
         # law, so be sure to use a compatible controller.
-        motion_override=H.Motion.ABSOLUTE,
+        motion_default=H.Motion.ABSOLUTE,
         postures=[
             H.posture( 5.0,
                 (H.cm(x=45, z=20), H.e2q(a1=180)),

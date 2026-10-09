@@ -14,7 +14,7 @@ if __name__ == "__main__":
     H.quick_send(
         topic="/trajectory",
         print_message="Moving up to change position",
-        motion_override=H.Motion.COORDINATED,
+        motion_default=H.Motion.COORDINATED,
         postures=[
             H.posture( 5.0,
                 (H.cm(x=45, z=20), H.e2q(a1=180)),

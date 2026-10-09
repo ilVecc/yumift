@@ -40,9 +40,12 @@ class Helper():
         GLOBAL = YumiPosture.REFERENCE_GLOBAL
         FRAME  = YumiPosture.REFERENCE_FRAME
     
-    FRAME_DEFAULT = "yumi_base_link"
-    GRIP_MIN = 0
-    GRIP_MAX = 25
+    
+    FRAME_BASE  = "yumi_base_link"
+    FRAME_RIGHT = "gripper_r_tip"
+    FRAME_LEFT  = "gripper_l_tip"
+    GRIP_CLOSED = 0
+    GRIP_OPENED = 25
     
     
     ###########################################################################
@@ -121,7 +124,7 @@ class Helper():
         secondary : Optional[Union[tuple, ArrayLike]] = tuple(),
         motion : Motion = Motion.INDIVIDUAL, 
         reference : Reference = Reference.BASE,
-        frame : str = FRAME_DEFAULT
+        frame : str = FRAME_BASE
     ):
         """ Create a `YumiPosture` message.
             :param duration: time to execute this posture
@@ -168,7 +171,7 @@ class Helper():
         return posture
     
     @staticmethod
-    def grip(grip_r : float = GRIP_MIN, grip_l : float = GRIP_MIN):
+    def grip(grip_r : float = GRIP_CLOSED, grip_l : float = GRIP_CLOSED):
         posture = YumiPosture(
             gripper_right=grip_r,
             gripper_left=grip_l,
@@ -180,7 +183,7 @@ class Helper():
         return posture
     
     @staticmethod
-    def release(grip_r : float = GRIP_MAX, grip_l : float = GRIP_MAX):
+    def release(grip_r : float = GRIP_OPENED, grip_l : float = GRIP_OPENED):
         posture = YumiPosture(
             gripper_right=grip_r,
             gripper_left=grip_l,
@@ -192,9 +195,9 @@ class Helper():
         return posture
     
     @staticmethod
-    def trajectory(motion_override : Motion = Motion.INDIVIDUAL, postures : List[YumiPosture] = []):
+    def trajectory(motion_default : Motion = Motion.INDIVIDUAL, postures : List[YumiPosture] = []):
         msg = YumiTrajectory()
-        msg.mode = motion_override.value[0]
+        msg.mode = motion_default.value[0]
         msg.trajectory = postures
         msg.header.stamp = rospy.Time.now()
         return msg
@@ -212,7 +215,7 @@ class Helper():
     @staticmethod
     def quick_send(
         topic : Union[str, rospy.Publisher] = "/trajectory",
-        motion_override : Motion = Motion.INDIVIDUAL,
+        motion_default : Motion = Motion.INDIVIDUAL,
         postures : Optional[List[YumiPosture]] = None,
         routine_name : Optional[str] = None,
         print_message : Optional[str] = None,
@@ -251,7 +254,7 @@ class Helper():
             msg.mode = YumiTrajectory.ROUTINE
             msg.routine_name = routine_name
         else:
-            msg.mode = motion_override.value[0]
+            msg.mode = motion_default.value[0]
             msg.trajectory = postures
         
         # send the message
@@ -268,7 +271,7 @@ class Helper():
 
 
     @staticmethod
-    def add_frame(name : str, pos, rot, parent : str = FRAME_DEFAULT, replace = True):
+    def add_frame(name : str, pos, rot, parent : str = FRAME_BASE, replace = True):
         """ Set a static (unchanging) frame attached to another existing frame.
             :param pos: position wrt `parent` (in meters)
             :param rot: rotation wrt `parent` (wxyz quaternion)
@@ -328,13 +331,12 @@ class Helper():
             rot_2 = Helper.sanitize_rot(posture.pose_secondary.orientation, default_none=False)
             vel_2 = Helper.sanitize_vel(posture.twist_secondary)
             frame_2 = Frame(pos_2, rot_2) #, vel_2)
-            grip_r = Helper.sanitize_grip(posture.gripper_right, default_none=False)
             
-            
+            grip_r = Helper.sanitize_grip(posture.gripper_right, default_none=True)
             # TODO use me more for other things as well
             # set the same grip width if in coordinated mode
             if posture.motion != YumiPosture.MOTION_COORDINATED:
-                grip_l = Helper.sanitize_grip(posture.gripper_left, default_none=False)
+                grip_l = Helper.sanitize_grip(posture.gripper_left, default_none=True)
             else:
                 grip_l = grip_r
             duration = posture.time_to_execute.to_sec()
@@ -353,13 +355,13 @@ class Helper():
                 # resolve the unknown "ref_frame" frame if present
                 if posture.reference in [YumiPosture.REFERENCE_LOCAL, YumiPosture.REFERENCE_FRAME]:
                     
-                    if posture.ref_frame == "" or not buffer.can_transform(Helper.FRAME_DEFAULT, posture.ref_frame, rospy.Time(0)):
+                    if posture.ref_frame == "" or not buffer.can_transform(Helper.FRAME_BASE, posture.ref_frame, rospy.Time(0)):
                         error_string = f"Reference frame \"{posture.ref_frame}\" does not exist."
                         rospy.logerr(error_string)
                         raise ArgumentError(error_string)
                     
                     # construct frame-to-base (bHf) or new_frame-to-frame (fHf') transformation
-                    T = buffer.lookup_transform(Helper.FRAME_DEFAULT, posture.ref_frame, rospy.Time(0))
+                    T = buffer.lookup_transform(Helper.FRAME_BASE, posture.ref_frame, rospy.Time(0))
                     t, r = T.transform.translation, T.transform.rotation
                     ref_frame = Frame([t.x, t.y, t.z], quat.quaternion(r.w, r.x, r.y, r.z))
                 

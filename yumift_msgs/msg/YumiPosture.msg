@@ -32,12 +32,17 @@ uint8 REFERENCE_FRAME=8     # provided  `fHf'`  compute bX_t = bHf @ fHf' @ fX_i
 # How to interpret "primary" and "secondary" poses.
 # RIGHT, LEFT, ABSOLUTE, RELATIVE imply that their counterpart can be either 
 # ignored or set to 0 depending on the chosen controller.
+# TODO maybe add the commented-out types to remove this ambiguity.
 uint8 MOTION_INDIVIDUAL=3
 uint8 MOTION_RIGHT=1
 uint8 MOTION_LEFT=2
+# uint8 MOTION_RIGHT_ONLY=16
+# uint8 MOTION_LEFT_ONLY=32
 uint8 MOTION_COORDINATED=12
 uint8 MOTION_ABSOLUTE=4
 uint8 MOTION_RELATIVE=8
+# uint8 MOTION_ABSOLUTE_ONLY=64
+# uint8 MOTION_RELATIVE_ONLY=128
 
 
 

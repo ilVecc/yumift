@@ -8,12 +8,12 @@ if __name__ == "__main__":
     rospy.init_node("example_3_reference_frames_advanced", anonymous=True)
     
     # Add a frame 
-    H.add_frame("table", H.cm(30, 0, 10), H.e2q(a1=180), H.FRAME_DEFAULT)
+    H.add_frame("table", H.cm(30, 0, 10), H.e2q(a1=180), H.FRAME_BASE)
     
     H.quick_send(
         topic="/trajectory",
         print_message="Reference frames and local coordinates",
-        motion_override=H.Motion.INDIVIDUAL,
+        motion_default=H.Motion.INDIVIDUAL,
         postures=[
             H.posture( 5.0,
                 (H.cm(y=+15, z=10), H.e2q()),

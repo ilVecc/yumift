@@ -29,8 +29,8 @@ if __name__ == "__main__":
             H.posture( 5.0, 
                 # Already, we can see that individual mode is inefficient and 
                 # cumbersome for highly symmetric tasks
-                (H.cm(35, -20, 20), H.e2q(a1=180), H.GRIP_MAX),
-                (H.cm(35, +20, 20), H.e2q(a1=180), H.GRIP_MAX)),
+                (H.cm(35, -20, 20), H.e2q(a1=180), H.GRIP_OPENED),
+                (H.cm(35, +20, 20), H.e2q(a1=180), H.GRIP_OPENED)),
             H.posture( 2.0,
                 # Now we want to bring closer the grippers, so we increase and decrease
                 # right and left accordingly... and verbosily...
@@ -45,16 +45,16 @@ if __name__ == "__main__":
                 # FIXME this is not true anymore
                 # # Also, here we showcase incremental gripper closing, which adds 
                 # # the amount to the previous (20.0) gripper position
-                (H.cm(y=-15, z=-16), H.GRIP_MIN),
-                (H.cm(y=+15, z=-16), H.GRIP_MIN),
+                (H.cm(y=-15, z=-16), H.GRIP_CLOSED),
+                (H.cm(y=+15, z=-16), H.GRIP_CLOSED),
                 reference=H.Reference.GLOBAL),
             H.posture( 2.0,
                 # FIXME this is not true anymore
                 # # Finally, incremental gripper opening (omitting tuple creation)
                 # # The amount is always added, so the + sign is just a reminder 
                 # # of what will happen: a positive increment
-                H.GRIP_MAX,
-                H.GRIP_MAX,
+                H.GRIP_OPENED,
+                H.GRIP_OPENED,
                 reference=H.Reference.GLOBAL),
     ])
     
@@ -62,14 +62,14 @@ if __name__ == "__main__":
         topic=pub,
         print_message="Sent \"stretching\" trajectory in COORDINATED mode",
         # Now, we control with the "coordinated motion" mode
-        motion_override=H.Motion.COORDINATED,
+        motion_default=H.Motion.COORDINATED,
         postures=[
             H.posture( 5.0, 
                 # Primary is now the ABSOLUTE frame, so the "average pose" of 
                 # the two grippers w.r.t. the base frame.
                 # Simply, we want the grippers at this average location, and both
                 # the fingers to be opened at 20mm.
-                primary=(H.cm(x=35, z=20), H.e2q(a1=180), H.GRIP_MAX),
+                primary=(H.cm(x=35, z=20), H.e2q(a1=180), H.GRIP_OPENED),
                 # Secondary is now the RELATIVE frame, so the "difference pose" 
                 # of the two grippers w.r.t. the absolute frame.
                 # Again, simply, we want the grippers to be this far from each other.
@@ -85,14 +85,14 @@ if __name__ == "__main__":
                 H.Reference.GLOBAL),
             H.posture( 2.0, 
                 # Now, we want both grippers to move down and close their fingers...
-                (H.cm(z=-16), H.GRIP_MIN),
+                (H.cm(z=-16), H.GRIP_CLOSED),
                 # ... while moving outwards.
                 H.cm(y=+30), 
                 H.Motion.COORDINATED, 
                 H.Reference.GLOBAL),
             H.posture( 2.0,
                 # And finally to open both grippers' fingers again.
-                H.GRIP_MAX,
+                H.GRIP_OPENED,
                 None,
                 H.Motion.COORDINATED, 
                 H.Reference.GLOBAL),
@@ -105,7 +105,7 @@ if __name__ == "__main__":
     H.quick_send(
         topic=pub,
         print_message="Sent more coordinated motions",
-        motion_override=H.Motion.COORDINATED,
+        motion_default=H.Motion.COORDINATED,
         postures=[
             H.posture(5.0,
                 (H.cm(40, 0, 20), H.e2q(a1=180)),
@@ -139,7 +139,7 @@ if __name__ == "__main__":
     H.quick_send(
         topic=pub,
         print_message="Sent a final coordinated motion parade!",
-        motion_override=H.Motion.COORDINATED,
+        motion_default=H.Motion.COORDINATED,
         postures = [
             H.posture( 8.0,
                 (H.cm(40, 0, 20), H.e2q(a1=180)),

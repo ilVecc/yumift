@@ -167,7 +167,10 @@ class YumiRobotState(RobotState):
     ####### OVERALL #######
     @property
     def joint_pos(self):
-        return np.concatenate([self.joint_pos_r, self.joint_pos_l])
+        qpos = np.zeros(14)
+        qpos[0:7] = self.joint_pos_r
+        qpos[7:14] = self.joint_pos_l
+        return qpos
     
     # TODO refactor this
     @joint_pos.setter
@@ -177,7 +180,10 @@ class YumiRobotState(RobotState):
     
     @property
     def joint_vel(self):
-        return np.concatenate([self.joint_vel_r, self.joint_vel_l])
+        qvel = np.zeros(14)
+        qvel[0:7] = self.joint_vel_r
+        qvel[7:14] = self.joint_vel_l
+        return qvel
     
     # TODO refactor this
     @joint_vel.setter
@@ -187,7 +193,10 @@ class YumiRobotState(RobotState):
         
     @property
     def joint_acc(self):
-        return np.concatenate([self.joint_acc_r, self.joint_acc_l])
+        qacc = np.zeros(14)
+        qacc[0:7] = self.joint_acc_r
+        qacc[7:14] = self.joint_acc_l
+        return qacc
     
     @joint_acc.setter
     def joint_acc(self, value):
@@ -196,7 +205,10 @@ class YumiRobotState(RobotState):
     
     @property
     def joint_tau(self):
-        return np.concatenate([self.joint_torque_r, self.joint_torque_l])
+        qtau = np.zeros(14)
+        qtau[0:7] = self.joint_torque_r
+        qtau[7:14] = self.joint_torque_l
+        return qtau
 
     # TODO refactor this
     @joint_tau.setter
@@ -206,7 +218,10 @@ class YumiRobotState(RobotState):
 
     @property
     def effector_pos(self):
-        return np.concatenate([self.pose_pos_r, self.pose_pos_l])
+        xpos = np.zeros(6)
+        xpos[0:3] = self.pose_pos_r
+        xpos[3:6] = self.pose_pos_l
+        return xpos
 
     @property
     def effector_rot(self):
@@ -214,31 +229,52 @@ class YumiRobotState(RobotState):
     
     @property
     def effector_vel(self):
-        return np.concatenate([self.pose_vel_r, self.pose_vel_l])
+        xvel = np.zeros(12)
+        xvel[0:6] = self.pose_vel_r
+        xvel[6:12] = self.pose_vel_l
+        return xvel
         
     @property
     def effector_vel_lin(self):
-        return np.concatenate([self.pose_vel_lin_r, self.pose_vel_lin_l])
+        xvel_lin = np.zeros(6)
+        xvel_lin[0:3] = self.pose_vel_lin_r
+        xvel_lin[3:6] = self.pose_vel_lin_l
+        return xvel_lin
 
     @property
     def effector_vel_ang(self):
-        return np.concatenate([self.pose_vel_ang_r, self.pose_vel_ang_l])
+        xvel_ang = np.zeros(6)
+        xvel_ang[0:3] = self.pose_vel_ang_r
+        xvel_ang[3:6] = self.pose_vel_ang_l
+        return xvel_ang
     
     @property
     def effector_acc(self):
-        return np.concatenate([self.pose_acc_r, self.pose_acc_l])
+        xacc = np.zeros(12)
+        xacc[0:6] = self.pose_acc_r
+        xacc[6:12] = self.pose_acc_l
+        return xacc
     
     @property
     def effector_acc_lin(self):
-        return np.concatenate([self.pose_acc_lin_r, self.pose_acc_lin_l])
+        xacc_lin = np.zeros(6)
+        xacc_lin[0:3] = self.pose_acc_lin_r
+        xacc_lin[3:6] = self.pose_acc_lin_l
+        return xacc_lin
 
     @property
     def effector_acc_ang(self):
-        return np.concatenate([self.pose_acc_ang_r, self.pose_acc_ang_l])
+        xacc_ang = np.zeros(6)
+        xacc_ang[0:3] = self.pose_acc_ang_r
+        xacc_ang[3:6] = self.pose_acc_ang_l
+        return xacc_ang
     
     @property
     def effector_wrc(self):
-        return np.concatenate([self.pose_wrench_r, self.pose_wrench_l])
+        xwrc = np.zeros(12)
+        xwrc[0:6] = self.pose_wrench_r
+        xwrc[6:12] = self.pose_wrench_l
+        return xwrc
     
     # TODO refactor this
     @effector_wrc.setter
@@ -248,11 +284,17 @@ class YumiRobotState(RobotState):
     
     @property
     def effector_force(self):
-        return np.concatenate([self.pose_force_r, self.pose_force_l])
+        xforce = np.zeros(6)
+        xforce[0:3] = self.pose_force_r
+        xforce[3:6] = self.pose_force_l
+        return xforce
     
     @property
     def effector_moment(self):
-        return np.concatenate([self.pose_torque_r, self.pose_torque_l])
+        xmoment = np.zeros(6)
+        xmoment[0:3] = self.pose_torque_r
+        xmoment[3:6] = self.pose_torque_l
+        return xmoment
     
     @property
     def jacobian(self):

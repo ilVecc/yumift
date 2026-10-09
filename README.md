@@ -282,10 +282,12 @@ Once done, you'll see the forces in RViz completely compensated. You can now sto
 
 
 ## Using off-the-shelf controllers
-A set of velocity-based controllers is shipped in the `yumift_controllers` package. 
-These are categorized as *tracking* controllers (receive `yumift_msgs/YumiPosture` messages) or *trajectory* controllers (receive `yumift_msgs/YumiTrajectory` messages, which are lists of `yumift_msgs/YumiPosture` messages). 
-Trajectory controllers are *"routinable"*, meaning that they can execute pre-registered routines that achieve particular motions (e.g. "go back home", "grippers point down", etc.). 
-Controllers can work in two modes, either *individual* (acting separately on each arm) or *dual* (acting in either *individual* or *coordinated* fashion, i.e. absolute and relative pose control).
+A set of velocity-commanding controllers is shipped in the `yumift_controllers` package. 
+Controllers act on *"desired robot postures"* of two types, either *individual* (acting separately on each arm, so *right* and *left* poses are expected) 
+or *coordinated* (acting on the average and the difference of the arms, so *absolute* and *relative* poses are expected), and are 
+categorized as *tracking* controllers (continuously receive `yumift_msgs/YumiPosture` messages) 
+or *trajectory* controllers (discretely receive `yumift_msgs/YumiTrajectory` messages, which are lists of `yumift_msgs/YumiPosture` messages to be interpolated). 
+Finally, trajectory controllers are *"routinable"*, meaning that they can execute pre-registered routines that achieve particular motions (e.g. "go back home", "grippers point down", etc.). 
 
 The available controllers are:
 - `SingleTrackingController` achieves independent cartesian tracking control (i.e. each arm receives a dedicated posture, from two separate topics);
@@ -307,6 +309,7 @@ In each controller, a `YumiPosture` message can be set to represent six differen
 > Checkout `yumift_controllers/config/gains.yaml` to tune the gains of the various controllers. 
 > For trajectory controllers, a set of example trajectories is also provided (see following subsections for more info).
 
+
 ### Example controller
 This (dummy) controller only serves as a tutorial on how to build your own controllers, and it simply commands to achieve a pre-defined fixed pose.
 For safety/educational purpose, only run this file in simulation. To start the controller use
@@ -317,18 +320,19 @@ rosrun yumift_controllers example_controller.py
 > [!IMPORTANT]
 > Checkout `yumift_controllers/common/parameters.py` for some useful generic controller parameters and `yumift_controllers/ik/` for IK solvers and routines.
 
+
 ### Trajectory controllers
 To start a trajectory controller use
 ```bash
 rosrun yumift_controllers trajectory_controllers.py simple
 ```
-with available options `simple`, `dual`, `wrenched`, and `compliant`.
+with available options `simple`, `dual` (default). Postures must be sent to the controller via the `/trajectory` topic as described below. 
 
 Trajectories are automatically computed based on the received `YumiPosture` list (`YumiTrajectory`), and use cubic polynomials (position and orientation are interpolated separately) to connect the postures.
 
-### Sending trajectories
 
-The best way to construct and send trajectories is to use the `Helper` class provided by the `yumift_msgs` package, as it offers handy ways of constructing posture messages (`H.posture`), convert units (`H.cm` and `H.e2q`), and send trajectories (`H.quick_send`). Have a look at the various `example_*` files to see the helper in action. 
+### Sending trajectories
+The best way to construct and send trajectories is to use the `Helper` class provided by the `yumift_msgs` package, as it offers handy ways of constructing posture messages (`H.posture(...)`), convert units (`H.cm(...)` and `H.e2q(...)`), and send trajectories (`H.quick_send(...)`). Have a look at the various `example_*` files to see the helper in action. 
 
 You can also run these files to send some trajectories to the controller using 
 ```bash
@@ -356,31 +360,40 @@ rosrun yumift_examples example_1_simple_trajectory.py
 >       w: 1
 >   gripper_right: 20
 >   gripper_left: 20
+>   motion: yumift_msgs/YumiPosture.MOTION_INDIVIDUAL
+>   reference: yumift_msgs/YumiPosture.REFERENCE_BASE
+>   ref_frame: ''
 >   time_to_execute: 4.0
 > mode: yumift_msgs/YumiTrajectory.INDIVIDUAL"
 > --once
 > ``` 
+
 
 ### Tracking controllers
 To start a tracking controller use
 ```bash
 rosrun yumift_controllers tracking_controllers.py single
 ```
-with available options `single`, `whole`.
+with available options `single` (default), `whole`. Postures must be sent to the controller via the `/posture_r` and `/posture_l` topics in `single` mode, or the `/posture` topic in `whole` mode.
 
-This controller is more versatile, as its intended use is to continuously receivce `YumiPosture` messages from a node, bypassing the trajectory creation described above.   
+This controller is more versatile, as its intended use is to continuously receive `YumiPosture` messages from a node, bypassing the trajectory creation described above.   
 
-### Force controllers
-Start a force-based trajectory controller with
+
+### Force-informed trajectory controllers
+Trajectory controllers can also adapt to external forces (this requires the [force/torque sensor setup](#using-ft-sensor) above).
+Start a force-informed trajectory controller with
 ```bash
 rosrun yumift_controllers trajectory_controllers.py wrenched
 ```
-with available options `wrenched`, `compliant`.
+with available options `wrenched`, `compliant` (remember `dual` is the default). 
+In `wrenched` the external force is used as an extra velocity input in the control law as $v_f = \alpha f$, 
+while in `compliant` the force is used to generate a virtual position/velocity error with a mass-damper-spring system $M\ddot{e} + D\dot{e} + K e = f$ and then these errors are used to modify the desired velocity and position in the control law.
 
-When writing custom controllers, forces are available in the `RobotState` object received in the controller main loop. If no sensors are available, a simple "wrench simulator" can be used running
+When writing custom controllers, forces are available in the `RobotState` object received in the controller main loop. If no sensors are available, a simple "wrench emulator" can be used running
 ```bash
-rosrun yumift_controllers wrench_simulator.py
+rosrun yumift_emulation wrench_emulator.py
 ```
+
 
 ## Notes
 This code comes as is. Use it at your own risk.

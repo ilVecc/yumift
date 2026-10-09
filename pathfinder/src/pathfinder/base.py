@@ -95,15 +95,14 @@ class MultiTrajectory(Trajectory[TParam]):
         super().__init__()  # this calls `self.clear()` down the line
     
     def clear(self) -> None:
+        super().clear()
         self._path_params = []
         self._timemarks = np.array([])
-        self._segment_new = True
-        self._segment_idx_curr = -1
-        super().clear()
+        self.restart()
     
     def restart(self) -> None:
-        """ Method to restart the Path from the beginning after a computation 
-            round (i.e. needed when the Path is computed more than once).
+        """ Method to (re)start the Path from the beginning
+            (e.g. needed when the Path is executed more than once)
         """
         self._segment_new = True
         self._segment_idx_curr = -1
@@ -114,8 +113,7 @@ class MultiTrajectory(Trajectory[TParam]):
         super().update(path_parameters[0].param, path_parameters[-1].param, timemarks[-1])
         self._path_params = path_parameters
         self._timemarks = timemarks
-        self._segment_new = True
-        self._segment_idx_curr = -1
+        self.restart()
     
     def _update_segment(self, t) -> int:
         """ Updates the current target trajectory parameters or which is the 
@@ -136,8 +134,8 @@ class MultiTrajectory(Trajectory[TParam]):
         return t - self._timemarks[self._segment_idx_curr]  # time in segment period
 
     def is_new_segment(self) -> bool:
-        """ Returns True if a new segment has been entered, only shows true
-            once for each segment. Used to check if new gripper commands should be sent.
+        """ Returns `True` once at the beginning of a each segment. 
+            Used to check if new gripper commands should be sent.
         """
         return self._segment_new
     

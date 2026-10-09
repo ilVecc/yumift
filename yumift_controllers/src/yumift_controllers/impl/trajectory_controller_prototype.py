@@ -264,12 +264,12 @@ class YumiTrajectoryController(RoutinableYumiController):
                 action.velocity_relative(vel_2)
             
             # set commands to the grippers
-            # (gripper commands should be sent only once per trajectory, the 
-            # way they work is different)
-            is_new_traj_segment = self.trajectory.is_new_segment()
-            if is_new_traj_segment:
-                action.gripper_right(des_state.grip_r)
-                action.gripper_left(des_state.grip_l)
+            # (gripper commands are discrete and should be sent only once per trajectory segment)
+            if self.trajectory.is_new_segment():
+                if des_state.grip_r is not None:
+                    action.gripper_right(des_state.grip_r)
+                if des_state.grip_l is not None:
+                    action.gripper_left(des_state.grip_l)
             
         except Exception as ex:
             rospy.logfatal(f"Could not compute action (exception: {ex})")

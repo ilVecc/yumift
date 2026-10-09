@@ -73,9 +73,9 @@ class YumiTrajectory(MultiTrajectory[YumiParam]):
         is absolute motion and left becomes relative motion.
     """
     def __init__(self) -> None:
-        super().__init__(FakeTrajectory())
         self.traj_right = CubicPosePath()
         self.traj_left = CubicPosePath()
+        super().__init__(FakeTrajectory())
     
     @staticmethod
     def _calculate_intermediate_velocity_linear(
@@ -129,6 +129,7 @@ class YumiTrajectory(MultiTrajectory[YumiParam]):
         return vel
     
     def restart(self) -> None:
+        super().restart()
         self.traj_right.restart()
         self.traj_left.restart()
     
@@ -172,8 +173,8 @@ class YumiTrajectory(MultiTrajectory[YumiParam]):
         self.traj_left.update( [MultiParam[PoseParam](pp.param.pose_left, pp.duration) for pp in path_parameters] )
     
     def is_new_segment(self):
-        """ Returns True if a new segment has been entered, only shows true
-            once for each segment. Used to check if new gripper commands should be sent.
+        """ Returns `True` once at the beginning of a each segment. 
+            Used to check if new gripper commands should be sent.
         """
         return self.traj_right.is_new_segment() or self.traj_left.is_new_segment()
 
@@ -193,7 +194,7 @@ class YumiTrajectory(MultiTrajectory[YumiParam]):
         
         # get desired gripper position (gripper must be updated once per segment)
         # TODO allow for intra-segment update of gripper
-        desired_gripper_right = self._path_params[self._segment_idx_curr].param.grip_right
-        desired_gripper_left = self._path_params[self._segment_idx_curr].param.grip_left
+        desired_gripper_right = self._path_params[self._segment_idx_curr+1].param.grip_right
+        desired_gripper_left = self._path_params[self._segment_idx_curr+1].param.grip_left
 
         return YumiParam(pose_r.pos, pose_r.rot, pose_r.vel, desired_gripper_right, pose_l.pos, pose_l.rot, pose_l.vel, desired_gripper_left)

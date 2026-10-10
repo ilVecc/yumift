@@ -51,7 +51,7 @@ def main():
         #  4) rotate around the z-axis of the third frame, generating the final frame
         # and finally convert it to a quaternion).
         # Finally, instead of millimeters, we can use the handy `H.GRIP_CLOSED` and 
-        # `H.GRIP_OPENED` instead to set the finger width of the grippers.
+        # `H.GRIP_OPENED` instead to manually set the width.
         (H.cm(35, 20, 20), H.e2q(+90, 0, 0), H.GRIP_CLOSED)
     )
 

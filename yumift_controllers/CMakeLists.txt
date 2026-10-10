@@ -15,6 +15,7 @@ catkin_install_python(PROGRAMS
   scripts/trajectory_controllers.py
   scripts/routines/routine_calib.py
   scripts/routines/routine_ready.py
+  scripts/routines/routine_abort.py
   scripts/ftsensor_calibration.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )

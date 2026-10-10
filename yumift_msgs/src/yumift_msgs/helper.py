@@ -222,6 +222,12 @@ class Helper():
         wait_completion : Union[bool, float] = True,
     ):
         """ Quickly send a trajectory or a routine.
+            :param topic: either a topic string or a ready-to-use publisher
+            :param motion_default: default motion to use when unspecified (maybe useless)
+            :param wait_completion: flag or float value for a sleep call. If `bool`, either 
+                don't wait (`False`) or wait for the sum of the postures' duration (`True`). 
+                If `float`, either wait the given amount (when `value < 0`) or add it to the
+                sum of the durations (when `value > 0`)
         """
         
         # if string, create a publisher for that topic, 
@@ -233,19 +239,19 @@ class Helper():
         
         # if wait_time == False, then T = 0  (no sleep)
         if not (isinstance(wait_completion, bool) and not wait_completion):
-            if postures is None:
-                # TODO assuming all routines take 5 seconds is bad
-                time = 5.0
+            # if wait_time <  0.0,   then T = |wait_time|
+            if isinstance(wait_completion, float) and wait_completion < 0:
+                wait_time = abs(wait_completion)
             else:
-                # if wait_time <  0.0,   then T = |wait_time|
-                if isinstance(wait_completion, float) and wait_completion < 0:
-                    time = abs(wait_completion)
+                # if wait_time == True,  then T = sum(durations) 
+                if routine_name is not None:
+                    # TODO assuming all routines take 5 seconds is bad
+                    wait_time = 5.0
                 else:
-                    # if wait_time == True,  then T = sum(durations) 
-                    time = sum([p.time_to_execute.to_sec() for p in postures])
-                    # if wait_time >= 0.0,   then T = sum(durations) + wait_time
-                    if isinstance(wait_completion, float) and wait_completion > 0:
-                        time += abs(wait_completion)
+                    wait_time = sum([p.time_to_execute.to_sec() for p in postures])
+                # if wait_time >= 0.0,   then T = sum(durations) + wait_time
+                if isinstance(wait_completion, float) and wait_completion > 0:
+                    wait_time += abs(wait_completion)
             wait_completion = True  # ensure bool type
         
         # prepare the message
@@ -267,7 +273,7 @@ class Helper():
         
         # wait if required
         if wait_completion:    
-            rospy.sleep(time)
+            rospy.sleep(wait_time)
 
 
     @staticmethod

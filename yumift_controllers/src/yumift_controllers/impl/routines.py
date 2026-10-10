@@ -64,3 +64,22 @@ class CalibPoseRoutine(JointStateRoutine):
 class ReadyPoseRoutine(JointStateRoutine):
     def __init__(self) -> None:
         super().__init__("ready_pose", ControllerParameters.CONFIG_READY_POS)
+
+
+class AbortTrajectoryRoutine(Routine):
+
+    def __init__(self) -> None:
+        super().__init__("abort_trajectory")
+
+    def init(self, robot_state_init: RobotState) -> None:
+        pass
+
+    def action(self, robot_state_curr: RobotState) -> Tuple[dict, bool]:
+        done = True
+        action = MixedVelocityYumiAction()
+        action.control_space(MixedVelocityYumiAction.ControlSpace.JOINT_SPACE)
+        action.velocity_joints(np.zeros(14))
+        return action, done
+
+    def finish(self, robot_state_final: RobotState) -> None:
+        pass

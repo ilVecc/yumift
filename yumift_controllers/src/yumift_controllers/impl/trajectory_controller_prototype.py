@@ -22,7 +22,7 @@ from ..common.control_laws import YumiDualCartesianVelocityControlLaw
 from ..ik.algorithms import HQPIKAlgorithm, PINVIKAlgorithm
 from ..misc.utils import quat_to_xyzw, Frame_to_PoseStampedMsg, YumiCoordinatedRobotState_from_YumiParam
 
-from .routines import ReadyPoseRoutine, CalibPoseRoutine
+from .routines import ReadyPoseRoutine, CalibPoseRoutine, AbortTrajectoryRoutine
 from .trajectory import YumiParam, YumiTrajectory, YumiTrajectoryParam, PoseParam
 
 
@@ -112,7 +112,7 @@ class YumiTrajectoryController(RoutinableYumiController):
         super().__init__(
             robot_handle=YumiDevice(coordinated_balance=0.5), 
             iksolvers=[PINVIKAlgorithm(), HQPIKAlgorithm()], 
-            routines=[ReadyPoseRoutine(), CalibPoseRoutine()])
+            routines=[ReadyPoseRoutine(), CalibPoseRoutine(), AbortTrajectoryRoutine()])
         self._iksolver.switch("pinv")
         
         # define control law

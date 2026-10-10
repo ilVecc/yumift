@@ -33,6 +33,7 @@ class YumiForceController(YumiDualController):
         self.prev_err_gripF_r = np.zeros(3)
         self.prev_err_gripF_l = np.zeros(3)
         self.Kd = np.ones(3) * 0.0001
+        # TODO change initialization when in contact
         self.filter_r = LPFilter(freq=50, n=3, h=ControllerParameters.dt)
         self.filter_l = LPFilter(freq=50, n=3, h=ControllerParameters.dt)
         # surface normal

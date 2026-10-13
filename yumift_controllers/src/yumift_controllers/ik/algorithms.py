@@ -204,10 +204,16 @@ class PINVIKAlgorithm(IKAlgorithm):
             secondary_obj = secondary_nothing
         
         # FIXME remove this lambda
-        secondary_obj_fixme = lambda J, q, qd : secondary_obj(q, qd)
+        #       also, DO NOT re-use `secondary_obj` as variable name (in-place re-assignment) as it will self-reference the inside the lambda
+        self.secondary_obj_fixme = lambda J, q, qd : secondary_obj(q, qd)
         
-        self._pinv_solver_12 = PINVSolver((YumiRobotConstants.EE, YumiRobotConstants.DOF), weights, damping, secondary_obj_fixme)
-        self._pinv_solver_6 = PINVSolver((YumiRobotConstants.EE//2, YumiRobotConstants.DOF), weights, damping, secondary_obj_fixme)
+        # full jacobian (only individual/coordinated)
+        self._pinv_solver_12 = PINVSolver((YumiRobotConstants.EE, YumiRobotConstants.DOF), weights, damping, self.secondary_obj_fixme)
+        # null-space exploitation (only absolute/relative)
+        self._pinv_solver_6_coord = PINVSolver((YumiRobotConstants.EE//2, YumiRobotConstants.DOF), weights, damping, self.secondary_obj_fixme)
+        # no null-space exploitation (only right/left)
+        self._pinv_solver_6_r = PINVSolver((YumiRobotConstants.EE//2, YumiRobotConstants.DOF//2), weights[0:7], damping, self.secondary_obj_fixme)
+        self._pinv_solver_6_l = PINVSolver((YumiRobotConstants.EE//2, YumiRobotConstants.DOF//2), weights[7:14], damping, self.secondary_obj_fixme)
         
         
     def init(self):
@@ -217,65 +223,64 @@ class PINVIKAlgorithm(IKAlgorithm):
     
     # TODO not all actions are `dict`
     def solve(self, action: dict, state: YumiDualDeviceState):
-
-        xdot = None
-        jacobian = None
         
         if action["control_space"] == MixedVelocityYumiAction.ControlSpace.INDIVIDUAL:
             xdot = np.zeros(12)
             xdot[0:6] = action["velocity_right"]
             xdot[6:12] = action["velocity_left"]
+            # [ Jr  0 ]
+            # [  0 Jl ]
             jacobian = state.jacobian_grippers
+            qdot = self._pinv_solver_12.solve(xdot, jacobian, state.joint_pos, state.joint_vel)
         
         elif action["control_space"] == MixedVelocityYumiAction.ControlSpace.RIGHT:
-            xdot = action["velocity_right"]
-            jacobian = state.jacobian_gripper_r
-            # FIXME ASAP
-            # jacobian_pinv = self._pinv_solver_6.solve(jacobian)
-            # add extra DOFs missing
-            zeros = np.zeros((6,7))
-            jacobian = np.hstack([jacobian, zeros])
-            # jacobian_pinv = np.vstack([jacobian_pinv, zeros.T])
+            xdot_r = action["velocity_right"]
+            # [ Jr  0 ]
+            # [  0  0 ] no nullspace exploited (except of course the 7th DOF)
+            jacobian_r = state.jacobian_gripper_r
+            qdot = np.zeros(14)
+            q0 = self.secondary_obj_fixme(None, state.joint_pos, None)
+            qdot[0:7] = self._pinv_solver_6_r.solve_with(xdot_r, jacobian_r, q0[0:7])
+            # qdot[7:14] = q0[7:14]
             
         elif action["control_space"] == MixedVelocityYumiAction.ControlSpace.LEFT:
-            xdot = action["velocity_left"]
-            jacobian = state.jacobian_gripper_l
-            # FIXME ASAP
-            # jacobian_pinv = self._pinv_solver_6.solve(jacobian)
-            # add extra DOFs missing
-            zeros = np.zeros((6,7))
-            jacobian = np.hstack([zeros, jacobian])
-            # jacobian_pinv = np.vstack([zeros.T, jacobian_pinv])
+            xdot_l = action["velocity_left"]
+            # [  0  0 ] no nullspace exploited (except of course the 7th DOF)
+            # [  0 Jl ]
+            jacobian_l = state.jacobian_gripper_l
+            q0 = self.secondary_obj_fixme(None, state.joint_pos, None)
+            qdot = np.zeros(14)
+            # qdot[0:7] = q0[0:7]
+            qdot[7:14] = self._pinv_solver_6_l.solve_with(xdot_l, jacobian_l, q0[7:14])
         
         elif action["control_space"] == MixedVelocityYumiAction.ControlSpace.COORDINATED:
             xdot = np.zeros(12)
             xdot[0:6] = action["velocity_absolute"]
             xdot[6:12] = action["velocity_relative"]
+            # [  JA  ]
+            # [  JR  ]
             jacobian = state.jacobian_coordinated
+            qdot = self._pinv_solver_12.solve(xdot, jacobian, state.joint_pos, state.joint_vel)
             
         elif action["control_space"] == MixedVelocityYumiAction.ControlSpace.ABSOLUTE:
-            xdot = action["velocity_absolute"]
-            jacobian = state.jacobian_coordinated_abs
+            xdot_A = action["velocity_absolute"]
+            # [  JA  ]
+            # [ ---- ]  "relative" nullspace exploited
+            jacobian_A = state.jacobian_coordinated_abs
+            qdot = self._pinv_solver_6_coord.solve(xdot_A, jacobian_A, state.joint_pos, state.joint_vel)
             
         elif action["control_space"] == MixedVelocityYumiAction.ControlSpace.RELATIVE:
-            xdot = action["velocity_relative"]
-            jacobian = state.jacobian_coordinated_rel
+            xdot_R = action["velocity_relative"]
+            # [ ---- ]  "absolute" nullspace exploited
+            # [  JR  ]
+            jacobian_R = state.jacobian_coordinated_rel
+            qdot = self._pinv_solver_6_coord.solve(xdot_R, jacobian_R, state.joint_pos, state.joint_vel)
 
         else:
             print(f"Unknown control mode ({action['control_space']}), stopping")
             return np.zeros(YumiRobotConstants.DOF)
         
-        # TODO `state.joint_pos` is a `np.concat`, veeeeery slow
-        joint_pos = np.zeros(14)
-        joint_pos[0:7] = state.joint_pos_r
-        joint_pos[7:14] = state.joint_pos_l
-        
-        # FIXME ASAP
-        # if jacobian_pinv is None:
-        #     # otherwise it's been already created in RIGHT or LEFT
-        vel = self._pinv_solver_12.solve(xdot, jacobian, joint_pos, None)  # `state.joint_vel` not needed
-
-        return vel
+        return qdot
 
     def stop(self):
         pass

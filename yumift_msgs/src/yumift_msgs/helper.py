@@ -168,6 +168,8 @@ class Helper():
             time_to_execute=rospy.Duration.from_sec(time))
         posture.pose_primary.orientation.w = 1
         posture.pose_secondary.orientation.w = 1
+        posture.gripper_right = np.nan
+        posture.gripper_left = np.nan
         return posture
     
     @staticmethod

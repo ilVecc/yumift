@@ -42,10 +42,10 @@ class JointPositionBoundsTask(UpperTask):
         self._joint_pos = np.zeros((self.m))
 
     def compute(self, joint_position: np.ndarray, timestep: float = None):
-        # constr_mat_lower = -self.timestep * np.eye(self.ndim)
         # constr_mat_upper =  self.timestep * np.eye(self.ndim)
-        # constr_vec_lower = -self.bounds_lower + joint_position
+        # constr_mat_lower = -self.timestep * np.eye(self.ndim)
         # constr_vec_upper =  self.bounds_upper - joint_position
+        # constr_vec_lower = -self.bounds_lower + joint_position
         # self.constr_mat = np.vstack((constr_mat_upper, constr_mat_lower))
         # self.constr_vec = np.hstack((constr_vec_upper, constr_vec_lower))
 
@@ -77,7 +77,7 @@ class JointVelocityBoundsTask(UpperTask):
         # self.constr_mat = np.vstack((constr_mat_upper, constr_mat_lower))
         # self.constr_vec = np.hstack((constr_vec_upper, constr_vec_lower))
         
-        # the code above is constant, so it has been compated and cached in `__init__()`
+        # the code above is constant, so it has been compacted and cached in `__init__()`
         
         return self
 
@@ -199,7 +199,7 @@ class ElbowProximity(UpperTask):
     """ Task for keeping a proximity between the elbows of the robot
     """
     def __init__(self, dof: int, min_dist: float):
-        super().__init__(dof, 1, 1e2)
+        super().__init__(dof, 1, 1e3)
         
         self.min_dist = min_dist
         # cache

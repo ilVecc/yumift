@@ -1,11 +1,12 @@
-from typing import Dict, Optional, Callable
+from typing import List, Dict, Optional, Callable
 
 import numpy as np
 from numpy.typing import ArrayLike
 
+from yumift_controllers.misc.utils import load_config
+
 from .pinv_tasks import secondary_neutral, secondary_center, secondary_nothing, YumiSizedArray
 from .hqp_tasks import *
-from .hqp_parameters import HQPParameters
 from .solver import IKAlgorithm
 from ..common.device import YumiDualDeviceState
 from ..common.controller_base import MixedVelocityYumiAction
@@ -28,18 +29,19 @@ class HQPIKAlgorithm(IKAlgorithm):
         """
         self._hqp_solver = HQPSolver()
         self._tasks: Dict[str, Task] = {}
+        self._parameters = load_config("hqp_parameters.yaml")
 
         # joint position limit
         self._tasks["joint_position_bound"] = JointPositionBoundsTask(
             dof=YumiRobotConstants.DOF,
-            bounds_lower=np.hstack([YumiRobotConstants.JOINT_POS_UB, YumiRobotConstants.JOINT_POS_LB]),
-            bounds_upper=np.hstack([YumiRobotConstants.JOINT_POS_UB, YumiRobotConstants.JOINT_POS_LB]))
+            bounds_lower=np.hstack([YumiRobotConstants.JOINT_POS_LB, YumiRobotConstants.JOINT_POS_LB]),
+            bounds_upper=np.hstack([YumiRobotConstants.JOINT_POS_UB, YumiRobotConstants.JOINT_POS_UB]))
 
         # joint velocity limit
         self._tasks["joint_velocity_bound"] = JointVelocityBoundsTask(
             dof=YumiRobotConstants.DOF,
-            bounds_lower=-np.hstack([YumiRobotConstants.JOINT_VEL_AB, YumiRobotConstants.JOINT_VEL_AB]),
-            bounds_upper=np.hstack([YumiRobotConstants.JOINT_VEL_AB, YumiRobotConstants.JOINT_VEL_AB]))
+            bounds_lower=np.hstack([-YumiRobotConstants.JOINT_VEL_AB, -YumiRobotConstants.JOINT_VEL_AB]),
+            bounds_upper=np.hstack([ YumiRobotConstants.JOINT_VEL_AB,  YumiRobotConstants.JOINT_VEL_AB]))
 
         # control objective
         self._tasks["individual_control"] = IndividualControl(dof=YumiRobotConstants.DOF)
@@ -52,22 +54,20 @@ class HQPIKAlgorithm(IKAlgorithm):
         # elbow collision avoidance
         self._tasks["self_collision_elbow"] = ElbowProximity(
             dof=YumiRobotConstants.DOF,
-            min_dist=HQPParameters.elbows_min_distance)
+            min_dist=self._parameters["elbows_min_distance"])
 
         # end effector collision avoidance
         self._tasks["end_effector_collision"] = EndEffectorProximity(
             dof=YumiRobotConstants.DOF,
-            min_dist=HQPParameters.grippers_min_distance)
+            min_dist=self._parameters["grippers_min_distance"])
 
         # joint potential 
         self._tasks["joint_position_potential"] = JointPositionPotential(
             dof=YumiRobotConstants.DOF,
             default_pos=YumiRobotConstants.JOINT_POS_NEUTRAL,
-            weights=HQPParameters.potential_weight)
+            weights=self._parameters["potential_weight"])
 
-        # TODO remove me
         # cache
-        self._cache_joint_state = np.zeros((YumiRobotConstants.DOF,))
         self._cache_velocities = np.zeros(12)
 
     def solve(self, action: MixedVelocityYumiAction, state: YumiDualDeviceState):
@@ -75,17 +75,15 @@ class HQPIKAlgorithm(IKAlgorithm):
             individual or coordinated manipulation
         """
         # add extra feasibility tasks (if not already included)
-        for key, value in HQPParameters.safety_objectives.items():
-            if key not in action:
-                action[key] = value
-
-        self._cache_joint_state[0:7] = state.joint_pos_r
-        self._cache_joint_state[7:14] = state.joint_pos_l
+        for safety_obj, enable in self._parameters["safety_objectives"].items():
+            if safety_obj not in action:
+                action[safety_obj] = enable
 
         dt = action["timestep"]
         
         # stack of tasks, in descending hierarchy
-        SoT = []
+        SoT : List[Task] = []
+        
         # (1) velocity bound
         if action["joint_velocity_bound"]:
             SoT.append(self._tasks["joint_velocity_bound"].compute())  # constant
@@ -93,7 +91,7 @@ class HQPIKAlgorithm(IKAlgorithm):
         # (2) position bound
         if action["joint_position_bound"]:
             SoT.append(self._tasks["joint_position_bound"].compute(
-                joint_position=self._cache_joint_state, 
+                joint_position=state.joint_pos, 
                 timestep=dt))
 
         # (3) elbow proximity limit task
@@ -104,73 +102,76 @@ class HQPIKAlgorithm(IKAlgorithm):
                 pose_elbow_l=state.pose_elbow_l,
                 timestep=dt))
 
+        # (4.0) gripper collision avoidance
+        if action["gripper_collision"]:
+            SoT.append(self._tasks["end_effector_collision"].compute(
+                jacobian_grippers=state.jacobian_grippers,
+                pose_gripper_r=state.pose_gripper_r,
+                pose_gripper_l=state.pose_gripper_l,
+                timestep=dt))
+        
         # (4) velocity command task
         if action["control_space"] == MixedVelocityYumiAction.ControlSpace.INDIVIDUAL:
-            # (4.0) gripper collision avoidance
-            if action["gripper_collision"]:
-                SoT.append(self._tasks["end_effector_collision"].compute(
-                    jacobian_grippers=state.jacobian_grippers,
-                    pose_gripper_r=state.pose_gripper_r,
-                    pose_gripper_l=state.pose_gripper_l,
-                    timestep=dt))
-
             # (4.1) individual control
-            if "velocity_right" in action and "velocity_left" in action:
-                self._cache_velocities[:6] = action["velocity_right"]
-                self._cache_velocities[6:] = action["velocity_left"]
-                SoT.append(self._tasks["individual_control"].compute(
-                    control_vel=self._cache_velocities,
-                    jacobian_grippers=state.jacobian_grippers))
+            self._cache_velocities[:6] = action["velocity_right"]
+            self._cache_velocities[6:] = action["velocity_left"]
+            SoT.append(self._tasks["individual_control"].compute(
+                control_vel=self._cache_velocities,
+                jacobian_grippers=state.jacobian_grippers))
+        
+        elif action["control_space"] == MixedVelocityYumiAction.ControlSpace.RIGHT:
             # (4.2) right motion
-            elif "velocity_right" in action:
-                SoT.append(self._tasks["right_control"].compute(
-                    control_vel_right=action["velocity_right"],
-                    jacobian_grippers_right=state.jacobian_gripper_r))
+            SoT.append(self._tasks["right_control"].compute(
+                control_vel_right=action["velocity_right"],
+                jacobian_grippers_right=state.jacobian_gripper_r))
+        
+        elif action["control_space"] == MixedVelocityYumiAction.ControlSpace.LEFT:
             # (4.3) left motion
-            elif "velocity_left" in action:
-                SoT.append(self._tasks["left_control"].compute(
-                    control_vel_left=action["velocity_left"],
-                    jacobian_grippers_left=state.jacobian_gripper_l))
+            SoT.append(self._tasks["left_control"].compute(
+                control_vel_left=action["velocity_left"],
+                jacobian_grippers_left=state.jacobian_gripper_l))
 
-            else:
-                print(f"When using individual control mode, \"velocity_right\" and/or \"velocity_left\" must be specified")
-                return np.zeros(YumiRobotConstants.DOF)
+            # else:
+            #     print(f"When using individual control mode, \"velocity_right\" and/or \"velocity_left\" must be specified")
+            #     return np.zeros(YumiRobotConstants.DOF)
 
         elif action["control_space"] == MixedVelocityYumiAction.ControlSpace.COORDINATED:
             # (4.1) coordinated motion
-            if "velocity_relative" in action and "velocity_absolute" in action:
-                self._cache_velocities[:6] = action["velocity_absolute"]
-                self._cache_velocities[6:] = action["velocity_relative"]
-                SoT.append(self._tasks["coordinated_control"].compute(
-                    control_vel=self._cache_velocities,
-                    jacobian_coordinated=state.jacobian_coordinated))
-            # (4.2) relative motion
-            elif "velocity_relative" in action:
-                SoT.append(self._tasks["relative_control"].compute(
-                    control_vel_rel=action["velocity_relative"],
-                    jacobian_coordinated_rel=state.jacobian_coordinated_rel))
+            self._cache_velocities[:6] = action["velocity_absolute"]
+            self._cache_velocities[6:] = action["velocity_relative"]
+            SoT.append(self._tasks["coordinated_control"].compute(
+                control_vel=self._cache_velocities,
+                jacobian_coordinated=state.jacobian_coordinated))
+        
+        elif action["control_space"] == MixedVelocityYumiAction.ControlSpace.ABSOLUTE:
             # (4.3) absolute motion
-            elif "velocity_absolute" in action:
-                SoT.append(self._tasks["absolute_control"].compute(
-                    control_vel_abs=action["velocity_absolute"],
-                    jacobian_coordinated_abs=state.jacobian_coordinated_abs))
-
-            else:
-                print(f"When using individual control mode, \"velocity_absolute\" and/or \"velocity_relative\" must be specified")
-                return np.zeros(YumiRobotConstants.DOF)
+            SoT.append(self._tasks["absolute_control"].compute(
+                control_vel_abs=action["velocity_absolute"],
+                jacobian_coordinated_abs=state.jacobian_coordinated_abs))
+        
+        elif action["control_space"] == MixedVelocityYumiAction.ControlSpace.RELATIVE:
+            # (4.2) relative motion
+            SoT.append(self._tasks["relative_control"].compute(
+                control_vel_rel=action["velocity_relative"],
+                jacobian_coordinated_rel=state.jacobian_coordinated_rel))
+            
+            # else:
+            #     print(f"When using coordinated control mode, \"velocity_absolute\" and/or \"velocity_relative\" must be specified")
+            #     return np.zeros(YumiRobotConstants.DOF)
+            
         else:
-            print(f"Unknown control mode ({action['control_space']}), stopping")
+            print(f"Unknown control space \"{action['control_space']}\", stopping")
             return np.zeros(YumiRobotConstants.DOF)
 
         # (5) joint potential task (tries to keep the robot in a natural configuration)
         if action["joint_potential"]:
             SoT.append(self._tasks["joint_position_potential"].compute(
-                joint_position=self._cache_joint_state, 
+                joint_position=state.joint_pos, 
                 timestep=dt))
-
+        
         # solve HQP problem
         try:
-            vel = self._hqp_solver.solve(SoT=SoT)
+            vel = self._hqp_solver.solve(SoT)
         except HQPTaskError as ex:
             print(f"Stopping. Error in the HQP solver: {ex}")
             vel = np.zeros(YumiRobotConstants.DOF)

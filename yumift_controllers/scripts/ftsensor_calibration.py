@@ -85,12 +85,36 @@ class MeasurementWizard():
         for posture in posture_list:
             self.measure_posture(posture)
 
+
     def store_data(self, filename_left : str, filename_right : str):
         with open(filename_left, "wb") as f:
             pickle.dump(self.measurements_left, f)
         with open(filename_right, "wb") as f:
             pickle.dump(self.measurements_right, f)
         print(f"data saved in files \"{filename_left}\" and \"{filename_right}\"\n")
+
+    def restore_data(self, filename_left : str, filename_right : str):
+        try:
+            file_left = open(filename_left, "rb")
+            file_right = open(filename_right, "rb")
+        except OSError as ex:
+            print(f"no previous data found, running normal mode\n")
+            return False
+        
+        if input("previous data found, load it? [Y/n] : ") == "n":
+            return False
+        
+        self.measurements_left = pickle.load(file_left)
+        self.measurements_right = pickle.load(file_right)
+        print(f"restored previous data\n")
+        return True
+
+    def delete_data(self, filename_left : str, filename_right : str):
+        if input("delete collected data? [y/N] : ") == "y":
+            os.remove(filename_left)
+            os.remove(filename_right)
+            print(f"data deleted\n")
+
 
     @staticmethod
     def _pad_at_center(text, window_size=80, padding=" "):
@@ -447,9 +471,9 @@ class CalibrationAlgorithm():
     @staticmethod
     def load_data(filename):
         with open(filename, "rb") as f:
-            measurements_left = pickle.load(f)
+            measurements = pickle.load(f)
         
-        quats, wrenches = zip(*measurements_left)
+        quats, wrenches = zip(*measurements)
         eRb = np.transpose(np.dstack([trans.quaternion_matrix(q) for q in quats])[:3,:3,:], axes=[2,0,1])
         sW = np.vstack(wrenches)
         sF, sT = sW[:,:3], sW[:,3:]
@@ -457,14 +481,9 @@ class CalibrationAlgorithm():
         return CalibrationAlgorithm.HandForceData(sF=sF, sT=sT, eRb=eRb)
 
 
-def measurement_campaign(prefix: str, filename_left: str, filename_right: str):
+def measurement_campaign(wizard : MeasurementWizard):
 
-    # starting ROS node and subscribers
-    rospy.init_node("ftsensor_calibration_wizard", anonymous=True)
-    
-    wizard = MeasurementWizard(prefix)
     wizard.print_title()
-    
     rospy.sleep(3)
     
     wizard.print_campaign("resetting to READY")
@@ -524,8 +543,6 @@ def measurement_campaign(prefix: str, filename_left: str, filename_right: str):
 
     wizard.print_campaign("resetting to READY")
     wizard.goto_ready()
-    
-    wizard.store_data(filename_left, filename_right)
 
 def tool_calibration(filename_left: str, filename_right: str):
     
@@ -582,15 +599,20 @@ def call_rosservices(prefix: str, params_left: dict, params_right: dict):
     call_services(params_left, "left")
     call_services(params_right, "right")
 
-def delete_measurements(filename_left: str, filename_right: str):
-    os.remove(filename_left)
-    os.remove(filename_right)
-
 
 if __name__ == "__main__":
+    rospy.init_node("ftsensor_calibration_wizard", anonymous=True)
+    
     topics_prefix = "/yumi/sensors/wrench"
     filename_left, filename_right = "measurements_left.pkl", "measurements_right.pkl"
-    measurement_campaign(topics_prefix, filename_left, filename_right)
+    
+    wizard = MeasurementWizard(topics_prefix)
+    restored = wizard.restore_data(filename_left, filename_right)
+    if not restored:
+        measurement_campaign(wizard)
+        wizard.store_data(filename_left, filename_right)
+    
     params_left, params_right = tool_calibration(filename_left, filename_right)
     call_rosservices(topics_prefix, params_left, params_right)
-    delete_measurements(filename_left, filename_right)
+    
+    wizard.delete_data(filename_left, filename_right)

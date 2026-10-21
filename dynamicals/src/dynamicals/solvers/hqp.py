@@ -16,10 +16,6 @@ class Task(object, metaclass=ABCMeta):
         Based on https://github.com/ritalaezza/sot-myo/blob/akos_re/src/Task.py
     """
     
-    # EQUAL =  0,  #  Gx ==  h
-    # UPPER =  1,  #  Gx <=  h
-    # LOWER = -1,  # -Gx <= -h
-    
     def __init__(self, n: int, m: int, slack_ratio: float = 1e4):
         # NON-SLACKED PROBLEM
         #   constr_mat * x = constr_vec
@@ -94,8 +90,8 @@ class Task(object, metaclass=ABCMeta):
 
 
 class UpperTask(Task):
-    
-    # Gx <=  h
+    """ Task describing the problem `Gx <= h`
+    """
     
     def __init__(self, n: int, m: int, slack_ratio: float = 1e4):
         super().__init__(n, m, slack_ratio)
@@ -124,8 +120,8 @@ class UpperTask(Task):
         return self._with_slack_zeros_mat, self._with_slack_zeros_vec, self._with_slack_constr_mat, self.constr_vec
 
 class EqualTask(Task):
-    
-    # Gx ==  h
+    """ Task describing the problem `Gx == h`
+    """
     
     def __init__(self, n: int, m: int, slack_ratio: float = 1e4):
         super().__init__(n, m, slack_ratio)
@@ -155,8 +151,9 @@ class EqualTask(Task):
         return self._with_slack_constr_mat, self.constr_vec, self._with_slack_zeros_mat, self._with_slack_zeros_vec
 
 class LowerTask(Task):
-    
-    # Gx >= h  (achieved as -Gx <= -h )
+    """ Task describing the problem `Gx >= h` (internally achieved as `-Gx <= -h` 
+        since `<=` is the inequality we assume in the solver).
+    """
     
     def __init__(self, n: int, m: int, slack_ratio: float = 1e4):
         super().__init__(n, m, slack_ratio)

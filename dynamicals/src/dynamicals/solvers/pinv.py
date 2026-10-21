@@ -57,18 +57,18 @@ class PINVSolver():
             :param dq: current state velocities
             :returns: command state velocities
         """
-        q0 = self.secondary_obj(J, q, dq)
-        return self.solve_with(v, J, q0)
+        dq0 = self.secondary_obj(J, q, dq)
+        return self.solve_with(v, J, dq0)
     
-    def solve_with(self, v, J, q0):
+    def solve_with(self, v, J, dq0):
         """ Solve the `v = J(q) @ dq` problem via least-squares error minimization.
             The function calculates `dq = J+ @ v + (I - J+ @ J) @ q0`.
             :param v: desired output command
             :param J: current Jacobian
-            :param q0: pre-computed secondary objective
+            :param dq0: pre-computed secondary objective
             :returns: command state velocities
         """
         jacobian_pinv = self._pinv_funct(J)
         ortho_proj = self._cached_eye_DOF - jacobian_pinv @ J
-        dq_cmd = jacobian_pinv @ v + ortho_proj @ q0
+        dq_cmd = jacobian_pinv @ v + ortho_proj @ dq0
         return dq_cmd

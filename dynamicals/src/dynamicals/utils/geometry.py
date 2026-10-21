@@ -159,6 +159,12 @@ class Frame(object):
             :param quaternion: np.quaternion([w,x,y,z]) orientation [unit quaternion]
         """
         self._quat = quaternion
+    
+    @property
+    def rotmat(self) -> np.ndarray:
+        """ Returns the orientation as a rotation matrix
+        """
+        return quat.as_rotation_matrix(self._quat)
 
     @property
     def vel(self):
@@ -221,14 +227,14 @@ class Frame(object):
         """ Convert this Frame object to a homogeneous matrix representation
         """
         mat = np.eye(4)
-        mat[:3,:3] = quat.as_rotation_matrix(self._quat)
+        mat[:3,:3] = self.rotmat
         mat[:3, 3] = self._pos
         return mat
     
     def apply(self, vector: np.ndarray):
         """ Apply this transformation to the given vector.
         """
-        return quat.as_rotation_matrix(self.rot) @ vector + self.pos
+        return self.rotmat @ vector + self.pos
     
     def actOn(self, twist: np.ndarray):
         """ Move the input twist from the source to the target frame of this transformation.
@@ -267,7 +273,7 @@ class Frame(object):
             
             and [v]^ is the cross-product matrix of vector v.
         """
-        R = quat.as_rotation_matrix(frame._quat)
+        R = frame.rotmat
         A = np.zeros((6,6))
         A[:3,:3] = R
         A[:3,3:] = skew_matrix(frame._pos) @ R

@@ -1,6 +1,6 @@
 from typing import List, Dict, Optional, Callable
 
-import numpy as np
+import numpy as np, quaternion as quat
 from numpy.typing import ArrayLike
 
 from yumift_controllers.misc.utils import load_config
@@ -19,11 +19,10 @@ from dynamicals.solvers.pinv import PINVSolver
 
 class HQPIKAlgorithm(IKAlgorithm):
 
-    def __init__(self):
-        super().__init__(name="hqp", can_init_late=True)
+    def __init__(self, name="hqp"):
+        super().__init__(name, can_init_late=True)
 
-    # TODO handle this with the usual  .register_task("name", obj_task)  APIs
-    #      though this time an ordered dict (or dict->array) is needed
+    # TODO handle this with the usual `.register_task("name", obj_task)`
     def init(self):
         """ Sets up the HQP solver and the desired tasks
         """
@@ -52,12 +51,12 @@ class HQPIKAlgorithm(IKAlgorithm):
         self._tasks["relative_control"] = RelativeControl(dof=YumiRobotConstants.DOF)
 
         # elbow collision avoidance
-        self._tasks["self_collision_elbow"] = ElbowProximity(
+        self._tasks["self_collision_elbow"] = ElbowsProximity(
             dof=YumiRobotConstants.DOF,
             min_dist=self._parameters["elbows_min_distance"])
 
         # end effector collision avoidance
-        self._tasks["end_effector_collision"] = EndEffectorProximity(
+        self._tasks["end_effector_collision"] = EndEffectorsProximity(
             dof=YumiRobotConstants.DOF,
             min_dist=self._parameters["grippers_min_distance"])
 
@@ -66,6 +65,18 @@ class HQPIKAlgorithm(IKAlgorithm):
             dof=YumiRobotConstants.DOF,
             default_pos=YumiRobotConstants.JOINT_POS_NEUTRAL,
             weights=self._parameters["potential_weight"])
+
+        self._tasks["elbow_in_region_r"] = ElbowInRegion(
+            dof=YumiRobotConstants.DOF,
+            plane=Frame(
+                position=self._parameters["elbow_allowed_region_r"]["origin"], 
+                rotation=quat.from_rotation_vector(self._parameters["elbow_allowed_region_r"]["normal"])))
+        
+        self._tasks["elbow_in_region_l"] = ElbowInRegion(
+            dof=YumiRobotConstants.DOF,
+            plane=Frame(
+                position=self._parameters["elbow_allowed_region_l"]["origin"], 
+                rotation=quat.from_rotation_vector(self._parameters["elbow_allowed_region_l"]["normal"])))
 
         # cache
         self._cache_velocities = np.zeros(12)
@@ -94,7 +105,15 @@ class HQPIKAlgorithm(IKAlgorithm):
                 joint_position=state.joint_pos, 
                 timestep=dt))
 
-        # (3) elbow proximity limit task
+        # (3.1) gripper collision avoidance
+        if action["gripper_collision"]:
+            SoT.append(self._tasks["end_effector_collision"].compute(
+                jacobian_grippers=state.jacobian_grippers,
+                pose_gripper_r=state.pose_gripper_r,
+                pose_gripper_l=state.pose_gripper_l,
+                timestep=dt))
+
+        # (3.2) elbow collision avoidance
         if action["elbow_collision"]:
             SoT.append(self._tasks["self_collision_elbow"].compute(
                 jacobian_elbows=state.jacobian_elbows,
@@ -102,14 +121,19 @@ class HQPIKAlgorithm(IKAlgorithm):
                 pose_elbow_l=state.pose_elbow_l,
                 timestep=dt))
 
-        # (4.0) gripper collision avoidance
-        if action["gripper_collision"]:
-            SoT.append(self._tasks["end_effector_collision"].compute(
-                jacobian_grippers=state.jacobian_grippers,
-                pose_gripper_r=state.pose_gripper_r,
-                pose_gripper_l=state.pose_gripper_l,
+        # (3.3) elbows in allowed region
+        if action["elbow_allowed_region_r"]:
+            SoT.append(self._tasks["elbow_in_region_r"].compute(
+                jacobian_elbow=state.jacobian_elbows[:6,:],
+                pose_elbow=state.pose_elbow_r, 
                 timestep=dt))
         
+        if action["elbow_allowed_region_l"]:
+            SoT.append(self._tasks["elbow_in_region_l"].compute(
+                jacobian_elbow=state.jacobian_elbows[6:,:],
+                pose_elbow=state.pose_elbow_l, 
+                timestep=dt))
+            
         # (4) velocity command task
         if action["control_space"] == MixedVelocityYumiAction.ControlSpace.INDIVIDUAL:
             # (4.1) individual control
@@ -131,10 +155,6 @@ class HQPIKAlgorithm(IKAlgorithm):
                 control_vel_left=action["velocity_left"],
                 jacobian_grippers_left=state.jacobian_gripper_l))
 
-            # else:
-            #     print(f"When using individual control mode, \"velocity_right\" and/or \"velocity_left\" must be specified")
-            #     return np.zeros(YumiRobotConstants.DOF)
-
         elif action["control_space"] == MixedVelocityYumiAction.ControlSpace.COORDINATED:
             # (4.1) coordinated motion
             self._cache_velocities[:6] = action["velocity_absolute"]
@@ -155,10 +175,6 @@ class HQPIKAlgorithm(IKAlgorithm):
                 control_vel_rel=action["velocity_relative"],
                 jacobian_coordinated_rel=state.jacobian_coordinated_rel))
             
-            # else:
-            #     print(f"When using coordinated control mode, \"velocity_absolute\" and/or \"velocity_relative\" must be specified")
-            #     return np.zeros(YumiRobotConstants.DOF)
-            
         else:
             print(f"Unknown control space \"{action['control_space']}\", stopping")
             return np.zeros(YumiRobotConstants.DOF)
@@ -168,7 +184,7 @@ class HQPIKAlgorithm(IKAlgorithm):
             SoT.append(self._tasks["joint_position_potential"].compute(
                 joint_position=state.joint_pos, 
                 timestep=dt))
-        
+            
         # solve HQP problem
         try:
             vel = self._hqp_solver.solve(SoT)
@@ -187,11 +203,12 @@ class PINVIKAlgorithm(IKAlgorithm):
     def __init__(self, 
         weights : Optional[ArrayLike] = [50., 50., 50., 50., 1., 1., 1.], 
         damping : Optional[float] = 0.01, 
-        secondary_obj : Optional[Callable[[YumiSizedArray, YumiSizedArray], YumiSizedArray]] = secondary_neutral
+        secondary_obj : Optional[Callable[[YumiSizedArray, YumiSizedArray], YumiSizedArray]] = secondary_neutral,
+        name="pinv"
     ):
         """ :param weights: cost for each joint
         """
-        super().__init__(name="pinv", can_init_late=True)
+        super().__init__(name, can_init_late=True)
         
         weights = np.asarray(weights)
         if weights.shape == (YumiRobotConstants.DOF,):
@@ -222,8 +239,7 @@ class PINVIKAlgorithm(IKAlgorithm):
         """
         pass
     
-    # TODO not all actions are `dict`
-    def solve(self, action: dict, state: YumiDualDeviceState):
+    def solve(self, action: MixedVelocityYumiAction, state: YumiDualDeviceState):
         
         if action["control_space"] == MixedVelocityYumiAction.ControlSpace.INDIVIDUAL:
             xdot = np.zeros(12)

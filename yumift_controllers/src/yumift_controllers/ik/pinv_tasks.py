@@ -5,8 +5,8 @@ from yumift_common.constants import YumiRobotConstants
 
 q_avg = np.concatenate([(YumiRobotConstants.JOINT_POS_UB + YumiRobotConstants.JOINT_POS_LB) / 2, 
                         (YumiRobotConstants.JOINT_POS_UB + YumiRobotConstants.JOINT_POS_LB) / 2])
-q_span = np.concatenate([YumiRobotConstants.JOINT_POS_UB - YumiRobotConstants.JOINT_POS_LB,
-                         YumiRobotConstants.JOINT_POS_UB - YumiRobotConstants.JOINT_POS_LB])
+q_span = np.concatenate([np.abs(YumiRobotConstants.JOINT_POS_UB - YumiRobotConstants.JOINT_POS_LB),
+                         np.abs(YumiRobotConstants.JOINT_POS_UB - YumiRobotConstants.JOINT_POS_LB)])
 
 # YumiSizedArray = np.ndarray[YumiRobotConstants.DOF]
 YumiSizedArray = np.ndarray
@@ -14,11 +14,14 @@ YumiSizedArray = np.ndarray
 def secondary_nothing(q : YumiSizedArray, dq : YumiSizedArray) -> YumiSizedArray: 
     return np.zeros(YumiRobotConstants.DOF)
 
+def secondary_configuration(q : YumiSizedArray, dq : YumiSizedArray, q0 : YumiSizedArray, k : float = 10):
+    return - k * (1/YumiRobotConstants.DOF) * (q - q0) / q_span ** 2
+
 def secondary_neutral(q : YumiSizedArray, dq : YumiSizedArray, k : float = 10) -> YumiSizedArray: 
-    return - k * (1/YumiRobotConstants.DOF) * (q - YumiRobotConstants.JOINT_POS_NEUTRAL) / q_span ** 2
+    return secondary_configuration(q, dq, YumiRobotConstants.JOINT_POS_NEUTRAL, k)
 
 def secondary_center(q : YumiSizedArray, dq : YumiSizedArray, k : float = 10) -> YumiSizedArray: 
-    return - k * (1/YumiRobotConstants.DOF) * (q - q_avg) / q_span ** 2
+    return secondary_configuration(q, dq, q_avg, k)
 
 class SecondaryManipulability():
     

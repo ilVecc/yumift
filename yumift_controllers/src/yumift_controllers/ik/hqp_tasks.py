@@ -1,7 +1,7 @@
 import numpy as np
 
-from dynamicals.utils import Frame
-from dynamicals.solvers.hqp import UpperTask, EqualTask
+from dynamicals.utils import Frame, normalize3
+from dynamicals.solvers.hqp import LowerTask, EqualTask, UpperTask
 
 
 #
@@ -28,7 +28,7 @@ class JacobianControlTask(EqualTask):
 # Joint bounds
 #
 
-class JointPositionBoundsTask(UpperTask):
+class JointPositionBoundsTask(LowerTask):
     """ Task for keeping joint positions from saturating
     """
     def __init__(self, dof: int, bounds_lower: np.ndarray, bounds_upper: np.ndarray):
@@ -42,13 +42,6 @@ class JointPositionBoundsTask(UpperTask):
         self._joint_pos = np.zeros((self.m))
 
     def compute(self, joint_position: np.ndarray, timestep: float = None):
-        # constr_mat_upper =  self.timestep * np.eye(self.ndim)
-        # constr_mat_lower = -self.timestep * np.eye(self.ndim)
-        # constr_vec_upper =  self.bounds_upper - joint_position
-        # constr_vec_lower = -self.bounds_lower + joint_position
-        # self.constr_mat = np.vstack((constr_mat_upper, constr_mat_lower))
-        # self.constr_vec = np.hstack((constr_vec_upper, constr_vec_lower))
-
         self._joint_pos[0:self.n] = -joint_position
         self._joint_pos[self.n:2*self.n] = joint_position
 
@@ -59,7 +52,7 @@ class JointPositionBoundsTask(UpperTask):
         return self
 
 
-class JointVelocityBoundsTask(UpperTask):
+class JointVelocityBoundsTask(LowerTask):
     """ Task for keeping joint velocity within limits
     """
     def __init__(self, dof: int, bounds_lower: np.ndarray, bounds_upper: np.ndarray):
@@ -70,15 +63,7 @@ class JointVelocityBoundsTask(UpperTask):
         self.constr_vec = np.hstack((bounds_upper, -bounds_lower))
 
     def compute(self):
-        # constr_mat_lower = -self._eye_n
-        # constr_mat_upper =  self._eye_n
-        # constr_vec_lower = -self.bounds_lower
-        # constr_vec_upper =  self.bounds_upper
-        # self.constr_mat = np.vstack((constr_mat_upper, constr_mat_lower))
-        # self.constr_vec = np.hstack((constr_vec_upper, constr_vec_lower))
-        
-        # the code above is constant, so it has been compacted and cached in `__init__()`
-        
+        # the constraint is constant, so it's cached in `__init__()`
         return self
 
 
@@ -86,6 +71,7 @@ class JointVelocityBoundsTask(UpperTask):
 # Potential-based control
 #
 
+# TODO how does this work?
 class JointPositionPotential(EqualTask):
     """ Task for keeping a good joint configuration. 
     """
@@ -97,11 +83,11 @@ class JointPositionPotential(EqualTask):
         self._eye_n = np.eye(self.n)
 
     def compute(self, joint_position: np.ndarray, timestep: float):
-        """ Sets up constraints for joint potential,
+        """ Sets up constraints for joint potential.
             :param joint_position: current joint state
             :param timestep: current timestep
         """
-        self.constr_mat = 100 * timestep * self._eye_n
+        self.constr_mat = timestep * self._eye_n
         self.constr_vec = (self.default_pos - joint_position) * 0.5 * self.weights
         
         return self
@@ -195,7 +181,11 @@ class RelativeControl(JacobianControlTask):
         return super().compute(control_vel_rel, jacobian_coordinated_rel)
 
 
-class ElbowProximity(UpperTask):
+#
+# Cartesian constraints
+#
+
+class ElbowsProximity(UpperTask):
     """ Task for keeping a proximity between the elbows of the robot
     """
     def __init__(self, dof: int, min_dist: float):
@@ -208,7 +198,7 @@ class ElbowProximity(UpperTask):
 
     def compute(self, jacobian_elbows: np.ndarray, pose_elbow_r: Frame, pose_elbow_l: Frame, timestep: float = None):
         """ Sets up the constraint for elbow proximity
-            :param jacobian_elbows: combined jacobian of the grippers
+            :param jacobian_elbows: combined jacobian of the elbows
             :param pose_elbow_r: pose of the right elbow
             :param pose_elbow_l: pose of the left elbow
         """
@@ -220,27 +210,22 @@ class ElbowProximity(UpperTask):
         pos_l_y = pose_elbow_l.pos[1]
         diff_dir, diff_norm = 1, abs(pos_r_y - pos_l_y)
 
-        self.constr_mat = -timestep * 10 * diff_dir * self._link_mat @ self._jacobian
-        self.constr_vec = -(self.min_dist - diff_norm)
+        self.constr_mat = timestep * diff_dir * self._link_mat @ self._jacobian
+        self.constr_vec = self.min_dist - diff_norm
         
         return self
 
 
-class EndEffectorProximity(UpperTask):
-    """ Task for keeping minimum proximity between the grippers 
+class EndEffectorsProximity(UpperTask):
+    """ Task for keeping minimum proximity between the grippers
     """
     def __init__(self, dof: int, min_dist: float):
         super().__init__(dof, 1, 1e3)
         self.min_dist = min_dist
         # cache
-        self._link_mat = np.hstack([ np.eye(2), -np.eye(2) ])
-        self._jacobian = np.zeros((4, self.n))
+        self._link_mat = np.hstack([ np.eye(3), -np.eye(3) ])
+        self._jacobian = np.zeros((6, self.n))
     
-    @classmethod
-    def _normalize2(v: np.ndarray):
-        norm = np.sqrt(v[0]**2 + v[1]**2)
-        return v / (norm or 1), norm
-
     def compute(self, jacobian_grippers: np.ndarray, pose_gripper_r: Frame, pose_gripper_l: Frame, timestep: float = None):
         """ Sets up the constraints collision avoidance, i.e. the grippers will deviate 
             from control command in order to not collide.
@@ -248,15 +233,55 @@ class EndEffectorProximity(UpperTask):
             :param pose_gripper_r: pose of the right gripper 
             :param pose_gripper_l: pose of the left gripper
         """
+        # ||P_r - P_l|| >= min_dist
+        # P_r = (jacobian_r * dq_r) * DT + pose_r.pos
+        # P_l = (jacobian_l * dq_l) * DT + pose_l.pos
         
-        self._jacobian[0:2, 0:7] = jacobian_grippers[0:2, 0:7]  # select xy-plane
-        self._jacobian[2:4, 7:14] = jacobian_grippers[6:8, 7:14]  # select xy-plane
+        self._jacobian[0:3, 0:7] = jacobian_grippers[0:3, 0:7]
+        self._jacobian[3:6, 7:14] = jacobian_grippers[6:9, 7:14]
 
-        pos_r_xy = pose_gripper_r.pos[0:2]  # select xy-plane
-        pos_l_xy = pose_gripper_l.pos[0:2]
-        diff_dir, diff_norm = self._normalize2(pos_r_xy - pos_l_xy)
+        pos_r = pose_gripper_r.pos
+        pos_l = pose_gripper_l.pos
+        diff_dir, diff_norm = normalize3(pos_r - pos_l, return_norm=True)
 
-        self.constr_mat = -timestep * 10 * diff_dir @ self._link_mat @ self._jacobian
-        self.constr_vec = -(self.min_dist - diff_norm)
+        self.constr_mat = timestep * diff_dir @ self._link_mat @ self._jacobian
+        self.constr_vec = self.min_dist - diff_norm
+        
+        return self
+
+
+class ElbowInRegion(UpperTask):
+    """ Task for keeping an elbow within a given region of SE(3).
+        The region is a plane `n @ (r - r0) >= 0` defined by a reference frame 
+        (R,t), with the rotation z-axis being the normal vector `n` and the 
+        origin being a point on the plane `r0`. The desired region is thus 
+        defined as `Rz @ (X - t) >= 0`.
+    """
+    def __init__(self, dof: int, plane: Frame):
+        """"""
+        super().__init__(dof, 1, 1e3)
+        
+        # region : plane.rot.z @ (X - plane.pos) >= 0
+        self.region_normal = plane.rotmat[:,2]
+        self.region_origin = plane.pos
+        # cache
+        self._jacobian = np.zeros((3, self.n))
+
+    def compute(self, jacobian_elbow: np.ndarray, pose_elbow: Frame, timestep: float = None):
+        """ Sets up the constraint for elbow proximity
+            :param jacobian_elbow: combined jacobian of the grippers
+            :param pose_elbow: pose of the elbow
+        """
+        # region_normal @ (X - region_origin) >= 0
+        # X = (jacobian_elbow @ dq) * DT + pose_elbow.pos
+        
+        # (DT * region_normal @ jacobian_elbow) @ dq >= region_normal @ (region_origin - pose_elbow.pos)
+        
+        # copy both right and left (position only), as we need all the dofs here (clearly, one copy will be full zeros)
+        self._jacobian[:, 0:4] = jacobian_elbow[0:3, 0:4]
+        self._jacobian[:, 7:11] = jacobian_elbow[0:3, 4:8]
+        
+        self.constr_mat = timestep * self.region_normal @ self._jacobian
+        self.constr_vec = self.region_normal @ (self.region_origin - pose_elbow.pos)
         
         return self

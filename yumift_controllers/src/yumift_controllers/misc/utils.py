@@ -34,53 +34,62 @@ def RobotStateMsg_to_YumiCoordinatedRobotState(robot_state: RobotStateMsg, yumi_
     yumi_state.grip_r = robot_state.jointState[0].position[7]
     yumi_state.grip_l = robot_state.jointState[1].position[7]
 
-    if "gripper_r" in robot_state.poseName:
-        yumi_state.pose_gripper_r = PoseMsg_to_Frame(robot_state.pose[0])
-        yumi_state.pose_gripper_r.vel = TwistMsg_to_ndarray(robot_state.poseTwist[0])
-        pose_wrench_r = WrenchMsg_to_ndarray(robot_state.poseWrench[0])
-        jac_gripper_r = JacobianMsg_to_ndarray(robot_state.jacobian[0])
+    pose_names = {name: idx for idx, name in enumerate(robot_state.poseName)}
+    
+    if "gripper_r" in pose_names:
+        idx = pose_names["gripper_r"]
+        yumi_state.pose_gripper_r = PoseMsg_to_Frame(robot_state.pose[idx])
+        yumi_state.pose_gripper_r.vel = TwistMsg_to_ndarray(robot_state.poseTwist[idx])
+        pose_wrench_r = WrenchMsg_to_ndarray(robot_state.poseWrench[idx])
+        jac_gripper_r = JacobianMsg_to_ndarray(robot_state.jacobian[idx])
     else:
         pose_wrench_r = np.zeros(6)
         jac_gripper_r = np.zeros((6,7))
-    if "gripper_l" in robot_state.poseName:
-        yumi_state.pose_gripper_l = PoseMsg_to_Frame(robot_state.pose[1])
-        yumi_state.pose_gripper_l.vel = TwistMsg_to_ndarray(robot_state.poseTwist[1])
-        pose_wrench_l = WrenchMsg_to_ndarray(robot_state.poseWrench[1])
-        jac_gripper_l = JacobianMsg_to_ndarray(robot_state.jacobian[1])
+    if "gripper_l" in pose_names:
+        idx = pose_names["gripper_l"]
+        yumi_state.pose_gripper_l = PoseMsg_to_Frame(robot_state.pose[idx])
+        yumi_state.pose_gripper_l.vel = TwistMsg_to_ndarray(robot_state.poseTwist[idx])
+        pose_wrench_l = WrenchMsg_to_ndarray(robot_state.poseWrench[idx])
+        jac_gripper_l = JacobianMsg_to_ndarray(robot_state.jacobian[idx])
     else:
         pose_wrench_l = np.zeros(6)
         jac_gripper_l = np.zeros((6,7))
     yumi_state.effector_wrc = np.concatenate([pose_wrench_r, pose_wrench_l])
     yumi_state.jacobian_grippers = jacobian_combine(jac_gripper_r, jac_gripper_l)
 
-    if "absolute" in robot_state.poseName:
-        yumi_state.pose_abs = PoseMsg_to_Frame(robot_state.pose[2], yumi_state.pose_abs)
-        yumi_state.pose_abs.vel = TwistMsg_to_ndarray(robot_state.poseTwist[2])
-        yumi_state.pose_wrench_abs = WrenchMsg_to_ndarray(robot_state.poseWrench[2])
-        jac_abs = JacobianMsg_to_ndarray(robot_state.jacobian[2])
+    # TODO PoseMsg_to_Frame : do we use C-style or Python-style?
+    if "absolute" in pose_names:
+        idx = pose_names["absolute"]
+        yumi_state.pose_abs = PoseMsg_to_Frame(robot_state.pose[idx], yumi_state.pose_abs)
+        yumi_state.pose_abs.vel = TwistMsg_to_ndarray(robot_state.poseTwist[idx])
+        yumi_state.pose_wrench_abs = WrenchMsg_to_ndarray(robot_state.poseWrench[idx])
+        jac_abs = JacobianMsg_to_ndarray(robot_state.jacobian[idx])
     else:
         yumi_state.pose_wrench_abs = np.zeros(6)
         jac_abs = np.zeros((6,14))
-    if "relative" in robot_state.poseName:
-        yumi_state.pose_rel = PoseMsg_to_Frame(robot_state.pose[3], yumi_state.pose_rel)
-        yumi_state.pose_rel.vel = TwistMsg_to_ndarray(robot_state.poseTwist[3])
-        yumi_state.pose_wrench_rel = WrenchMsg_to_ndarray(robot_state.poseWrench[3])
-        jac_rel = JacobianMsg_to_ndarray(robot_state.jacobian[3])
+    if "relative" in pose_names:
+        idx = pose_names["relative"]
+        yumi_state.pose_rel = PoseMsg_to_Frame(robot_state.pose[idx], yumi_state.pose_rel)
+        yumi_state.pose_rel.vel = TwistMsg_to_ndarray(robot_state.poseTwist[idx])
+        yumi_state.pose_wrench_rel = WrenchMsg_to_ndarray(robot_state.poseWrench[idx])
+        jac_rel = JacobianMsg_to_ndarray(robot_state.jacobian[idx])
     else:
         yumi_state.pose_wrench_rel = np.zeros(6)
         jac_rel = np.zeros((6,14))
     yumi_state.jacobian_coordinated = np.vstack([jac_abs, jac_rel])
 
-    if "elbow_r" in robot_state.poseName:
-        yumi_state.pose_elbow_r = PoseMsg_to_Frame(robot_state.pose[4])
-        yumi_state.pose_elbow_r.vel = TwistMsg_to_ndarray(robot_state.poseTwist[4])
-        jac_elb_r = JacobianMsg_to_ndarray(robot_state.jacobian[4])
+    if "elbow_r" in pose_names:
+        idx = pose_names["elbow_r"]
+        yumi_state.pose_elbow_r = PoseMsg_to_Frame(robot_state.pose[idx])
+        yumi_state.pose_elbow_r.vel = TwistMsg_to_ndarray(robot_state.poseTwist[idx])
+        jac_elb_r = JacobianMsg_to_ndarray(robot_state.jacobian[idx])
     else:
         jac_elb_r = np.zeros((6,7))
-    if "elbow_l" in robot_state.poseName:
-        yumi_state.pose_elbow_l = PoseMsg_to_Frame(robot_state.pose[5])
-        yumi_state.pose_elbow_l.vel = TwistMsg_to_ndarray(robot_state.poseTwist[5])
-        jac_elb_l = JacobianMsg_to_ndarray(robot_state.jacobian[5])
+    if "elbow_l" in pose_names:
+        idx = pose_names["elbow_l"]
+        yumi_state.pose_elbow_l = PoseMsg_to_Frame(robot_state.pose[idx])
+        yumi_state.pose_elbow_l.vel = TwistMsg_to_ndarray(robot_state.poseTwist[idx])
+        jac_elb_l = JacobianMsg_to_ndarray(robot_state.jacobian[idx])
     else:
         jac_elb_l = np.zeros((6,7))
     yumi_state.jacobian_elbows = jacobian_combine(jac_elb_r, jac_elb_l)

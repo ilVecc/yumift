@@ -184,11 +184,11 @@ class EGMLink():
             
             if not res.ok:
                 rospy.logerr("CONTROLLER NOT SWITCHED!")
-                rospy.logerr(" - is the firewall turned off?)")
-                rospy.logerr(" - is the robot in AUTO mode?)")
-                rospy.logerr(" - has the robot just recovered from an Emergency Stop?)")
-                rospy.logerr(" - are revolute counters up-to-date?)")
-                rospy.logerr(" - is your IP the one expected by YuMi in \"Transmission Protocol\"?)")
+                rospy.logerr(" - is the firewall turned off?")
+                rospy.logerr(" - is the robot in AUTO mode?")
+                rospy.logerr(" - has the robot just recovered from an Emergency Stop?")
+                rospy.logerr(" - are revolute counters up-to-date?")
+                rospy.logerr(" - is your IP the one expected by YuMi in \"Transmission Protocol\"?")
                 raise rospy.ROSException("Could not switch controller")
             
             rospy.loginfo("Controller configuration switched")

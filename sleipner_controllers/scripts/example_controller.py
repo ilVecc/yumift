@@ -16,9 +16,12 @@ class DummySleipnerController(
 
     def __init__(self, sleipner_device : SleipnerCartesianDevice):
         super().__init__(sleipner_device)
+        self._device : SleipnerCartesianDevice
         self.control_law = CartesianVelocityControlLaw(k_p=1, k_o=1)
-        # move 2 meters forward
-        self.target = self.device_read().to_Frame()
+        # Move 2 meters forward from the starting pose (home).
+        # Use `self.device_read().to_Frame()` if you prefer to use poses in the 
+        # odometry reference frame (no homing).
+        self.target = self._device.state_wrt_home()  
         self.target.pos[0] += 2
     
     @override
@@ -30,7 +33,7 @@ class DummySleipnerController(
         # take the delta between the current wall time and the time of the robot state
         dt = ControllerParameters.dt  # self.dt(state.time)
         # convert the robot state to a SE3 frame
-        pose_now = state.to_Frame()
+        pose_now = self._device.state_wrt_home()
         # compute the velocity to bring the current pose to the target
         vel = self.control_law.update_and_compute(pose_now, self.target, dt)
         # finally, convert the SE3 twist in a SE2 twist

@@ -26,7 +26,7 @@
     <include file="$(find yumift_common)/launch/unified_state_updater.launch">
       <!-- TODO remove this line and dynamically load it -->
       <arg name="coordinated_symmetry" value="0"/>
-      <arg unless="$(arg coordinated)" name="update_options" value="3" />
+      <arg unless="$(arg coordinated)" name="update_options" value="$(eval 3 + 48)" />  <!-- if COORDINATED then EVERYTHING else INDIVIDUAL+ELBOWS -->
       <arg name="topic_sensor_r" default="sensors/wrench/right/compensated_world"/>
       <arg name="topic_sensor_l" default="sensors/wrench/left/compensated_world"/>
       <arg name="topic_kinematics" default="unified/kinematics"/>

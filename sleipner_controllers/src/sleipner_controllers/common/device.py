@@ -171,8 +171,10 @@ class SleipnerCartesianDevice(AbstractDevice[SleipnerCartesianDeviceState, Sleip
         # pose of Sleipner's top surface from odom
         self.odomXs = Frame(position=[0, 0, 0.303])
     
-    def state_wrt_home(self, state : SleipnerCartesianDeviceState) -> Frame:
+    def state_wrt_home(self, state : SleipnerCartesianDeviceState = None) -> Frame:
         # base transform in home (i.e. sleipner's pose at startup, based on odometry)
+        if state is None:
+            state = self._cache_state
         return self.homeXw @ state.to_Frame()
     
     def _callback_received_odom(self, data: OdometryMsg):

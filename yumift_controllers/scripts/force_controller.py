@@ -130,13 +130,9 @@ class YumiForceController(YumiDualController):
         xdot[6:12] = action.get("velocity_left")
         jacobian = state.jacobian_grippers
         
-        joint_pos = np.zeros(14)
-        joint_pos[0:7] = state.joint_pos_r
-        joint_pos[7:14] = state.joint_pos_l
-        
         jacobian_pinv = np.linalg.pinv(jacobian)
         ortho_proj = np.eye(14) - jacobian_pinv @ jacobian
-        dq_target = jacobian_pinv @ xdot + ortho_proj @ secondary_neutral(joint_pos, None)
+        dq_target = jacobian_pinv @ xdot + ortho_proj @ secondary_neutral(state.joint_pos, None)
 
         return YumiDualDeviceCommand(dq_target)
 

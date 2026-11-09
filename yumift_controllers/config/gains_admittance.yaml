@@ -3,9 +3,9 @@ IR:
   K_P: 3.0     # Gain for positional error
   K_O: 6.0   # Gain for angular error
   # Force admittance
-  F_M: [2.5, 2.5, 2.5]
-  F_D: [75, 75, 75]
-  F_K: [0, 0, 0]
+  F_M: [2.0, 2.0, 2.0]
+  F_D: [40, 40, 40]  # critical damping --> D = 2*sqrt(M*K)
+  F_K: [200, 200, 200]
   # Torque admittance
   T_M: [100000, 100000, 100000]
   T_D: [50000, 50000, 50000]
@@ -15,14 +15,10 @@ IL:
   K_P: 3.0   # Gain for positional error
   K_O: 0.0   # Gain for angular error
   # Force admittance
-  # F_M: [200, 200, 200]
   F_M: [2.0, 2.0, 2.0]
   F_D: [40, 40, 40]  # critical damping --> D = 2*sqrt(M*K)
   F_K: [200, 200, 200]
   # Torque admittance
-  # T_M: [5, 5, 5]
-  # T_D: [7, 7, 7]  # critical damping --> D = 2*sqrt(M*K)
-  # T_K: [10, 10, 10]
   T_M: [100000, 100000, 100000]
   T_D: [50000, 50000, 50000]
   T_K: [0, 0, 0]

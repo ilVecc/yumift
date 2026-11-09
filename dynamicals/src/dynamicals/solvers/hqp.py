@@ -12,11 +12,20 @@ class HQPTaskError(RuntimeError):
 
 
 class Task(object, metaclass=ABCMeta):
-    """ Base abstract class for all tasks.
+    """ A generic task for the HQP solver.
+        Directly subclassing this class is discouraged, please subclass one of 
+        `LowerTask`, `EqualTask` or `UpperTask`, which come with all of the 
+        required inner logic implemented.
+        
         Based on https://github.com/ritalaezza/sot-myo/blob/akos_re/src/Task.py
     """
     
     def __init__(self, n: int, m: int, slack_ratio: float = 1e4):
+        """ Prepares all the internal caches for the subclasses to use.
+            :param n: degrees of freedom of the solution (i.e. number of free variables solving the task)
+            :param m: degrees of freedom of the task (i.e. number of constraint equations defining the task)
+            :param slack_ratio: ratio between the solution cost and the slack variables cost (i.e. how important slack is, higher values mean less importance)
+        """
         # NON-SLACKED PROBLEM
         #   constr_mat * x = constr_vec
         # where 
@@ -30,9 +39,9 @@ class Task(object, metaclass=ABCMeta):
         #   slack_contrs_mat is m x (n + m)
         #                  y is (n + m) x 1
         #         constr_vec is m x 1
-        self.n : int = n  # number of free variables
-        self.m : int = m  # number of constraint equations defining the task
-        self.slack_ratio: float = slack_ratio  # between solution and w cost
+        self.n : int = n
+        self.m : int = m
+        self.slack_ratio: float = slack_ratio
         self.constr_mat = np.zeros((self.m,self.n))
         self.constr_vec = np.zeros((self.m,))
         # handy slack vector to store previously calculated slack for this task
@@ -42,7 +51,7 @@ class Task(object, metaclass=ABCMeta):
         self._cost_mat[-self.m:, -self.m:] *= self.slack_ratio
         self._cost_vec = np.zeros((self.n + self.m,))
         # cache for the slack matrices
-        self._with_slack_locked_mat : np.ndarray = None                     # cache matrix for A or G in .with_slack_locked()
+        self._with_slack_locked_mat : np.ndarray = None  # (m, n+?)         # cache matrix for A or G in .with_slack_locked()
         self._with_slack_constr_mat = np.zeros((self.m, self.n + self.m))   # cache matrix for A or G in .with_slack_ready()
         self._with_slack_zeros_mat = np.zeros((1, self.n + self.m))     # either for A or G
         self._with_slack_zeros_vec = np.zeros((1,))                     # either for b or h
@@ -89,7 +98,7 @@ class Task(object, metaclass=ABCMeta):
         return self
 
 
-class UpperTask(Task):
+class LowerTask(Task):
     """ Task describing the problem `Gx <= h`
     """
     
@@ -150,15 +159,14 @@ class EqualTask(Task):
         self._with_slack_constr_mat[:, :self.n] = self.constr_mat
         return self._with_slack_constr_mat, self.constr_vec, self._with_slack_zeros_mat, self._with_slack_zeros_vec
 
-class LowerTask(Task):
-    """ Task describing the problem `Gx >= h` (internally achieved as `-Gx <= -h` 
-        since `<=` is the inequality we assume in the solver).
+class UpperTask(Task):
+    """ Task describing the problem `Gx >= h`.
     """
     
     def __init__(self, n: int, m: int, slack_ratio: float = 1e4):
         super().__init__(n, m, slack_ratio)
         # cache
-        self._with_slack_constr_mat[:, self.n:] = np.eye(self.m)
+        self._with_slack_constr_mat[:, self.n:] = -np.eye(self.m)
 
     @override
     def with_slack_locked(self, m_other: int, w: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -170,8 +178,8 @@ class LowerTask(Task):
         
         self._with_slack_locked_mat[:, :self.n] = self.constr_mat
         G = self._with_slack_locked_mat[:, :self.n+m_other]  # slice only the required columns
-        h = self.constr_vec - np.maximum(w, 0)
-        return None, None, G, h
+        h = self.constr_vec + np.maximum(w, 0)
+        return None, None, -G, -h
 
     @override
     def with_slack_ready(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -179,7 +187,7 @@ class LowerTask(Task):
             i.e. one for each row of the task.
         """
         self._with_slack_constr_mat[:, :self.n] = self.constr_mat
-        return self._with_slack_zeros_mat, self._with_slack_zeros_vec, self._with_slack_constr_mat, self.constr_vec
+        return self._with_slack_zeros_mat, self._with_slack_zeros_vec, -self._with_slack_constr_mat, -self.constr_vec
 
 
 
@@ -189,11 +197,10 @@ class HQPSolver(object):
     """
     
     def __init__(self, SoT: List[Task] = None):
+        # self.slack_boundary = 1e-5  # currently unused
         self._cache_SoT = SoT
         if SoT is not None:
             self._preallocate_tasks(SoT)
-        # self.slack_boundary = 1e-5      # Currently unused.
-        # self.slack_ratio = 5e4          # Between solution and w cost
     
     def _preallocate_tasks(self, SoT: List[Task]):
         # pre-allocate matrices to be as big as the biggest m_i of the next 

@@ -147,13 +147,13 @@ class HQPIKAlgorithm(IKAlgorithm):
             # (4.2) right motion
             SoT.append(self._tasks["right_control"].compute(
                 control_vel_right=action["velocity_right"],
-                jacobian_grippers_right=state.jacobian_gripper_r))
+                jacobian_grippers_right=state.jacobian_grippers[:6,:]))
         
         elif action["control_space"] == MixedVelocityYumiAction.ControlSpace.LEFT:
             # (4.3) left motion
             SoT.append(self._tasks["left_control"].compute(
                 control_vel_left=action["velocity_left"],
-                jacobian_grippers_left=state.jacobian_gripper_l))
+                jacobian_grippers_left=state.jacobian_grippers[6:,:]))
 
         elif action["control_space"] == MixedVelocityYumiAction.ControlSpace.COORDINATED:
             # (4.1) coordinated motion

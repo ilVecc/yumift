@@ -113,7 +113,7 @@ class YumiTrajectoryController(RoutinableYumiController):
             robot_handle=YumiDevice(coordinated_balance=0.5), 
             iksolvers=[PINVIKAlgorithm(), HQPIKAlgorithm()], 
             routines=[ReadyPoseRoutine(), CalibPoseRoutine(), AbortTrajectoryRoutine()])
-        self._iksolver.switch("pinv")
+        self._iksolver.switch("hqp")
         
         # define control law
         self.control_law = control_law

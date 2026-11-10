@@ -11,7 +11,8 @@ catkin_install_python(PROGRAMS
   scripts/examples/example_1_simple_trajectory.py
   scripts/examples/example_2_reference_frames_basic.py
   scripts/examples/example_3_reference_frames_advanced.py
-  scripts/examples/example_4_coordinated_mode.py
+  scripts/examples/example_4_individual_motions.py
+  scripts/examples/example_5_coordinated_motions.py
   scripts/examples/example_5_coordinated_nullspace.py
   scripts/examples/example_6_robot_introspection.py
   scripts/examples/example_wiggle.py

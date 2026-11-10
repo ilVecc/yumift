@@ -74,7 +74,7 @@ class Helper():
     @staticmethod
     def e2q(a1 : float = 0, a2 : float = 0, a3 : float = 0, axes : str = "rxyz") -> np.ndarray:
         """ Create quaternions from Euler angles, in either relative or static base. 
-            `a1`, `a2`, `a3` are the angles for the chosen order in `axes`.
+            `a1`, `a2`, `a3` are the angles for the chosen order in `axes`, in degrees.
             The output quaternion follows the `[w, x, y, z]` convention.
         """
         return Helper._quat_xyzw_to_wxyz(trans.quaternion_from_euler(np.radians(a1), np.radians(a2), np.radians(a3), axes))
